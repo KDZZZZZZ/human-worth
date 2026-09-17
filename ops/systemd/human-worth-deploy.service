@@ -1,0 +1,16 @@
+[Unit]
+Description=Pull and deploy successful Human Worth dev revisions
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=human-worth-deploy
+Group=human-worth-deploy
+ExecStart=/usr/bin/python3 /usr/local/lib/human-worth/deploy.py
+TimeoutStartSec=240
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/human-worth
+Environment=GIT_TERMINAL_PROMPT=0

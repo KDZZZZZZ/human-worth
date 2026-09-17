@@ -1,0 +1,24 @@
+[Unit]
+Description=Human Worth frontend and API
+After=network.target
+ConditionPathExists=/opt/human-worth/current/app/server.mjs
+
+[Service]
+Type=simple
+User=human-worth
+Group=human-worth
+WorkingDirectory=/opt/human-worth/current
+ExecStart=/usr/local/bin/node /opt/human-worth/current/app/server.mjs
+Environment=NODE_ENV=production HOST=127.0.0.1 PORT=18090
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+RestrictSUIDSGID=yes
+CapabilityBoundingSet=
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
