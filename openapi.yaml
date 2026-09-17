@@ -1,0 +1,1645 @@
+openapi: 3.1.1
+info:
+  title: Human Worth API
+  version: 0.1.0-draft
+  summary: 人类价值平台的 HTTP 接口契约草案
+  description: |
+    行为依据为 docs/prd.md 中的可信场景 S1～S6，以及 AGENTS.md 的发帖、评论、投票目标。
+    当前仅 /api/health 的 GET、HEAD 已实现；其余 operation 均为 planned，不能据此认定线上可调用。
+    路径、字段、状态枚举、认证载体和分页等具体选择属于 Agent Self-Claimed，详见 docs/references.md。
+
+    普通 GET 不改变投票资格，不返回或预取单题得票、胜率；投票响应也不附带统计。
+    只有显式 POST statistics-access 可以读取具体统计，且必须先持久化账号 × 任务的永久禁投记录。
+    网站、MCP 和管理员查看单题具体统计均经过此入口；管理角色不能绕过资格变化。
+    所有业务响应使用 Cache-Control: no-store；错误响应也不得泄露统计、密钥或私有内容。
+
+    网站使用会话及 CSRF token；MCP token 仅用于公开内容读取和显式统计访问，不接受于投稿、投票或管理接口。
+    账号和管理员身份由服务端认证取得，不接受客户端指定账号或角色。两种凭据必须映射到同一稳定账号 ID。
+    公开操作允许不带凭据；携带无效凭据时返回 401，不退回匿名访问；同时携带会话与 Bearer 时返回 400。
+    业务接口启用前须接入 HTTPS；现有公网 HTTP 仅用于建设中页面和健康检查。
+    登录注册、token 签发/吊销、管理员授予、具体算法、文件限额及云端内部通信不在本草案中定案。
+externalDocs:
+  description: 产品需求与可信场景
+  url: https://github.com/KDZZZZZZ/human-worth/blob/dev/docs/prd.md
+servers:
+  - url: /
+    description: 同源部署；planned 接口尚不可调用，带凭据的业务请求必须使用 HTTPS
+security:
+  - WebSession: []
+    CsrfToken: []
+x-contract-authority: Agent Self-Claimed
+x-mcp:
+  description: |
+    以下仅为本地 MCP 工具到 HTTP 操作的映射提案，不是 MCP 的 JSON-RPC 或传输协议定义。
+    仅暴露下列三个工具；不要从本文件自动暴露全部 operation。
+    工具注解是提示，服务端仍须执行账号、用途和权限检查。
+  tools:
+    list_tasks:
+      operationId: listTasks
+      readOnlyHint: true
+    get_task:
+      operationId: getTask
+      readOnlyHint: true
+      description: 仅公开任务内容；作品可通过公开读取接口加载，禁止隐式拉取统计。
+    view_task_statistics:
+      operationId: accessTaskStatistics
+      readOnlyHint: false
+      destructiveHint: true
+      description: 客户端须先说明永久失去该题投票权，再以明确确认为参数调用；不提交选票。
+tags:
+  - {name: Health, description: 已实现的基础服务}
+  - {name: Account, description: 当前会话和本人投稿}
+  - {name: Tasks, description: 推荐发现、任务与公开作品}
+  - {name: Submissions, description: 草稿、上传与审核申请}
+  - {name: Voting, description: 真人比较与永久投票资格}
+  - {name: Board, description: 公开看板与热度排行}
+  - {name: Discussion, description: 评论及举报}
+  - {name: Administration, description: 管理员审核、下架与审计}
+  - {name: Challenges, description: 管理员云端挑战与公开进度}
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: 获取基础服务健康状态
+      x-implementation-status: implemented
+      security: []
+      responses:
+        '200':
+          description: 当前进程可响应；不代表产品业务或云端挑战已实现
+          headers:
+            Cache-Control: {$ref: '#/components/headers/NoStore'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Health'}
+              example: {status: ok, service: human-worth, stage: foundation, revision: development}
+    head:
+      tags: [Health]
+      operationId: headHealth
+      summary: 检查基础服务是否可响应
+      x-implementation-status: implemented
+      security: []
+      responses:
+        '200':
+          description: 与 GET 相同的状态及响应头，无响应体
+          headers:
+            Cache-Control: {$ref: '#/components/headers/NoStore'}
+            Content-Type:
+              schema: {type: string, const: 'application/json; charset=utf-8'}
+
+  /api/me:
+    get:
+      tags: [Account]
+      operationId: getCurrentSession
+      summary: 获取当前网站账号与 CSRF token
+      x-scenarios: [S2, S3, S4, S5]
+      x-implementation-status: planned
+      security: [{WebSession: []}]
+      responses:
+        '200':
+          description: 本人身份；csrfToken 仅用于当前网站会话的写请求
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Session'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/tasks:
+    get:
+      tags: [Tasks]
+      operationId: listTasks
+      summary: 分页浏览公开任务
+      description: |
+        首页默认 recommended；看板排行榜使用 hot，按热度降序排列，同热度按任务 ID 升序。
+        游标绑定排序、筛选及列表快照，持续滚动不重复同一任务；快照内已下架内容即时过滤。
+        不返回具体得票或胜率，不因读取改变资格。heat 是不可反推出具体票数的排序分值。
+        q 仅检索允许公开的任务文本，不检索私有投稿或统计。
+      x-scenarios: [S1, S5, S6]
+      x-implementation-status: planned
+      security: [{}, {WebSession: []}, {McpToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+        - name: order
+          in: query
+          schema: {type: string, enum: [recommended, hot], default: recommended}
+        - name: category
+          in: query
+          schema: {type: string, minLength: 1}
+        - name: q
+          in: query
+          schema: {type: string, minLength: 1}
+      responses:
+        '200':
+          description: 已审核发布任务；nextCursor 为 null 时没有后续页
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskPage'}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      tags: [Submissions]
+      operationId: createTaskDraft
+      summary: 保存新任务草稿
+      description: 可缺少一方或双方作品，不进入公开查询或审核，不启动云端挑战。
+      x-scenarios: [S2]
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TaskDraftInput'}
+      responses:
+        '201':
+          description: 本人草稿已保存
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskSubmission'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/tasks/{taskId}:
+    parameters: [{$ref: '#/components/parameters/TaskId'}]
+    get:
+      tags: [Tasks]
+      operationId: getTask
+      summary: 阅读公开任务详情
+      description: 只返回已发布任务；草稿、待审、驳回和下架内容返回 404。作品列表独立分页，不隐式读取统计。
+      x-scenarios: [S1, S3, S5, S6]
+      x-implementation-status: planned
+      security: [{}, {WebSession: []}, {McpToken: []}]
+      responses:
+        '200':
+          description: 公开任务正文，不含票数和胜率
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicTask'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/tasks/{taskId}/entries:
+    parameters: [{$ref: '#/components/parameters/TaskId'}]
+    get:
+      tags: [Tasks]
+      operationId: listPublishedEntries
+      summary: 分页读取该题已发布作品
+      description: 任务及作品均须公开可见；不暴露其他人的草稿、待审作品、私有配置或单题统计。
+      x-scenarios: [S1, S3, S5]
+      x-implementation-status: planned
+      security: [{}, {WebSession: []}, {McpToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: 公开参选作品
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EntryPage'}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      tags: [Submissions]
+      operationId: submitAdditionalEntry
+      summary: 向任意公开任务追加一件作品并送审
+      description: |
+        任意网站用户可单方追加，不要求作者邀请或批准；即使已永久失去该题投票权也可投稿。
+        仅新作品进入 pending_review，原任务保持 published。作品署名不能决定投稿者账号。
+        校验资产归属、来源、授权及适用配置；不恢复投票资格，不启动云端挑战。
+      x-scenarios: [S3]
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/EntryInput'}
+      responses:
+        '201':
+          description: 新作品与独立审核记录已建立
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EntrySubmission'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/me/submissions:
+    get:
+      tags: [Account]
+      operationId: listMySubmissions
+      summary: 找回本人的任务草稿、投稿与审核结果
+      x-scenarios: [S2, S3]
+      x-implementation-status: planned
+      security: [{WebSession: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: 仅本人投稿；包括驳回原因及审核状态
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SubmissionPage'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/me/tasks/{taskId}:
+    parameters: [{$ref: '#/components/parameters/TaskId'}]
+    get:
+      tags: [Account]
+      operationId: getMyTaskSubmission
+      summary: 读取本人任务与初始作品的投稿内容
+      x-scenarios: [S2]
+      x-implementation-status: planned
+      security: [{WebSession: []}]
+      responses:
+        '200':
+          description: 仅任务投稿者可读；其他账号返回 404
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskSubmission'}
+        default: {$ref: '#/components/responses/Problem'}
+    put:
+      tags: [Submissions]
+      operationId: replaceTaskDraft
+      summary: 修改本人草稿或被驳回的任务
+      description: |
+        完整替换可编辑内容与初始作品列表，保存为 draft；pending_review、published、taken_down 返回 409。
+        expectedRevision 必须等于当前版本，否则 409；保留历史审核记录，不覆盖并发编辑。
+      x-scenarios: [S2]
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TaskDraftUpdate'}
+      responses:
+        '200':
+          description: 保存后的草稿及新版本
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskSubmission'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/me/tasks/{taskId}/review-requests:
+    parameters: [{$ref: '#/components/parameters/TaskId'}]
+    post:
+      tags: [Submissions]
+      operationId: requestTaskReview
+      summary: 将本人任务及双方初始作品一起送审
+      description: |
+        服务端校验 expectedRevision、完整任务信息及至少一件 human 和一件 agent 作品；缺少任一方返回 422。
+        所有材料须可用且授权有效；校验失败时保留草稿，不部分送审。
+        同一版本重复请求找回原审核记录；通过后任务及初始作品原子公开。发布不启动云端 agent。
+      x-scenarios: [S2]
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RevisionInput'}
+      responses:
+        '200':
+          description: 送审结果或同一版本已有结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskSubmission'}
+        '422': {$ref: '#/components/responses/InvalidSubmission'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/me/entries/{entryId}:
+    parameters: [{$ref: '#/components/parameters/EntryId'}]
+    get:
+      tags: [Account]
+      operationId: getMyEntrySubmission
+      summary: 读取本人追加作品与审核结果
+      x-scenarios: [S3]
+      x-implementation-status: planned
+      security: [{WebSession: []}]
+      responses:
+        '200':
+          description: 本人作品投稿；其他账号返回 404
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EntrySubmission'}
+        default: {$ref: '#/components/responses/Problem'}
+    put:
+      tags: [Submissions]
+      operationId: resubmitRejectedEntry
+      summary: 修改本人被驳回的追加作品并重新送审
+      description: |
+        仅被驳回且原任务仍公开的独立追加作品可重提；初始作品随任务整体修改。
+        校验 expectedRevision，生成新审核记录并保留历史；其他状态或并发冲突返回 409。
+        网络重试若携带同一旧版本和完全相同内容，找回该版本产生的重提结果，不再次投稿。
+      x-scenarios: [S3]
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/EntryUpdate'}
+      responses:
+        '200':
+          description: 新审核待办对应的作品投稿
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EntrySubmission'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/assets:
+    post:
+      tags: [Submissions]
+      operationId: uploadAsset
+      summary: 上传作品文件或压缩包
+      description: |
+        返回的资产初始仅上传者可读；引用资产须校验归属，不因上传自动公开。
+        服务端检查实际类型、大小和恶意内容；压缩包按文件保存，不自动解压执行。
+        文件白名单、大小上限及保留期在实现前确定；超限 413、不支持类型 415、内容不合法 422。
+      x-scenarios: [S2, S3]
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [file]
+              properties:
+                file: {type: string, format: binary}
+      responses:
+        '201':
+          description: 已验证且可用于投稿的私有资产
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Asset'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/assets/{assetId}:
+    parameters:
+      - name: assetId
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/Id'}
+    get:
+      tags: [Tasks]
+      operationId: downloadAsset
+      summary: 下载有权阅读的作品文件
+      description: |
+        匿名和 MCP 仅能访问属于已发布任务、已发布作品且授权公开的文件；未公开文件仅上传者或平台管理员可读。
+        下架后立即重新校验权限，不返回长期公开下载 URL。无权访问与不存在均返回 404。
+        使用附件下载与 nosniff，不在站点源内执行用户上传的 HTML 或脚本。
+      x-scenarios: [S2, S3, S4, S5]
+      x-implementation-status: planned
+      security: [{}, {WebSession: []}, {McpToken: []}]
+      responses:
+        '200':
+          description: 授权访问的原始文件字节
+          headers:
+            Content-Disposition:
+              description: 附件文件名须经过转义
+              schema: {type: string}
+            X-Content-Type-Options:
+              schema: {type: string, const: nosniff}
+          content:
+            application/octet-stream:
+              schema: {type: string, format: binary}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/tasks/{taskId}/voting-eligibility:
+    parameters: [{$ref: '#/components/parameters/TaskId'}]
+    get:
+      tags: [Voting]
+      operationId: getVotingEligibility
+      summary: 读取当前账号在该题的投票资格
+      description: 不含票数，不改变资格；账号从认证取得，不接受 accountId 参数。
+      x-scenarios: [S1, S3, S5]
+      x-implementation-status: planned
+      security: [{WebSession: []}, {McpToken: []}]
+      responses:
+        '200':
+          description: 当前账号在此题的资格
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/VotingEligibility'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/tasks/{taskId}/comparison:
+    parameters: [{$ref: '#/components/parameters/TaskId'}]
+    get:
+      tags: [Voting]
+      operationId: getComparison
+      summary: 获取当前账号可比较的人类与 agent 作品对
+      description: |
+        仅返回该题两件已审核公开作品，一件 human、一件 agent；左右随机，不包含票数或胜率。
+        comparisonId 由服务端绑定账号、任务、作品对与左右顺序；读取不提交选票或改变永久资格。
+        永久禁投返回 403；没有可投作品对返回 204。具体配对算法与防刷条件待实现时明确。
+      x-scenarios: [S1]
+      x-implementation-status: planned
+      security: [{WebSession: []}]
+      responses:
+        '200':
+          description: 可投的比较对象
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Comparison'}
+        '204': {description: 暂无可投作品对}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/tasks/{taskId}/votes/{comparisonId}:
+    parameters:
+      - {$ref: '#/components/parameters/TaskId'}
+      - name: comparisonId
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/Id'}
+    put:
+      tags: [Voting]
+      operationId: castVote
+      summary: 提交当前账号对一个作品对的选择
+      description: |
+        提案采用 left、right、tie；跳过不发送选票。每个账号对同一无序作品对最多一票，改变左右或 comparisonId 不增加票数。
+        相同选择重试返回原票，尝试改票返回 409；已永久禁投时即使重放旧票也返回 403。
+        校验比较对象确属当前账号与任务、两件作品仍公开且分属双方；返回自己的选票，不返回统计。
+        投票提交与 statistics-access 在账号 × 任务上串行化：禁投记录提交后不得新增任何选票。
+        若选票先提交，后看统计保留该历史选票；管理员身份不豁免。MCP token 无权投票。
+      x-scenarios: [S1, S5]
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [choice]
+              properties:
+                choice: {type: string, enum: [left, right, tie]}
+      responses:
+        '200':
+          description: 已保存的本人选票或相同选择的重试结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Vote'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/tasks/{taskId}/statistics-access:
+    parameters: [{$ref: '#/components/parameters/TaskId'}]
+    post:
+      tags: [Voting]
+      operationId: accessTaskStatistics
+      summary: 永久放弃该题后续投票权并查看统计
+      description: |
+        客户端必须先披露后果并取得用户明确选择，再发送 permanentlyCloseVoting=true；未确认返回 422，无副作用。
+        先验证账号和任务可见性，再持久化账号 × 任务的永久禁投记录，提交成功后才读取并返回统计。
+        持久化失败不返回统计；提交成功但响应丢失时禁投记录仍生效，重试不改变首次 closedAt，也不生成选票。
+        换 token、作品对或新增作品都不能恢复资格；其他任务及追加作品权限不受影响。
+        网站、MCP、榜单下钻和管理员具体反馈查看共用此流程，没有无副作用的 GET 统计旁路。
+        Cookie 调用须同时提供 CSRF token；MCP Bearer 调用不使用 Cookie。响应及错误均不可缓存。
+      x-scenarios: [S1, S3, S4, S5, S6]
+      x-implementation-status: planned
+      security:
+        - WebSession: []
+          CsrfToken: []
+        - McpToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [permanentlyCloseVoting]
+              properties:
+                permanentlyCloseVoting:
+                  type: boolean
+                  const: true
+                  description: 用户已明确选择永久放弃该题后续投票权；不得由预加载代码自动填入
+            example: {permanentlyCloseVoting: true}
+      responses:
+        '200':
+          description: 禁投记录提交后的统计快照；零票时胜率为 null
+          headers:
+            Cache-Control: {$ref: '#/components/headers/NoStore'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskStatistics'}
+        '422': {$ref: '#/components/responses/InvalidSubmission'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/board:
+    get:
+      tags: [Board]
+      operationId: getPublicBoard
+      summary: 读取平台及分类差距汇总
+      description: |
+        与 GET /api/tasks?order=hot 组成同一个看板与排行榜页面。
+        仅提供按系统结论分组的任务数量，不提供单题票数、胜率或可以通过小样本分组、差分还原的投票汇总。
+        具体热度算法和领先阈值未定；不将热度榜改为胜率榜。
+      x-scenarios: [S1, S6]
+      x-implementation-status: planned
+      security: [{}, {WebSession: []}, {McpToken: []}]
+      responses:
+        '200':
+          description: 允许公开的平台与分类汇总
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Board'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/tasks/{taskId}/comments:
+    parameters: [{$ref: '#/components/parameters/TaskId'}]
+    get:
+      tags: [Discussion]
+      operationId: listComments
+      summary: 分页读取公开任务的评论
+      description: 来源为项目目标中的评论功能；提案采用按创建时间及 ID 升序的平铺评论，不附带平台统计。
+      x-requirement-source: AGENTS.md 项目目标
+      x-implementation-status: planned
+      security: [{}, {WebSession: []}, {McpToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: 仅公开可见的评论
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CommentPage'}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      tags: [Discussion]
+      operationId: createComment
+      summary: 在公开任务下发表评论
+      description: 纯文本评论，作者由会话确定；不需要该题投票资格，不能通过 MCP 代发。
+      x-requirement-source: AGENTS.md 项目目标
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [body]
+              properties:
+                body: {type: string, minLength: 1}
+      responses:
+        '201':
+          description: 已发表的评论
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Comment'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/reports:
+    post:
+      tags: [Discussion]
+      operationId: createReport
+      summary: 举报公开内容
+      description: 举报进入管理员待办，不自动下架；不对其他用户公开举报者身份。
+      x-scenarios: [S4]
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ModerationInput'}
+      responses:
+        '201':
+          description: 已收到举报
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Report'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/admin/dashboard:
+    get:
+      tags: [Administration]
+      operationId: getAdminDashboard
+      summary: 获取管理员每日待办和额度概览
+      x-scenarios: [S4]
+      x-implementation-status: planned
+      security: [{WebSession: [admin]}]
+      responses:
+        '200':
+          description: 管理工作台概览，不含单题投票统计；详细待办与运行分别分页查询
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminDashboard'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/admin/reviews:
+    get:
+      tags: [Administration]
+      operationId: listReviews
+      summary: 分页读取任务及作品审核队列
+      x-scenarios: [S4]
+      x-implementation-status: planned
+      security: [{WebSession: [admin]}]
+      parameters:
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+        - name: status
+          in: query
+          schema: {type: string, enum: [pending, approved, rejected], default: pending}
+      responses:
+        '200':
+          description: 包含新任务及双方初始作品、追加作品和云端作品
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReviewPage'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/admin/reviews/{reviewId}/decision:
+    parameters:
+      - name: reviewId
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/Id'}
+    post:
+      tags: [Administration]
+      operationId: decideReview
+      summary: 通过或驳回一次审核
+      description: |
+        仅处理仍为 pending 的该次投稿快照；拒绝过时版本。新任务与双方初始作品一起通过才公开。
+        追加及云端作品只改变作品状态，不重审已发布任务；原任务已下架时不得公开新作品。
+        驳回必须填写原因；同一决定重试返回已有结果，不同决定返回 409。留存管理员身份、时间与结果。
+      x-scenarios: [S2, S3, S4]
+      x-implementation-status: planned
+      security: [{WebSession: [admin], CsrfToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReviewDecision'}
+      responses:
+        '200':
+          description: 审核结果及对应投稿快照
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Review'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/admin/reports:
+    get:
+      tags: [Administration]
+      operationId: listReports
+      summary: 分页读取举报待办与处理结果
+      x-scenarios: [S4]
+      x-implementation-status: planned
+      security: [{WebSession: [admin]}]
+      parameters:
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+        - name: status
+          in: query
+          schema: {type: string, enum: [open, dismissed, actioned], default: open}
+      responses:
+        '200':
+          description: 管理员可见的举报记录
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReportPage'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/admin/reports/{reportId}/resolution:
+    parameters:
+      - name: reportId
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/Id'}
+    post:
+      tags: [Administration]
+      operationId: resolveReport
+      summary: 驳回举报或下架被举报内容
+      description: 同一结果重试找回原处理记录；冲突决定返回 409。下架与举报状态更新、审计记录一起提交。
+      x-scenarios: [S4]
+      x-implementation-status: planned
+      security: [{WebSession: [admin], CsrfToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [action, reason]
+              properties:
+                action: {type: string, enum: [dismiss, take_down]}
+                reason: {type: string, minLength: 1}
+      responses:
+        '200':
+          description: 处理后的举报记录
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Report'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/admin/takedowns:
+    post:
+      tags: [Administration]
+      operationId: takeDownContent
+      summary: 管理员直接下架内容并记录原因
+      description: |
+        可下架任务、作品或评论；下架任务后其作品、评论和文件不再通过公开接口可见。
+        不物理删除历史记录，不恢复投票资格；历史票有效性及运行处置规则须在功能实现时补全。
+      x-scenarios: [S4]
+      x-implementation-status: planned
+      security: [{WebSession: [admin], CsrfToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ModerationInput'}
+      responses:
+        '200':
+          description: 下架动作的审计结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuditEvent'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/admin/challenge-runs:
+    get:
+      tags: [Challenges]
+      operationId: listChallengeRuns
+      summary: 分页查看云端运行、异常及结果
+      x-scenarios: [S4]
+      x-implementation-status: planned
+      security: [{WebSession: [admin]}]
+      parameters:
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: 运行阶段、配置和消耗；不附带具体真人票数
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RunPage'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      tags: [Challenges]
+      operationId: startChallengeRun
+      summary: 管理员为公开任务启动云端挑战
+      description: |
+        重新检查任务公开性、配置、材料授权与可用性、额度；预算和轮数须显式设置，不提供隐含开销默认值。
+        任务结论待定仅追加生成；agent 领先可提炼经验；人类领先先准备授权材料并验证投票者，再进入匿名对抗。
+        结论由系统计算，客户端不能指定或修改。普通用户、任务作者及 MCP token 均不能启动。
+      x-scenarios: [S4]
+      x-implementation-status: planned
+      security: [{WebSession: [admin], CsrfToken: []}]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [taskId, configuration]
+              properties:
+                taskId: {$ref: '#/components/schemas/Id'}
+                configuration: {$ref: '#/components/schemas/RunConfiguration'}
+      responses:
+        '202':
+          description: 已建立运行记录；可按 ID 轮询，不代表执行成功或作品已公开
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ChallengeRun'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/admin/challenge-runs/{runId}:
+    parameters: [{$ref: '#/components/parameters/RunId'}]
+    get:
+      tags: [Challenges]
+      operationId: getChallengeRun
+      summary: 查看一次运行的配置、阶段、异常和候选登记状态
+      description: 不把生成完成、登记、审核发布或真人反馈混作获胜；具体真人统计仍走 statistics-access。
+      x-scenarios: [S4]
+      x-implementation-status: planned
+      security: [{WebSession: [admin]}]
+      responses:
+        '200':
+          description: 完整管理记录；日志摘要不得包含密钥或单题投票统计
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ChallengeRun'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/admin/challenge-runs/{runId}/cancel:
+    parameters: [{$ref: '#/components/parameters/RunId'}]
+    post:
+      tags: [Challenges]
+      operationId: cancelChallengeRun
+      summary: 取消云端运行并拒绝后续结果推进
+      description: |
+        先提交 cancelled 状态再停止外部调用；与阶段推进、候选登记串行化。
+        已取消的重复请求返回原记录；其他终态返回 409。取消或结束后的迟到结果不继续推进、不登记新作品。
+        已登记作品保留原审核流程；取消不表示已发生的消耗退回。
+      x-scenarios: [S4]
+      x-implementation-status: planned
+      security: [{WebSession: [admin], CsrfToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReasonInput'}
+      responses:
+        '200':
+          description: 已持久化的取消结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ChallengeRun'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/admin/challenge-runs/{runId}/restart:
+    parameters: [{$ref: '#/components/parameters/RunId'}]
+    post:
+      tags: [Challenges]
+      operationId: restartChallengeRun
+      summary: 从已终止的运行创建关联的新运行
+      description: |
+        仅 completed、failed、cancelled 可重启；原记录不覆盖，新运行保留同一 taskId 并设置 parentRunId。
+        使用显式提供的配置，再次检查任务、授权、材料和额度；不能继承旧运行的通过结果来跳过检查。
+      x-scenarios: [S4]
+      x-implementation-status: planned
+      security: [{WebSession: [admin], CsrfToken: []}]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RunConfiguration'}
+      responses:
+        '202':
+          description: 关联的新运行；相同幂等键找回同一运行
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ChallengeRun'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/admin/challenge-runs/{runId}/candidates/{candidateId}/registration:
+    parameters:
+      - {$ref: '#/components/parameters/RunId'}
+      - name: candidateId
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/Id'}
+    put:
+      tags: [Challenges]
+      operationId: registerCandidate
+      summary: 登记候选作品或找回已有登记与审核状态
+      description: |
+        仅操作该运行中已持久化的最终候选；不接受客户端上传新的云端结果。
+        先按 runId × candidateId 找回已有作品及当前审核状态，不能重置已通过或被驳回作品的状态。
+        仅无登记且运行仍 active、材料仍有效时原子创建一件 pending_review 作品及审核记录；并发重试返回同一作品。
+        完成运行前应完成候选登记；终态下仅可找回已有登记，无登记返回 409，不补记迟到作品。
+      x-scenarios: [S4]
+      x-implementation-status: planned
+      security: [{WebSession: [admin], CsrfToken: []}]
+      responses:
+        '200':
+          description: 已有作品及当前审核状态
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EntrySubmission'}
+        '201':
+          description: 首次登记的待审作品
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EntrySubmission'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/tasks/{taskId}/challenge-progress:
+    parameters: [{$ref: '#/components/parameters/TaskId'}]
+    get:
+      tags: [Challenges]
+      operationId: listPublicChallengeProgress
+      summary: 分页读取允许公开的云端进度
+      description: 仅公开任务及获准披露的运行阶段，不提供私有材料、提示词、预算、日志、未审核作品或具体真人统计。
+      x-scenarios: [S4]
+      x-implementation-status: planned
+      security: [{}, {WebSession: []}, {McpToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: 经过公开字段投影的进度
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ProgressPage'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/admin/audit-events:
+    get:
+      tags: [Administration]
+      operationId: listAuditEvents
+      summary: 分页追溯管理员操作身份与结果
+      description: 审核、举报处理、下架、启动、取消、重启和登记均留存；不返回密钥、完整私有材料或单题统计。
+      x-scenarios: [S4]
+      x-implementation-status: planned
+      security: [{WebSession: [admin]}]
+      parameters:
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: 不可由客户端修改的操作记录
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuditPage'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        default: {$ref: '#/components/responses/Problem'}
+
+components:
+  securitySchemes:
+    WebSession:
+      type: apiKey
+      in: cookie
+      name: __Host-human-worth-session
+      description: |
+        网站会话，Secure、HttpOnly、SameSite=Lax、Path=/，不设置 Domain。
+        服务端验证会话并取得稳定账号；security 中的 admin 表示还须检查平台管理员角色。
+        登录流程待定；不接受 Bearer token 替代会话执行网站写入或管理操作。
+    CsrfToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: 与当前 WebSession 绑定，从 GET /api/me 取得；所有 Cookie 写请求须验证 token 和来源。
+    McpToken:
+      type: http
+      scheme: bearer
+      description: |
+        用户本人签发用途为 MCP 的内容读取 token，服务端校验有效性、用途与吊销状态。
+        仅可读取公开内容及显式访问统计；即使所属账号是管理员，也不可投稿、投票或控制云端。
+        token 轮换不改变所属账号；多种凭据同时出现时拒绝请求，避免身份歧义。
+  parameters:
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/Id'}
+    EntryId:
+      name: entryId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/Id'}
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/Id'}
+    Cursor:
+      name: cursor
+      in: query
+      description: 服务端返回的不透明游标；首屏省略，后续保持原筛选。无效或过期返回 400。
+      schema: {type: string, minLength: 1}
+    Limit:
+      name: limit
+      in: query
+      description: 每页上限为 agent 提案；实际返回数量可更少，以 nextCursor 判断后续页。
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        客户端生成的唯一键，按账号和 operation 绑定请求正文及结果，覆盖运行整个保留周期。
+        相同键与相同正文返回同一运行；相同键不同正文返回 409，并发请求不能创建多个运行。
+        这是本项目的幂等约定，不宣称该 header 已标准化；改变配置再次启动须使用新键。
+      schema: {type: string, minLength: 1, maxLength: 128}
+  headers:
+    NoStore:
+      description: 禁止客户端与共享缓存存储响应
+      schema: {type: string, const: no-store}
+  responses:
+    Problem:
+      description: |
+        业务接口统一 application/problem+json；status 与 HTTP 状态相同。
+        400 格式或游标错误；401 缺失/失效认证；403 权限、用途、CSRF 或永久投票资格不满足；
+        404 不存在或不可见；409 版本、状态或幂等冲突；413 文件过大；415 类型不支持；
+        422 内容或确认无效；429 请求过多；503 依赖或持久化不可用。
+        所有失败均不得附带单题统计；拒绝请求不得产生未声明的业务副作用。
+        此错误格式为 planned 接口约定，当前基础服务的 404/405 仍为空响应体。
+      headers:
+        Cache-Control: {$ref: '#/components/headers/NoStore'}
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Forbidden:
+      description: 身份已识别，但缺少管理员权限、凭据用途不符、CSRF 无效或该题已永久禁投
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+          example:
+            type: about:blank
+            title: Forbidden
+            status: 403
+            code: voting_permanently_closed
+            detail: 此账号已查看该题统计，不能再对该题投票。
+    Conflict:
+      description: 对象状态、版本、已有选票或幂等键冲突；保留原状态，不重复写入
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    InvalidSubmission:
+      description: 请求字段、双方作品、授权或显式确认不满足要求；保持此前状态
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+  schemas:
+    Id:
+      type: string
+      minLength: 1
+      description: 服务端分配的不透明标识，不从中推导账号、时间或权限；作为单个 URL 路径段编码
+    Timestamp:
+      type: string
+      format: date-time
+      description: RFC 3339 时间，服务端以 UTC 返回
+    NullableId:
+      type: [string, 'null']
+      minLength: 1
+    NullableTime:
+      type: [string, 'null']
+      format: date-time
+    NextCursor:
+      type: [string, 'null']
+      minLength: 1
+      description: 为 null 时无后续页；不得编码可还原的具体票数或私有数据
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status, service, stage, revision]
+      properties:
+        status: {type: string, const: ok}
+        service: {type: string, const: human-worth}
+        stage: {type: string, const: foundation}
+        revision: {type: string, description: 已部署 Git SHA；本地开发默认为 development}
+    Problem:
+      type: object
+      required: [type, title, status, code, detail]
+      properties:
+        type: {type: string, format: uri-reference, default: 'about:blank'}
+        title: {type: string}
+        status: {type: integer, minimum: 400, maximum: 599}
+        code:
+          type: string
+          description: 稳定的机器错误码；枚举可扩展
+          examples: [invalid_request, unauthenticated, forbidden, not_found, revision_conflict, missing_human_or_agent, voting_permanently_closed, run_terminated, idempotency_conflict]
+        detail: {type: string, description: 经脱敏的人类可读原因}
+        instance: {type: string, format: uri-reference}
+    Author:
+      type: object
+      additionalProperties: false
+      required: [id, displayName]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        displayName: {type: string}
+    Session:
+      type: object
+      additionalProperties: false
+      required: [account, role, csrfToken]
+      properties:
+        account: {$ref: '#/components/schemas/Author'}
+        role: {type: string, enum: [user, admin]}
+        csrfToken: {type: string, minLength: 1}
+    PublicationState:
+      type: string
+      enum: [draft, pending_review, published, rejected, taken_down]
+      description: 任务草稿可缺作品；追加作品创建后直接 pending_review。客户端不可直接设置发布状态。
+    Conclusion:
+      type: string
+      enum: [undetermined, human_leading, agent_leading]
+      description: 由系统独立依据有效真人反馈计算；算法及阈值待定，不等于发布状态
+    Asset:
+      type: object
+      additionalProperties: false
+      required: [id, filename, mediaType, bytes]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        filename: {type: string}
+        mediaType: {type: string}
+        bytes: {type: integer, minimum: 0}
+    Artifact:
+      description: 作品交付物；assetId 必须有权使用，外链仅允许 HTTP(S)，不在读取任务时自动抓取或执行。
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [kind, assetId]
+          properties:
+            kind: {type: string, const: file}
+            assetId: {$ref: '#/components/schemas/Id'}
+        - type: object
+          additionalProperties: false
+          required: [kind, url]
+          properties:
+            kind: {type: string, const: link}
+            url: {type: string, format: uri, pattern: '^https?://'}
+    Permissions:
+      type: object
+      additionalProperties: false
+      required: [publish, cloudUse]
+      properties:
+        publish:
+          type: boolean
+          const: true
+          description: 投稿者确认有权将该作品提交公开；审核仍校验来源与授权材料
+        cloudUse:
+          type: boolean
+          description: 是否允许该作品用于云端挑战；必须显式选择，无默认授权，启动及重启仍检查有效性
+        statement: {type: string, description: 授权说明或依据，不填写密钥或无关个人信息}
+    AgentConfiguration:
+      type: object
+      additionalProperties: false
+      required: [model]
+      properties:
+        model: {type: string, minLength: 1}
+        prompt: {type: string, description: 不含密钥的提示词；公开作品仅展示投稿者允许公开的内容}
+        harness: {type: string}
+        skills:
+          type: array
+          items: {type: string}
+        parameters:
+          type: object
+          description: 模型专有非敏感参数；实现按已支持模型验证，不是任意执行指令或密钥容器
+          additionalProperties: true
+    EntryInput:
+      type: object
+      additionalProperties: false
+      required: [side, title, source, artifacts, permissions]
+      properties:
+        side: {type: string, enum: [human, agent]}
+        title: {type: string, minLength: 1}
+        description: {type: string}
+        source: {type: string, minLength: 1, description: 作者/模型及作品来源说明，不替代平台账号身份}
+        artifacts:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/Artifact'}
+        permissions: {$ref: '#/components/schemas/Permissions'}
+        agentConfiguration: {$ref: '#/components/schemas/AgentConfiguration'}
+      allOf:
+        - if:
+            properties:
+              side: {const: agent}
+            required: [side]
+          then:
+            required: [agentConfiguration]
+          else:
+            not:
+              required: [agentConfiguration]
+    TaskDraftInput:
+      type: object
+      additionalProperties: false
+      required: [title, summary, description, entries]
+      properties:
+        title: {type: string, minLength: 1}
+        summary: {type: string}
+        description: {type: string}
+        category: {type: [string, 'null']}
+        entries:
+          type: array
+          description: 草稿允许空列表或仅一方；送审时服务端要求至少各一件及完整来源、授权和适用配置
+          items: {$ref: '#/components/schemas/EntryInput'}
+    RevisionInput:
+      type: object
+      additionalProperties: false
+      required: [expectedRevision]
+      properties:
+        expectedRevision: {type: integer, minimum: 1}
+    TaskDraftUpdate:
+      type: object
+      additionalProperties: false
+      required: [expectedRevision, content]
+      properties:
+        expectedRevision: {type: integer, minimum: 1}
+        content: {$ref: '#/components/schemas/TaskDraftInput'}
+    EntryUpdate:
+      type: object
+      additionalProperties: false
+      required: [expectedRevision, content]
+      properties:
+        expectedRevision: {type: integer, minimum: 1}
+        content: {$ref: '#/components/schemas/EntryInput'}
+    TaskSubmission:
+      type: object
+      additionalProperties: false
+      required: [kind, id, authorId, revision, state, content, reviewId, rejectionReason]
+      properties:
+        kind: {type: string, const: task}
+        id: {$ref: '#/components/schemas/Id'}
+        authorId: {$ref: '#/components/schemas/Id'}
+        revision: {type: integer, minimum: 1}
+        state: {$ref: '#/components/schemas/PublicationState'}
+        content: {$ref: '#/components/schemas/TaskDraftInput'}
+        reviewId: {$ref: '#/components/schemas/NullableId'}
+        rejectionReason: {type: [string, 'null']}
+    EntrySubmission:
+      type: object
+      additionalProperties: false
+      required: [kind, id, taskId, authorId, revision, origin, state, content, reviewId, rejectionReason]
+      properties:
+        kind: {type: string, const: entry}
+        id: {$ref: '#/components/schemas/Id'}
+        taskId: {$ref: '#/components/schemas/Id'}
+        authorId: {$ref: '#/components/schemas/Id'}
+        revision: {type: integer, minimum: 1}
+        origin: {type: string, enum: [initial, additional, cloud]}
+        state: {$ref: '#/components/schemas/PublicationState'}
+        content: {$ref: '#/components/schemas/EntryInput'}
+        reviewId: {$ref: '#/components/schemas/NullableId'}
+        rejectionReason: {type: [string, 'null']}
+    PublicTask:
+      type: object
+      additionalProperties: false
+      required: [id, title, summary, description, category, author, heat, publishedAt]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        title: {type: string}
+        summary: {type: string}
+        description: {type: string}
+        category: {type: [string, 'null']}
+        author: {$ref: '#/components/schemas/Author'}
+        heat: {type: number, description: 平台热度排序值；不包含可还原的票数或胜率}
+        publishedAt: {$ref: '#/components/schemas/Timestamp'}
+    PublicEntry:
+      type: object
+      additionalProperties: false
+      required: [id, taskId, side, title, description, source, artifacts, author, publishedAt]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        taskId: {$ref: '#/components/schemas/Id'}
+        side: {type: string, enum: [human, agent]}
+        title: {type: string}
+        description: {type: string}
+        source: {type: string}
+        artifacts:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/Artifact'}
+        author: {$ref: '#/components/schemas/Author'}
+        publishedAt: {$ref: '#/components/schemas/Timestamp'}
+      description: 只投影公开内容，不原样返回投稿授权材料、运行私有配置或未审核文件
+    VotingEligibility:
+      type: object
+      additionalProperties: false
+      required: [taskId, canVote, permanentlyClosed, closedAt, reason]
+      properties:
+        taskId: {$ref: '#/components/schemas/Id'}
+        canVote: {type: boolean}
+        permanentlyClosed: {type: boolean}
+        closedAt: {$ref: '#/components/schemas/NullableTime'}
+        reason: {type: [string, 'null'], enum: [null, statistics_viewed, other_restriction]}
+      allOf:
+        - if:
+            properties:
+              permanentlyClosed: {const: true}
+          then:
+            properties:
+              canVote: {const: false}
+              closedAt: {$ref: '#/components/schemas/Timestamp'}
+              reason: {const: statistics_viewed}
+          else:
+            properties:
+              closedAt: {type: 'null'}
+              reason: {enum: [null, other_restriction]}
+        - if:
+            properties:
+              canVote: {const: true}
+          then:
+            properties:
+              reason: {type: 'null'}
+    Comparison:
+      type: object
+      additionalProperties: false
+      required: [id, taskId, left, right]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        taskId: {$ref: '#/components/schemas/Id'}
+        left: {$ref: '#/components/schemas/PublicEntry'}
+        right: {$ref: '#/components/schemas/PublicEntry'}
+      description: 两件不同作品属于此 taskId，分属 human 和 agent；跨字段关系由服务端验证
+    Vote:
+      type: object
+      additionalProperties: false
+      required: [id, taskId, comparisonId, choice, createdAt]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        taskId: {$ref: '#/components/schemas/Id'}
+        comparisonId: {$ref: '#/components/schemas/Id'}
+        choice: {type: string, enum: [left, right, tie]}
+        createdAt: {$ref: '#/components/schemas/Timestamp'}
+    TaskStatistics:
+      type: object
+      additionalProperties: false
+      required: [taskId, eligibility, totalVotes, humanVotes, agentVotes, ties, humanWinRate, agentWinRate, conclusion, computedAt]
+      properties:
+        taskId: {$ref: '#/components/schemas/Id'}
+        eligibility:
+          allOf:
+            - {$ref: '#/components/schemas/VotingEligibility'}
+            - type: object
+              properties:
+                permanentlyClosed: {const: true}
+        totalVotes: {type: integer, minimum: 0}
+        humanVotes: {type: integer, minimum: 0}
+        agentVotes: {type: integer, minimum: 0}
+        ties: {type: integer, minimum: 0}
+        humanWinRate: {type: [number, 'null'], minimum: 0, maximum: 1}
+        agentWinRate: {type: [number, 'null'], minimum: 0, maximum: 1}
+        conclusion: {$ref: '#/components/schemas/Conclusion'}
+        computedAt: {$ref: '#/components/schemas/Timestamp'}
+      description: |
+        仅计算有效真人选票，totalVotes = humanVotes + agentVotes + ties。
+        胜率提案为该方得票 / totalVotes，分母包含平票；零票时两方胜率均为 null。
+        多作品对汇总不宣称消除了抽样偏差；有效票规则和任务领先/翻转算法仍待明确。
+        taskId 必须与 eligibility.taskId 相同；统计生成失败可返回 503，但已提交的永久禁投不能回滚。
+      allOf:
+        - if:
+            properties:
+              totalVotes: {const: 0}
+          then:
+            properties:
+              humanVotes: {const: 0}
+              agentVotes: {const: 0}
+              ties: {const: 0}
+              humanWinRate: {type: 'null'}
+              agentWinRate: {type: 'null'}
+          else:
+            properties:
+              humanWinRate: {type: number}
+              agentWinRate: {type: number}
+    BoardGroup:
+      type: object
+      additionalProperties: false
+      required: [publishedTasks, undeterminedTasks, humanLeadingTasks, agentLeadingTasks]
+      properties:
+        publishedTasks: {type: integer, minimum: 0}
+        undeterminedTasks: {type: integer, minimum: 0}
+        humanLeadingTasks: {type: integer, minimum: 0}
+        agentLeadingTasks: {type: integer, minimum: 0}
+      description: 任务数量总和等于三个结论分组之和；不是单题得票汇总
+    Board:
+      type: object
+      additionalProperties: false
+      required: [overall, categories, computedAt]
+      properties:
+        overall: {$ref: '#/components/schemas/BoardGroup'}
+        categories:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [category, summary]
+            properties:
+              category: {type: [string, 'null']}
+              summary: {$ref: '#/components/schemas/BoardGroup'}
+        computedAt: {$ref: '#/components/schemas/Timestamp'}
+    Comment:
+      type: object
+      additionalProperties: false
+      required: [id, taskId, author, body, createdAt]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        taskId: {$ref: '#/components/schemas/Id'}
+        author: {$ref: '#/components/schemas/Author'}
+        body: {type: string, minLength: 1}
+        createdAt: {$ref: '#/components/schemas/Timestamp'}
+    ModerationInput:
+      type: object
+      additionalProperties: false
+      required: [targetKind, targetId, reason]
+      properties:
+        targetKind: {type: string, enum: [task, entry, comment]}
+        targetId: {$ref: '#/components/schemas/Id'}
+        reason: {type: string, minLength: 1}
+    Report:
+      type: object
+      additionalProperties: false
+      required: [id, target, status, resolutionReason, createdAt, resolvedAt]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        target: {$ref: '#/components/schemas/ModerationInput'}
+        status: {type: string, enum: [open, dismissed, actioned]}
+        resolutionReason: {type: [string, 'null']}
+        createdAt: {$ref: '#/components/schemas/Timestamp'}
+        resolvedAt: {$ref: '#/components/schemas/NullableTime'}
+    ReviewDecision:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [decision]
+          properties:
+            decision: {type: string, const: approve}
+            reason: {type: string}
+        - type: object
+          additionalProperties: false
+          required: [decision, reason]
+          properties:
+            decision: {type: string, const: reject}
+            reason: {type: string, minLength: 1}
+    Review:
+      type: object
+      additionalProperties: false
+      required: [id, submission, status, reason, reviewerId, createdAt, decidedAt]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        submission:
+          description: 本次送审时的不可变快照；其中 revision 标识被审核的版本，当前审核结果以下方 status 为准
+          oneOf:
+            - {$ref: '#/components/schemas/TaskSubmission'}
+            - {$ref: '#/components/schemas/EntrySubmission'}
+        status: {type: string, enum: [pending, approved, rejected]}
+        reason: {type: [string, 'null']}
+        reviewerId: {$ref: '#/components/schemas/NullableId'}
+        createdAt: {$ref: '#/components/schemas/Timestamp'}
+        decidedAt: {$ref: '#/components/schemas/NullableTime'}
+    Quantity:
+      type: object
+      additionalProperties: false
+      required: [amount, unit]
+      properties:
+        amount: {type: number, minimum: 0}
+        unit: {type: string, minLength: 1, description: 平台已配置的额度单位；不同 unit 不可相加}
+    AdminDashboard:
+      type: object
+      additionalProperties: false
+      required: [pendingTaskReviews, pendingEntryReviews, openReports, activeRuns, failedRuns, quota]
+      properties:
+        pendingTaskReviews: {type: integer, minimum: 0}
+        pendingEntryReviews: {type: integer, minimum: 0}
+        openReports: {type: integer, minimum: 0}
+        activeRuns: {type: integer, minimum: 0}
+        failedRuns: {type: integer, minimum: 0}
+        quota:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [remaining, used]
+            properties:
+              remaining: {$ref: '#/components/schemas/Quantity'}
+              used: {$ref: '#/components/schemas/Quantity'}
+    RunConfiguration:
+      type: object
+      additionalProperties: false
+      required: [generator, voter, roundLimit, budget]
+      properties:
+        generator: {$ref: '#/components/schemas/AgentConfiguration'}
+        voter: {$ref: '#/components/schemas/AgentConfiguration'}
+        roundLimit: {type: integer, minimum: 1}
+        budget:
+          allOf:
+            - {$ref: '#/components/schemas/Quantity'}
+            - type: object
+              properties:
+                amount: {exclusiveMinimum: 0}
+      description: 配置是运行创建时快照；修改配置通过新运行完成，不原地改变已启动运行
+    RunStatus:
+      type: string
+      enum: [queued, active, completed, failed, cancelled]
+      description: completed、failed、cancelled 为终态，之后不接纳迟到结果或新登记
+    RunStage:
+      type: string
+      enum: [queued, preparing_materials, validating_voter, generating, learning, anonymous_battle, registering, finished]
+      description: 阶段枚举为提案，仍须遵守待定/agent 领先/人类领先的分流及材料校验顺序
+    ChallengeRun:
+      type: object
+      additionalProperties: false
+      required: [id, taskId, parentRunId, administratorId, status, stage, round, taskConclusion, configuration, consumed, failureReason, candidates, createdAt, updatedAt, endedAt]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        taskId: {$ref: '#/components/schemas/Id'}
+        parentRunId: {$ref: '#/components/schemas/NullableId'}
+        administratorId: {$ref: '#/components/schemas/Id'}
+        status: {$ref: '#/components/schemas/RunStatus'}
+        stage: {$ref: '#/components/schemas/RunStage'}
+        round: {type: integer, minimum: 0}
+        taskConclusion: {$ref: '#/components/schemas/Conclusion'}
+        configuration: {$ref: '#/components/schemas/RunConfiguration'}
+        consumed: {$ref: '#/components/schemas/Quantity'}
+        failureReason: {type: [string, 'null'], description: 经脱敏的模型、额度或材料失效原因，不带单题票数}
+        candidates:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, registrationState, entryId, reviewId]
+            properties:
+              id: {$ref: '#/components/schemas/Id'}
+              registrationState: {type: string, enum: [unregistered, registered, discarded]}
+              entryId: {$ref: '#/components/schemas/NullableId'}
+              reviewId: {$ref: '#/components/schemas/NullableId'}
+        createdAt: {$ref: '#/components/schemas/Timestamp'}
+        updatedAt: {$ref: '#/components/schemas/Timestamp'}
+        endedAt: {$ref: '#/components/schemas/NullableTime'}
+    PublicProgress:
+      type: object
+      additionalProperties: false
+      required: [runId, status, stage, round, updatedAt]
+      properties:
+        runId: {$ref: '#/components/schemas/Id'}
+        status: {$ref: '#/components/schemas/RunStatus'}
+        stage: {$ref: '#/components/schemas/RunStage'}
+        round: {type: integer, minimum: 0}
+        updatedAt: {$ref: '#/components/schemas/Timestamp'}
+    ReasonInput:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: {type: string, minLength: 1}
+    AuditEvent:
+      type: object
+      additionalProperties: false
+      required: [id, actorId, action, targetId, outcome, reason, createdAt]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        actorId: {$ref: '#/components/schemas/Id'}
+        action: {type: string}
+        targetId: {$ref: '#/components/schemas/Id'}
+        outcome: {type: string, enum: [succeeded, rejected, failed]}
+        reason: {type: [string, 'null']}
+        createdAt: {$ref: '#/components/schemas/Timestamp'}
+    TaskPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/PublicTask'}}
+        nextCursor: {$ref: '#/components/schemas/NextCursor'}
+    EntryPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/PublicEntry'}}
+        nextCursor: {$ref: '#/components/schemas/NextCursor'}
+    SubmissionPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items:
+            oneOf:
+              - {$ref: '#/components/schemas/TaskSubmission'}
+              - {$ref: '#/components/schemas/EntrySubmission'}
+        nextCursor: {$ref: '#/components/schemas/NextCursor'}
+    CommentPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Comment'}}
+        nextCursor: {$ref: '#/components/schemas/NextCursor'}
+    ReviewPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Review'}}
+        nextCursor: {$ref: '#/components/schemas/NextCursor'}
+    ReportPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Report'}}
+        nextCursor: {$ref: '#/components/schemas/NextCursor'}
+    RunPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/ChallengeRun'}}
+        nextCursor: {$ref: '#/components/schemas/NextCursor'}
+    ProgressPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/PublicProgress'}}
+        nextCursor: {$ref: '#/components/schemas/NextCursor'}
+    AuditPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/AuditEvent'}}
+        nextCursor: {$ref: '#/components/schemas/NextCursor'}

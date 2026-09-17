@@ -5,6 +5,7 @@
 当前交付包括需求文档、项目治理、CI、本机自动部署，以及建设中页面和 `/api/health`。投稿、投票、审核和云端挑战尚未实现。
 
 - [协作与设计补全规则](AGENTS.md)
+- [OpenAPI YAML 接口契约草案](openapi.yaml)（仅健康检查已实现，其余接口标记为 planned）
 - [分支与 PR 合并规则](docs/development.md)
 - [部署、端口、排障和回退](docs/deployment.md)
 - [成熟参考与实现取舍](docs/references.md)

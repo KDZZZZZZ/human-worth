@@ -17,3 +17,36 @@
 新增参考记录需说明：待解决缺口、来源链接及版本 / commit、适配点、不适配点、采用决定、验证证据。必要时查看参考项目的真实代码和测试。不要堆砌品牌、盲目复制，或把参考设计标成 Human Design。
 
 与明确的人类要求冲突时遵从人类要求；既有授权内能用成熟惯例解决的选择直接推进。仅在成熟参考仍无法消除实质歧义，或会产生未授权的不可逆影响、显著费用时，提出一个具体问题，同时继续独立工作。
+
+<a id="openapi-contract"></a>
+## OpenAPI 接口契约草案
+
+2026-09-17，用户要求提供 OpenAPI YAML。[根目录 openapi.yaml](../openapi.yaml) 覆盖 PRD S1～S6，并依据项目目标提供最小平铺评论接口。`GET /api/health`、`HEAD /api/health` 按现有服务描述；其他操作均标为 `planned`。本次只交付契约文档，不实现 API 或更改线上路由。
+
+待补缺口是 HTTP 路径、字段、权限表达、分页、错误格式，以及统计访问和重试的具体请求形态。以下均为 **Agent Self-Claimed**，不将 PRD 的待定项改写为人类已批准。
+
+| 参考 / 版本 | 适配点与选择 | 差异与验收判据 |
+| --- | --- | --- |
+| [OpenAPI Specification 3.1.1](https://spec.openapis.org/oas/v3.1.1.html) | 单文件 YAML、JSON Schema 条件约束、共享 schema、逐 operation 的 security 与实现状态 | 选定 3.1.1，不声称是最新版；使用规范校验器检查结构、引用、路径参数与 operationId |
+| [RFC 9110 §9.2.1](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.1) | GET 不承载用户请求的永久资格变更；单题统计单独使用 POST，并要求显式确认 | 项目的永久禁投规则来自 S5；网站、MCP 和管理员必须先提交禁投记录，再得到统计；与并发投票串行化 |
+| [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457.html) | planned 接口用 `application/problem+json`，扩展稳定 `code` 字段 | 不改写当前基础服务 404/405 的空响应；失败不得携带具体统计或私有内容 |
+| [MCP tools 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25/server/tools) | `x-mcp` 映射 `list_tasks`、`get_task` 与显式统计工具；统计工具标明非只读且有不可逆副作用 | OpenAPI 不替代 MCP JSON-RPC/传输规范；不自动暴露投稿、投票或管理操作，不能只依赖工具注解做授权 |
+| [OWASP CSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)，核实于 2026-09-17 | 网站会话写请求同时验证 CSRF token 与来源；MCP 使用独立用途的 Bearer token | 登录与 token 签发仍待定；两种凭据映射同一账号，MCP token 即使属于管理员也不得执行管理动作 |
+| [GitHub REST 分页](https://docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api)，核实于 2026-09-17 | 有界列表和连续读取；本项目选择不透明游标、默认 20、上限 100 | 不复制 GitHub 的 Link 响应格式；发现流游标绑定筛选及快照，空页不代表结束，以 `nextCursor` 为准 |
+| [Chatbot Arena 论文 v1](https://arxiv.org/abs/2403.04132v1) | 借鉴成对比较收集人类偏好；提案采用 left/right/tie | 不引入 Elo 排名、固定领先阈值或平台算法；每账号每个无序作品对一票、重复相同选择幂等、禁止改票及保留看统计前的票，均为本项目提案 |
+| [GitHub issue comments API](https://docs.github.com/en/rest/issues/comments)，核实于 2026-09-17 | 最小评论列表和创建操作；本项目采用纯文本、平铺结构 | 不追加编辑、点赞或多级回复体系；评论来源为项目目标，不伪称 S1～S6 已定义评论细则 |
+
+补全选择：新任务草稿整体替换并按版本送审；被驳回追加作品修改后重新送审；审核历史保留。文件先私有上传，授权读取，不提供永久公开地址。看板先提供平台/分类的任务结论数量，避免通过单任务分组还原具体票数；热度不得编码可还原的单题统计。
+
+云端启动和重启显式要求预算、轮数及配置，用幂等键避免网络重试重复开销；具体 header 语义是本项目约定。候选登记按运行与候选唯一定位，先找回已有作品和审核状态；终态只能找回已有登记，不能新增作品。公开进度使用单独字段集合，管理员复盘的具体真人统计仍走资格变更入口。
+
+实现前仍须补全：登录与 token 生命周期、授权撤回、文件和内容限额、推荐/热度/有效票/领先/翻转算法、云端材料与验证规则、额度单位、下架对历史票及运行的影响。不能以 schema 校验通过替代这些设计及真实业务验收。
+
+本次契约验证使用 [openapi-spec-validator](https://openapi-spec-validator.readthedocs.io/en/latest/) `0.9.0`，安装在临时虚拟环境，不新增项目依赖。可在任意临时环境运行以下命令复核格式，再运行项目现有 CI；schema 校验不能证明并发、权限和跨入口持久化已实现。
+
+```sh
+python3 -m venv /tmp/human-worth-openapi-venv
+/tmp/human-worth-openapi-venv/bin/pip install openapi-spec-validator==0.9.0
+/tmp/human-worth-openapi-venv/bin/openapi-spec-validator openapi.yaml
+npm run ci
+```
