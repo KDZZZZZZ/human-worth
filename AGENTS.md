@@ -48,7 +48,9 @@
 
 仓库为 [KDZZZZZZ/human-worth](https://github.com/KDZZZZZZ/human-worth)，默认分支与日常集成基线均为 `dev`。完整规则见 [分支管理](docs/development.md)，机器配置见 `ops/github/`。
 
-- 日常工作先检查 `git status --short`、当前分支、远端和近期历史，再从最新 `origin/dev` 创建 `codex/<type>-<topic>`；一条任务分支对应一个 PR。
+- 日常工作先检查 `git status --short`、当前分支、远端和近期历史，再从最新 `origin/dev` 创建 `frontend/<type>-<topic>` 或 `backend/<type>-<topic>`；一条任务分支对应一个 PR。
+- 前缀按工作范围选择：`frontend` 用于页面、组件、交互和前端工程；`backend` 用于 API、数据、权限、MCP、云端调度及部署。全局工程、CI 和项目治理默认归 `backend`；跨两端的同一交付按主要变更选前缀，并在 PR 中列清两端范围。不添加作者、账号或 agent 工具名前缀。
+- 类型使用 `feat`（新功能）、`fix`（修复）、`refactor`（重构）、`perf`（性能）、`style`（代码格式）、`test`（测试）、`docs`（文档）、`build`（构建 / 依赖）、`ci`（CI/CD）、`chore`（其他维护）、`revert`（回滚）。主题使用小写英文、数字及单连字符，简短说明具体任务；完整定义和例子见 [分支命名规则](docs/development.md#branch-naming)。CI 校验面向 dev 的任务分支名称。
 - `dev`：只能经任务 PR **squash merge**；必须在最新目标基线上通过 `CI`。合入后 push CI 再次通过，本机自动部署该 SHA 并检查健康状态。
 - `main`：只接受本仓库 `dev` 发起的发布 PR，使用 **merge commit**，同样通过 CI。main 独有发布合并提交不回灌 dev；main 不接受独立开发或补丁。
 - 两条分支审批数为 **0**，不要求同行、CODEOWNERS 或最后推送人以外的审批；有合并权限的作者可在检查通过后自行合并。
@@ -174,7 +176,7 @@ PR 正文以问题及最终行为开头，并使用以下小节：
 ### 当前可用的检查与部署验收
 
 - `npm ci --ignore-scripts`：按 lockfile 安装；当前无第三方运行时依赖。
-- `npm run ci`：可信场景快照与本地链接、PR 方向、Node 语法、实际 HTTP 前端 / API 测试、部署 CI 门槛及归档边界测试。GitHub 必需检查名为 `CI`。
+- `npm run ci`：可信场景快照与本地链接、PR 方向及任务分支命名、Node 语法、实际 HTTP 前端 / API 测试、部署 CI 门槛及归档边界测试。GitHub 必需检查名为 `CI`。
 - `npm start`：本机基础服务，默认 `127.0.0.1:18090`；只实现建设中页面与 `/api/health`。
 - `gh pr checks <编号>` 与 GitHub rulesets API：核实 PR 检查及远端真实规则，不能只看配置文件。
 - 合入 dev 后检查 push CI、`human-worth-deploy` 日志和公网 `/api/health`，返回 revision 必须等于预期 dev SHA。命令见 [部署文档](docs/deployment.md)。

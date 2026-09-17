@@ -11,7 +11,7 @@
 
 ## 开发
 
-从最新 `origin/dev` 创建任务分支，提交 PR 到 `dev`；CI 通过后 squash merge，无须同行审批。`main` 只接受本仓库 `dev` 的发布 PR，使用 merge commit。
+从最新 `origin/dev` 创建 `frontend/<type>-<topic>` 或 `backend/<type>-<topic>` 任务分支，类型与例子见[分支命名规则](docs/development.md#branch-naming)。提交 PR 到 `dev`，命名检查及 CI 通过后 squash merge，无须同行审批。`main` 只接受本仓库 `dev` 的发布 PR，使用 merge commit。
 
 ```sh
 npm ci --ignore-scripts
