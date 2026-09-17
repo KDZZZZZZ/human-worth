@@ -5,8 +5,8 @@ from pathlib import Path
 from urllib.parse import unquote
 
 root = Path(__file__).resolve().parents[1]
-trusted = (root / 'docs/design/trusted-end-to-end-scenarios.md').read_text()
-snapshot = trusted.split('<!-- trusted-scenarios:start -->\n', 1)[1].split('<!-- trusted-scenarios:end -->', 1)[0]
+prd = (root / 'docs/prd.md').read_text()
+snapshot = prd.split('<!-- trusted-scenarios:start -->\n', 1)[1].split('<!-- trusted-scenarios:end -->', 1)[0]
 assert hashlib.sha256(snapshot.encode()).hexdigest() == '1b02576ba200b4fba0f5fc233650a53b1c241384426de41c7f62e81c00e38b04', 'Approved snapshot changed; record explicit human revision before updating this check'
 for file in [root / 'AGENTS.md', root / 'README.md', *root.glob('docs/**/*.md')]:
     text = file.read_text()
