@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const root = new URL('../', import.meta.url);
@@ -37,11 +37,13 @@ export function createApp(revision = 'development') {
   });
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   let revision = 'development';
   try { revision = readFileSync(new URL('REVISION', root), 'utf8').trim(); }
   catch (error) { if (error.code !== 'ENOENT') throw error; }
   const app = createApp(revision);
-  app.listen(Number(process.env.PORT || 18090), process.env.HOST || '127.0.0.1');
+  app.listen(Number(process.env.PORT || 18090), process.env.HOST || '127.0.0.1', () => {
+    console.log(JSON.stringify({ event: 'listening', port: app.address().port, revision }));
+  });
   process.on('SIGTERM', () => app.close(() => process.exit(0)));
 }
