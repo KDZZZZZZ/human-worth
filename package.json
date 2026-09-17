@@ -1,0 +1,13 @@
+{
+  "name": "human-worth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24 <25" },
+  "scripts": {
+    "start": "node app/server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "python3 scripts/check_docs.py && python3 scripts/check_pr.py && node --check app/server.mjs",
+    "ci": "npm run check && npm test && python3 -m unittest discover -s tests -p 'test_*.py'"
+  }
+}

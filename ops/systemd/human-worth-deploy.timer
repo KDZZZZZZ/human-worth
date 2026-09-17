@@ -1,0 +1,11 @@
+[Unit]
+Description=Watch Human Worth dev for successful CI
+
+[Timer]
+OnBootSec=45s
+OnUnitInactiveSec=60s
+AccuracySec=5s
+Unit=human-worth-deploy.service
+
+[Install]
+WantedBy=timers.target
