@@ -12,7 +12,7 @@
 | 本机 `man systemd.timer` / `systemd.service`；[systemd 上游](https://github.com/systemd/systemd) | 开机恢复、自动调度、独立账户、服务重启 | 60 秒定时检查，失败保留旧版；安装后的控制器为本机 root 管理文件，不执行未合并 PR |
 | [Nginx proxy_pass](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass)；[OpenSSH ssh](https://man.openbsd.org/ssh#R) | 公网网关反向代理到本机 | 独立公网端口 18090；SSH 仅监听网关 loopback 28090，应用在本机 18090 |
 | [阿里云 ECS RunCommand](https://www.alibabacloud.com/help/en/ecs/developer-reference/api-ecs-2014-05-26-runcommand)；本机 CLI 3.4.11 | 已有服务器增量配置与结果查询 | 从当前 CLI 账号识别现有 cn-beijing ECS，通过云助手安装独立配置，不新购资源 |
-| [AGENTS 生成技能](https://github.com/KDZZZZZZ/codex-agents-md-generator)；安装目录摘要 `235448749c077e373af59aa7bd2b7666b09f6ca0` | 指令来源、实际治理与充分验收 | 按用户指定技能修订 AGENTS；目录摘要不是 Git commit |
+| [ponytail 技能](https://github.com/DietrichGebert/ponytail/blob/e3ba2aa6f1e6f0bc4d69eb09c9f0d0a93af56156/skills/ponytail/SKILL.md)；commit `e3ba2aa6f1e6f0bc4d69eb09c9f0d0a93af56156` | 减少无必要代码、抽象和依赖 | 编程任务使用 full 模式，先理解流程再选最小可行改动；保留明确需求、必要校验和安全边界 |
 
 新增参考记录需说明：待解决缺口、来源链接及版本 / commit、适配点、不适配点、采用决定、验证证据。必要时查看参考项目的真实代码和测试。不要堆砌品牌、盲目复制，或把参考设计标成 Human Design。
 
