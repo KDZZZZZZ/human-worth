@@ -50,3 +50,19 @@ python3 -m venv /tmp/human-worth-openapi-venv
 /tmp/human-worth-openapi-venv/bin/openapi-spec-validator openapi.yaml
 npm run ci
 ```
+
+## Swagger 文档发布
+
+2026-09-17，用户要求生成 Swagger 文档并部署。交付是现有契约的可浏览页面和 YAML 下载；没有增加业务接口实现。以下实现选择属于 **Agent Self-Claimed**。
+
+| 官方参考 / 版本 | 补全选择 | 验收判据 |
+| --- | --- | --- |
+| [Swagger UI 安装](https://swagger.io/docs/open-source-tools/swagger-ui/usage/installation/)，`swagger-ui-dist` 5.33.0 | 使用官方独立浏览器资源，精确锁定开发依赖，保留许可证并随页面发布 | 构建可重现；浏览器渲染 OpenAPI 3.1.1 的全部 38 个操作，不请求外部 CDN |
+| [Swagger UI 配置](https://swagger.io/docs/open-source-tools/swagger-ui/usage/configuration/) | `supportedSubmitMethods: []` 关闭执行，`validatorUrl: null` 关闭在线校验，展示扩展字段并禁用 URL 配置覆盖 | 实现状态可见，没有 Try it out 或凭据输入，不向外部校验服务发送契约 |
+| [Nginx alias](https://nginx.org/en/docs/http/ngx_http_core_module.html#alias) | 在既有网关 `/docs/` 提供独立静态 release，保留应用代理 | 配置校验、资源摘要、浏览器访问和既有健康检查通过，应用 revision 不变 |
+
+只读方式适配当前以 planned 为主的接口契约与公开 HTTP 文档入口。后续开放认证和接口调试须随真实业务实现启用 HTTPS，并重新验证相应权限与副作用；本次不预先实现这些功能。
+
+## 前端 API 环境路由
+
+用户明确要求前端开发走公网 API、部署走内部调用。采用相对 `/api/*` 和本地开发代理是 Agent Self-Claimed：复用现有 Node.js 服务与 [Node.js 24 HTTP request](https://nodejs.org/docs/latest-v24.x/api/http.html#httprequesturl-options-callback)，以流转发请求和响应，不增加运行时依赖；部署继续使用已有 Nginx 内部代理。验收覆盖真实 HTTP 上游、请求参数与请求体、上游故障、生产入口忽略开发配置，以及本地开发入口连接实际公网健康检查。

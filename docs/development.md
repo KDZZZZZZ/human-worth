@@ -56,7 +56,7 @@ CI 对面向 `dev` 的 PR 检查以下格式，fork 的任务分支同样适用�
 1. 检查工作区与远端；保留无关用户修改。必要时使用 worktree 隔离。
 2. `git fetch origin`，从最新 `origin/dev` 按 `<scope>/<type>-<topic>` 创建任务分支，例如 `git switch -c frontend/feat-task-discovery origin/dev`。
 3. 遵循可信场景；设计缺口先主动查找成熟参考，记录采用理由、差异和验收方式。
-4. 运行 `npm ci --ignore-scripts`、`npm run ci`，推送任务分支并创建面向 `dev` 的 PR。
+4. 运行 `npm ci --ignore-scripts`、`npm run ci`，完成可审阅的本地改动。只有人类明确命令为当前任务开 PR 后，才推送任务分支并创建面向 `dev` 的 PR；没有命令时不创建 draft PR。以 [AGENTS.md 的强制授权规则](../AGENTS.md#pr-authorization)为准。
 5. PR 正文区分 Human Design / Agent Self-Claimed / Validation；通过 CI 即可由有合并权限的作者自行合并，无须寻找同行审批。
 6. 合并前确认 PR 不是 draft，head SHA 与验证对象一致，GitHub 允许合并；使用 `gh pr merge --squash --match-head-commit <sha>`。禁止 `--admin` 绕过。
 7. 合入后检查 push CI、本机部署日志和公网 `/api/health` 的 revision。合并成功不等于部署成功。
@@ -70,6 +70,6 @@ CI 对面向 `dev` 的 PR 检查以下格式，fork 的任务分支同样适用�
 
 空仓库无法通过 PR 产生首个共同祖先。仅初始化时把已有文档提交为根提交 `839a850`，建立 main / dev，随后启用保护。后续基础设施变更也通过任务 PR 进入 dev，再以发布 PR 同步 main；初始化不是日常直接推送例外。
 
-本次用户已授权创建仓库、分支保护、CI、公网入口与本机自动部署及其必要验证。后续在本仓库明确要求的日常开发，按本流程完成分支、CI、PR、合并 dev 和部署验证；不得为同一授权重复询问。main 发布是否包含在后续任务内按当时需求判断。
+初始化时，用户授权了创建仓库、分支保护、CI、公网入口与本机自动部署及其必要验证。这些历史授权不允许后续任务自动创建 PR。当前规则要求覆盖本任务的明确人类开 PR 命令，合并与部署也须符合当时的授权范围；普通开发请求不自动授权整条发布流程。已有覆盖当前动作的明确授权无需重复询问。
 
 GitHub 配置定义见 [ops/github](../ops/github)。默认分支自动删除开关开启，受保护的 dev / main 不随 PR 删除。

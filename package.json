@@ -3,11 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24 <25" },
+  "engines": {
+    "node": ">=24 <25"
+  },
   "scripts": {
+    "dev:frontend": "node --watch app/server.mjs --frontend-dev",
+    "build:docs": "node scripts/build-docs.mjs",
     "start": "node app/server.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "python3 scripts/check_docs.py && python3 scripts/check_pr.py && node --check app/server.mjs",
-    "ci": "npm run check && npm test && python3 -m unittest discover -s tests -p 'test_*.py'"
+    "check": "python3 scripts/check_docs.py && python3 scripts/check_pr.py && node --check app/server.mjs && node --check docs/swagger/swagger-init.js",
+    "ci": "npm run check && npm run build:docs && npm test && python3 -m unittest discover -s tests -p 'test_*.py'"
+  },
+  "devDependencies": {
+    "swagger-ui-dist": "5.33.0"
   }
 }

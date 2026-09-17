@@ -11,8 +11,20 @@
 | 阿里云 CLI 当前账号的 cn-beijing ECS | 公网 IP `123.56.161.234`，Nginx 监听 TCP `18090` |
 | 专用 SSH 隧道 | ECS `127.0.0.1:28090` → 本机 `127.0.0.1:18090` |
 | 前端 / API | `http://123.56.161.234:18090/` / `http://123.56.161.234:18090/api/health` |
+| Swagger 文档 | `http://123.56.161.234:18090/docs/`；由 ECS Nginx 直接提供静态文件 |
 
 同源 `/api/` 避免前端写死第二个主机和端口。现有 ECS 80、443、8080、18082～18084 已有其他用途，新增配置只使用本项目端口。安全组只新增 TCP 18090；28090 不对公网开放。
+
+## 前端开发与部署的 API 路由
+
+用户明确要求开发使用公网 API，部署使用内部调用。前端代码始终使用相对 `/api/*`，通过服务入口区分环境：
+
+| 环境 | 启动方式 | API 请求链路 |
+| --- | --- | --- |
+| 前端开发 | `npm run dev:frontend`，默认 `127.0.0.1:18100` | 浏览器 → 本地开发代理 → `http://123.56.161.234:18090/api/*` |
+| 已部署站点 | systemd / `npm start` | 浏览器 → 同源 Nginx `/api/*` → 网关 `127.0.0.1:28090` → 隧道内的本机应用 |
+
+开发代理只接管 `/api/` 前缀，保留方法、查询参数、请求体和响应状态；上游不可达返回 502，不回退到本地 API。开发上游可由 `FRONTEND_API_ORIGIN` 覆盖。生产环境禁止 `--frontend-dev`，正常部署启动不会读取该变量。浏览器不直接连接内部地址，内部转发由服务端完成。
 
 ## 自动部署过程
 
@@ -53,4 +65,27 @@ curl --fail http://123.56.161.234:18090/api/health
 
 当前保留所有已部署 release 以便诊断；定期清理时至少保留 current 与最近成功版本，不在部署并行进行时删除。部署控制器单实例文件锁防止重叠。
 
-当前公网 HTTP 仅用于公开说明和健康检查。引入身份认证、API token 或私有作品前，同一功能交付必须建立 HTTPS；不通过当前 HTTP 入口传输这些数据。
+当前公网 HTTP 仅用于公开说明、健康检查和只读接口文档。引入身份认证、API token 或私有作品前，同一功能交付必须建立 HTTPS；不通过当前 HTTP 入口传输这些数据。
+
+<a id="swagger-docs"></a>
+## Swagger 静态文档
+
+2026-09-17，用户明确要求生成 Swagger 文档并部署。该授权用于独立静态文档发布，不自动授权创建 PR，也不改变应用从受保护 dev 和成功 CI 部署的规则。源码集成仍须遵循明确的人类 PR 命令、分支保护与 CI 门槛。
+
+源文件为根目录 [openapi.yaml](../openapi.yaml) 和 [docs/swagger](swagger)。`npm ci --ignore-scripts && npm run build:docs` 生成 `dist/docs/`，包含固定版本 Swagger UI、许可证及逐文件 SHA-256 清单。浏览器只请求同源资源，关闭在线校验器、Try it out 和授权输入；38 个操作中只有健康检查的 GET、HEAD 已实现，其余 36 个是契约提案。
+
+公网 `/docs` 重定向到 `/docs/`，对应 `/var/www/human-worth-docs/current/`。Nginx 配置只增加该前缀的静态路由，其他路径继续使用原有应用代理。静态文档不依赖本机应用在线；API 的可用性仍依赖原有隧道和服务。
+
+发布流程：
+
+1. 运行 `npm run ci`，在浏览器检查接口、schema、状态提示与下载。
+2. 通过 ECS 云助手读取 `/etc/nginx/conf.d/human-worth.conf`，将实际内容保存到本地 `/tmp/human-worth-nginx.conf`。不要把仓库配置当成已核实的远端配置。
+3. 运行 `python3 scripts/package-docs.py /tmp/human-worth-nginx.conf`。输出紧凑归档路径、SHA-256 和字节数；通过 ECS `SendFile`（Base64）上传到网关 `/var/tmp/human-worth-docs/`。大型官方资源由安装器按 lockfile 中的精确 URL 下载并校验 SHA-512，因此不受 SendFile 的单次大小限制。
+4. 通过云助手传入 [ops/install-docs.py](../ops/install-docs.py)，在网关以 root 执行 `python3 install-docs.py <归档路径> <SHA-256>`。使用 `RunCommand` 传 Base64 内容时必须显式设置 `ContentEncoding=Base64`，不要依赖 CLI 默认值。
+5. 检查公网文档与 YAML、逐文件清单、浏览器渲染及 `/api/health`。部署不应改变应用 revision。
+
+安装器在修改前核对归档、依赖、逐文件摘要及远端配置，配置漂移时拒绝覆盖。release 保存在 `/var/www/human-worth-docs/releases/<归档 SHA-256>`，旧 Nginx 配置保存在非公开的 `backups/`。通过 `nginx -t` 后原子切换文档链接、reload Nginx；发布检查失败则还原先前配置与链接。需要手动回退时恢复对应配置备份及上一 release 链接，先运行 `nginx -t`，再 `systemctl reload nginx`，复核文档和应用健康。
+
+不要把工作区或项目根目录直接映射到公网；只有构建清单内的公开文件进入文档 release，安装归档、Nginx 配置和备份不在公开目录内。
+
+2026-09-17 发布验收：文档归档 SHA-256 为 `46124e692ca7a77241bb633ad0f343b1fddee67faaac6a8b33fb6e98b2f8d997`。`npm run ci`、网关 `nginx -t`、公网 10 个文件摘要与私有路径拒绝检查均通过；Chrome 验证 38 个操作、展开状态、YAML 下载入口、桌面/手机布局，没有脚本异常或外部资源请求。本地开发页面的 `/api/health` 确认返回公网版本；发布前后应用 revision 均为 `813b5a8bafde7731886244dc831b9985c5884035`。首次安装发现网关 Python 3.6.8 的 pathlib 兼容性问题，修正后发布成功，现有应用服务保持正常。未实现的业务 API 不在此次运行验收范围内。
