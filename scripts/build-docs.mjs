@@ -7,7 +7,8 @@ const output = new URL('dist/docs/', root);
 const files = new Map([
   ...['index.html', 'swagger-init.js', 'docs.css'].map(name => [name, `docs/swagger/${name}`]),
   ['openapi.yaml', 'openapi.yaml'],
-  ...['swagger-ui-bundle.js', 'swagger-ui.css', 'favicon-32x32.png', 'LICENSE', 'NOTICE', 'swagger-ui-bundle.js.LICENSE.txt']
+  ['logo.png', 'public/brand/logo.png'],
+  ...['swagger-ui-bundle.js', 'swagger-ui.css', 'LICENSE', 'NOTICE', 'swagger-ui-bundle.js.LICENSE.txt']
     .map(name => [name, `node_modules/swagger-ui-dist/${name}`]),
 ]);
 

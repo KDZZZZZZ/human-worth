@@ -1,4 +1,4 @@
-"""Package docs for ECS SendFile; vendor assets are fetched with npm integrity."""
+"""Package docs for ECS SendFile; large assets are fetched and verified on install."""
 import gzip
 import hashlib
 import io

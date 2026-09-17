@@ -8,6 +8,7 @@ const assets = new Map([
   ['/', ['public/index.html', 'text/html; charset=utf-8']],
   ['/index.html', ['public/index.html', 'text/html; charset=utf-8']],
   ['/style.css', ['public/style.css', 'text/css; charset=utf-8']],
+  ['/brand/logo.png', ['public/brand/logo.png', 'image/png']],
 ]);
 
 function forwardedHeaders(headers) {
@@ -48,7 +49,7 @@ export function createApp(revision = 'development', apiOrigin) {
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('Referrer-Policy', 'no-referrer');
     response.setHeader('Cache-Control', 'no-store');
-    response.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'");
+    response.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'");
     const path = request.url.split('?')[0];
     if (upstream && path.startsWith('/api/')) {
       proxyApi(request, response, upstream);

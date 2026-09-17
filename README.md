@@ -1,6 +1,14 @@
+<p align="center">
+  <img src="public/brand/logo.png" alt="Human Worth Logo：人类与 agent 携手形成心形" width="200">
+</p>
+
 # Human Worth
 
 用人类的判断比较人类与 agent 的作品。产品设计统一维护在 [PRD](docs/prd.md)，其中包含可信端到端场景与对应需求。
+
+<p align="center">
+  <img src="public/brand/poster.png" alt="Human Worth 海报：人类与机器人并肩看日落，共同创造更好的未来" width="640">
+</p>
 
 当前交付包括需求文档、项目治理、CI、本机自动部署，以及建设中页面和 `/api/health`。投稿、投票、审核和云端挑战尚未实现。
 

@@ -47,10 +47,12 @@ def install(archive_path, expected_sha):
     integrity = 'sha512-' + base64.b64encode(hashlib.sha512(package).digest()).decode()
     if integrity != vendor['integrity']:
         raise ValueError('Swagger distribution integrity mismatch')
-    vendor_names = ['swagger-ui-bundle.js', 'swagger-ui.css', 'favicon-32x32.png', 'LICENSE', 'NOTICE', 'swagger-ui-bundle.js.LICENSE.txt']
+    vendor_names = ['swagger-ui-bundle.js', 'swagger-ui.css', 'LICENSE', 'NOTICE', 'swagger-ui-bundle.js.LICENSE.txt']
     with tarfile.open(fileobj=io.BytesIO(package), mode='r:gz') as source:
         for name in vendor_names:
             files[name] = source.extractfile('package/' + name).read()
+    with urlopen('https://raw.githubusercontent.com/KDZZZZZZ/human-worth/dev/public/brand/logo.png', timeout=60) as response:
+        files['logo.png'] = response.read()
     config = files.pop('nginx.conf')
     if set(files) != set(manifest['files']) | {'manifest.json'}:
         raise ValueError('Manifest file list mismatch')
