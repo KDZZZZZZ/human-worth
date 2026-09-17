@@ -4,6 +4,7 @@ from pathlib import Path
 import tarfile
 import tempfile
 import unittest
+import subprocess
 
 spec = importlib.util.spec_from_file_location('deploy', Path(__file__).resolve().parents[1] / 'ops/deploy.py')
 deploy = importlib.util.module_from_spec(spec)
@@ -11,6 +12,18 @@ spec.loader.exec_module(deploy)
 
 
 class DeployGateTest(unittest.TestCase):
+    def test_shallow_cache_follows_consecutive_real_commits(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source, cache = Path(folder) / 'source', Path(folder) / 'cache.git'
+            subprocess.run(['git', 'init', '-b', 'dev', str(source)], check=True, capture_output=True)
+            git = ['git', '-C', str(source), '-c', 'user.name=Deploy Test', '-c', 'user.email=deploy@example.invalid']
+            for version in ['first', 'second', 'third']:
+                (source / 'version').write_text(version)
+                subprocess.run(git + ['add', 'version'], check=True, capture_output=True)
+                subprocess.run(git + ['commit', '-m', version], check=True, capture_output=True)
+                expected = subprocess.run(git + ['rev-parse', 'HEAD'], check=True, capture_output=True, text=True).stdout.strip()
+                self.assertEqual(deploy.fetch_revision(cache, source.as_uri()), expected)
+
     def run_record(self, **changes):
         record = dict(id=1, run_attempt=1, head_sha='abc', head_branch='dev', event='push',
                       path='.github/workflows/ci.yml', head_repository={'full_name': deploy.REPO},

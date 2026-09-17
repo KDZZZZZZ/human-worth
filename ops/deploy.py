@@ -42,6 +42,17 @@ def read_json(url):
         return json.load(response)
 
 
+def fetch_revision(checkout, remote=f'https://github.com/{REPO}.git'):
+    if not checkout.exists():
+        command(['git', 'init', '--bare', str(checkout)])
+    git = ['git', '--git-dir', str(checkout)]
+    # A depth-one cache cannot prove ancestry. Refresh only this local tracking
+    # ref; the GitHub dev branch is never pushed or rewritten by the controller.
+    ref = 'refs/remotes/origin/dev'
+    command(git + ['fetch', '--quiet', '--depth=1', remote, f'+refs/heads/dev:{ref}'])
+    return command(git + ['rev-parse', ref], text=True).strip()
+
+
 def save_state(state):
     path = BASE / 'state.json'
     temp = path.with_suffix('.tmp')
@@ -86,11 +97,8 @@ def extract_release(archive, release):
 
 def reconcile():
     checkout = BASE / 'repository.git'
-    if not checkout.exists():
-        command(['git', 'init', '--bare', str(checkout)])
+    sha = fetch_revision(checkout)
     git = ['git', '--git-dir', str(checkout)]
-    command(git + ['fetch', '--quiet', '--depth=1', f'https://github.com/{REPO}.git', 'refs/heads/dev:refs/heads/dev'])
-    sha = command(git + ['rev-parse', 'refs/heads/dev'], text=True).strip()
     if not re.fullmatch(r'[a-f0-9]{40}', sha):
         raise ValueError('Unexpected revision')
     state_file = BASE / 'state.json'
