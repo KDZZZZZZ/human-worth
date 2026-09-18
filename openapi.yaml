@@ -1,14 +1,16 @@
 openapi: 3.1.1
 info:
   title: Human Worth API
-  version: 0.1.0-draft
+  version: 0.2.0-draft
   summary: 人类价值平台的 HTTP 接口契约草案
   description: |
-    行为依据为 docs/prd.md 中的可信场景 S1～S6，以及 AGENTS.md 的发帖、评论、投票目标。
+    行为依据为 docs/prd.md 中的可信场景 S1～S6、2026-09-18 人类修订 H1，以及 AGENTS.md 的发帖、评论、投票目标。
     当前仅 /api/health 的 GET、HEAD 已实现；其余 operation 均为 planned，不能据此认定线上可调用。
     路径、字段、状态枚举、认证载体和分页等具体选择属于 Agent Self-Claimed，详见 docs/references.md。
 
-    普通 GET 不改变投票资格，不返回或预取单题得票、胜率；投票响应也不附带统计。
+    作品以审核结果决定展示，没有独立的公开/私有或公开授权开关；云端使用授权另行检查。
+    投票一次给出该任务全部允许展示的过审作品，用户从中单选一件最认可的作品。
+    普通 GET 不改变投票资格，不返回或预取单题得票、得票占比；投票响应也不附带统计。
     只有显式 POST statistics-access 可以读取具体统计，且必须先持久化账号 × 任务的永久禁投记录。
     网站、MCP 和管理员查看单题具体统计均经过此入口；管理角色不能绕过资格变化。
     所有业务响应使用 Cache-Control: no-store；错误响应也不得泄露统计、密钥或私有内容。
@@ -49,9 +51,9 @@ x-mcp:
 tags:
   - {name: Health, description: 已实现的基础服务}
   - {name: Account, description: 当前会话和本人投稿}
-  - {name: Tasks, description: 推荐发现、任务与公开作品}
+  - {name: Tasks, description: 推荐发现、任务与过审作品}
   - {name: Submissions, description: 草稿、上传与审核申请}
-  - {name: Voting, description: 真人比较与永久投票资格}
+  - {name: Voting, description: 全部作品单选与永久投票资格}
   - {name: Board, description: 公开看板与热度排行}
   - {name: Discussion, description: 评论及举报}
   - {name: Administration, description: 管理员审核、下架与审计}
@@ -111,7 +113,7 @@ paths:
       description: |
         首页默认 recommended；看板排行榜使用 hot，按热度降序排列，同热度按任务 ID 升序。
         游标绑定排序、筛选及列表快照，持续滚动不重复同一任务；快照内已下架内容即时过滤。
-        不返回具体得票或胜率，不因读取改变资格。heat 是不可反推出具体票数的排序分值。
+        不返回具体得票或得票占比，不因读取改变资格。heat 是不可反推出具体票数的排序分值。
         q 仅检索允许公开的任务文本，不检索私有投稿或统计。
       x-scenarios: [S1, S5, S6]
       x-implementation-status: planned
@@ -161,13 +163,13 @@ paths:
       tags: [Tasks]
       operationId: getTask
       summary: 阅读公开任务详情
-      description: 只返回已发布任务；草稿、待审、驳回和下架内容返回 404。作品列表独立分页，不隐式读取统计。
+      description: 只返回已发布任务；草稿、待审、驳回和下架内容返回 404。普通作品浏览可分页；投票通过 ballot 一次取得全部过审作品，不隐式读取统计。
       x-scenarios: [S1, S3, S5, S6]
       x-implementation-status: planned
       security: [{}, {WebSession: []}, {McpToken: []}]
       responses:
         '200':
-          description: 公开任务正文，不含票数和胜率
+          description: 公开任务正文，不含票数和得票占比
           content:
             application/json:
               schema: {$ref: '#/components/schemas/PublicTask'}
@@ -177,10 +179,13 @@ paths:
     parameters: [{$ref: '#/components/parameters/TaskId'}]
     get:
       tags: [Tasks]
-      operationId: listPublishedEntries
-      summary: 分页读取该题已发布作品
-      description: 任务及作品均须公开可见；不暴露其他人的草稿、待审作品、私有配置或单题统计。
-      x-scenarios: [S1, S3, S5]
+      operationId: listApprovedEntries
+      summary: 分页浏览该题通过审核的作品
+      description: |
+        任务须可见，作品须为 approved；没有作品公开/私有状态，也不检查单独的公开授权。
+        此分页接口用于普通浏览；投票页面必须使用 ballot 一次取得全部过审作品，不得仅以某一页作为候选集合。
+        不暴露其他人的草稿、待审作品、内部配置或单题统计。
+      x-scenarios: [S1, S3, S5, H1]
       x-implementation-status: planned
       security: [{}, {WebSession: []}, {McpToken: []}]
       parameters:
@@ -188,7 +193,7 @@ paths:
         - {$ref: '#/components/parameters/Limit'}
       responses:
         '200':
-          description: 公开参选作品
+          description: 审核通过、允许展示的作品
           content:
             application/json:
               schema: {$ref: '#/components/schemas/EntryPage'}
@@ -282,7 +287,7 @@ paths:
       description: |
         服务端校验 expectedRevision、完整任务信息及至少一件 human 和一件 agent 作品；缺少任一方返回 422。
         所有材料须可用且授权有效；校验失败时保留草稿，不部分送审。
-        同一版本重复请求找回原审核记录；通过后任务及初始作品原子公开。发布不启动云端 agent。
+        同一版本重复请求找回原审核记录；通过后任务发布、初始作品获准展示，在同一事务生效。发布不启动云端 agent。
       x-scenarios: [S2]
       x-implementation-status: planned
       requestBody:
@@ -361,7 +366,7 @@ paths:
                 file: {type: string, format: binary}
       responses:
         '201':
-          description: 已验证且可用于投稿的私有资产
+          description: 已验证且可用于投稿的资产；被过审作品引用前仅供本人投稿管理与管理员审核
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Asset'}
@@ -376,17 +381,19 @@ paths:
     get:
       tags: [Tasks]
       operationId: downloadAsset
-      summary: 下载有权阅读的作品文件
+      summary: 下载审核允许展示或本人有权管理的作品文件
       description: |
-        匿名和 MCP 仅能访问属于已发布任务、已发布作品且授权公开的文件；未公开文件仅上传者或平台管理员可读。
-        下架后立即重新校验权限，不返回长期公开下载 URL。无权访问与不存在均返回 404。
+        任务可见且作品审核通过（approved），其关联文件即可供匿名、网站和 MCP 读取，不另设公开/私有或公开授权开关。
+        尚未被可见任务中的过审作品引用的文件，仅上传者本人或平台管理员可通过网站会话在投稿管理/审核中读取；MCP token 不获得这项管理权限。
+        撤销作品审核通过或任务下架后立即重新检查展示条件；资产自身被封禁时停止下载，不保留可绕过检查的长期下载 URL。
+        无权访问与不存在均返回 404；cloudUse 只限制云端挑战用途，不影响过审作品的展示和普通下载。
         使用附件下载与 nosniff，不在站点源内执行用户上传的 HTML 或脚本。
-      x-scenarios: [S2, S3, S4, S5]
+      x-scenarios: [S2, S3, S4, S5, H1]
       x-implementation-status: planned
       security: [{}, {WebSession: []}, {McpToken: []}]
       responses:
         '200':
-          description: 授权访问的原始文件字节
+          description: 通过当前访问校验的原始文件字节
           headers:
             Content-Disposition:
               description: 附件文件名须经过转义
@@ -416,58 +423,52 @@ paths:
               schema: {$ref: '#/components/schemas/VotingEligibility'}
         default: {$ref: '#/components/responses/Problem'}
 
-  /api/tasks/{taskId}/comparison:
+  /api/tasks/{taskId}/ballot:
     parameters: [{$ref: '#/components/parameters/TaskId'}]
     get:
       tags: [Voting]
-      operationId: getComparison
-      summary: 获取当前账号可比较的人类与 agent 作品对
+      operationId: getBallot
+      summary: 一次获取该题全部过审作品供单选投票
       description: |
-        仅返回该题两件已审核公开作品，一件 human、一件 agent；左右随机，不包含票数或胜率。
-        comparisonId 由服务端绑定账号、任务、作品对与左右顺序；读取不提交选票或改变永久资格。
-        永久禁投返回 403；没有可投作品对返回 204。具体配对算法与防刷条件待实现时明确。
-      x-scenarios: [S1]
+        一次返回同一目录版本下该任务全部审核通过、允许展示的作品，包含全部 human 和 agent 作品；不分页、不抽样、不做两件配对。
+        服务端生成 ballotId（响应字段 id），绑定当前账号、任务、catalogRevision 及完整候选 ID 集合；作品文件按引用另行加载，不内嵌文件字节。
+        用户从全部作品中单选一件最认可的；响应只含作品和本人的当前选票，不含其他人的选择、票数或得票占比。
+        读取不提交选票、不改变永久资格；永久禁投返回 403。没有过审作品时仍返回 200 和空 entries，页面不能提交选票。
+        必须从内容服务核实完整集合，目录未同步或不能确认完整性时返回 503，不能以旧的部分候选成功响应。
+      x-scenarios: [S1, H1]
       x-implementation-status: planned
       security: [{WebSession: []}]
       responses:
         '200':
-          description: 可投的比较对象
+          description: 完整过审作品列表与本人的当前选票
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Comparison'}
-        '204': {description: 暂无可投作品对}
+              schema: {$ref: '#/components/schemas/Ballot'}
         '403': {$ref: '#/components/responses/Forbidden'}
         default: {$ref: '#/components/responses/Problem'}
 
-  /api/tasks/{taskId}/votes/{comparisonId}:
-    parameters:
-      - {$ref: '#/components/parameters/TaskId'}
-      - name: comparisonId
-        in: path
-        required: true
-        schema: {$ref: '#/components/schemas/Id'}
+  /api/tasks/{taskId}/vote:
+    parameters: [{$ref: '#/components/parameters/TaskId'}]
     put:
       tags: [Voting]
       operationId: castVote
-      summary: 提交当前账号对一个作品对的选择
+      summary: 从全部过审作品中单选一件最认可的作品
       description: |
-        提案采用 left、right、tie；跳过不发送选票。每个账号对同一无序作品对最多一票，改变左右或 comparisonId 不增加票数。
-        相同选择重试返回原票，尝试改票返回 409；已永久禁投时即使重放旧票也返回 403。
-        校验比较对象确属当前账号与任务、两件作品仍公开且分属双方；返回自己的选票，不返回统计。
-        投票提交与 statistics-access 在账号 × 任务上串行化：禁投记录提交后不得新增任何选票。
-        若选票先提交，后看统计保留该历史选票；管理员身份不豁免。MCP token 无权投票。
-      x-scenarios: [S1, S5]
+        提交一个 entryId，不接受左右选项、平票、多选或评分；跳过不发送选票。
+        技术提案：每账号每任务只保留一份当前选择；未永久禁投前可以改选，替换选择而不新增一票。
+        ballotId 必须绑定当前账号、任务和完整候选集合；新写入时核实目录版本最新，entryId 仍在该题过审候选中。
+        新作品过审或作品撤销通过导致目录版本变化时，新投票请求返回 409，客户端重新加载全部作品，不静默沿用旧候选。
+        expectedVoteRevision 为本人当前选票版本，尚未投票时为 0；过期版本返回 409，避免迟到重试覆盖后来的选择。
+        同请求最近一次成功结果的重试返回该选票，不重复计票；已永久禁投时即使重放旧票也返回 403。
+        投票与 statistics-access 在账号 × 任务上串行化；资格关闭后不得新增或修改选择。关闭前已提交的选择保留。
+        返回本人的选票，不返回统计；管理员身份不豁免，MCP token 无权投票。版本、改选与幂等细则为 Agent Self-Claimed。
+      x-scenarios: [S1, S5, H1]
       x-implementation-status: planned
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [choice]
-              properties:
-                choice: {type: string, enum: [left, right, tie]}
+            schema: {$ref: '#/components/schemas/VoteInput'}
       responses:
         '200':
           description: 已保存的本人选票或相同选择的重试结果
@@ -488,7 +489,7 @@ paths:
         客户端必须先披露后果并取得用户明确选择，再发送 permanentlyCloseVoting=true；未确认返回 422，无副作用。
         先验证账号和任务可见性，再持久化账号 × 任务的永久禁投记录，提交成功后才读取并返回统计。
         持久化失败不返回统计；提交成功但响应丢失时禁投记录仍生效，重试不改变首次 closedAt，也不生成选票。
-        换 token、作品对或新增作品都不能恢复资格；其他任务及追加作品权限不受影响。
+        换 token、刷新候选列表或新增作品都不能恢复资格；其他任务及追加作品权限不受影响。
         网站、MCP、榜单下钻和管理员具体反馈查看共用此流程，没有无副作用的 GET 统计旁路。
         Cookie 调用须同时提供 CSRF token；MCP Bearer 调用不使用 Cookie。响应及错误均不可缓存。
       x-scenarios: [S1, S3, S4, S5, S6]
@@ -513,7 +514,7 @@ paths:
             example: {permanentlyCloseVoting: true}
       responses:
         '200':
-          description: 禁投记录提交后的统计快照；零票时胜率为 null
+          description: 禁投记录提交后的统计快照；零票时得票占比为 null
           headers:
             Cache-Control: {$ref: '#/components/headers/NoStore'}
           content:
@@ -529,8 +530,8 @@ paths:
       summary: 读取平台及分类差距汇总
       description: |
         与 GET /api/tasks?order=hot 组成同一个看板与排行榜页面。
-        仅提供按系统结论分组的任务数量，不提供单题票数、胜率或可以通过小样本分组、差分还原的投票汇总。
-        具体热度算法和领先阈值未定；不将热度榜改为胜率榜。
+        仅提供按系统结论分组的任务数量，不提供单题票数、得票占比或可以通过小样本分组、差分还原的投票汇总。
+        具体热度算法和领先阈值未定；不将热度榜改为得票占比榜。
       x-scenarios: [S1, S6]
       x-implementation-status: planned
       security: [{}, {WebSession: []}, {McpToken: []}]
@@ -660,7 +661,7 @@ paths:
       summary: 通过或驳回一次审核
       description: |
         仅处理仍为 pending 的该次投稿快照；拒绝过时版本。新任务与双方初始作品一起通过才公开。
-        追加及云端作品只改变作品状态，不重审已发布任务；原任务已下架时不得公开新作品。
+        追加及云端作品只改变作品审核状态，不重审已发布任务；通过即为 approved 并允许展示，不另设公开状态。原任务已下架时不得通过新作品。
         驳回必须填写原因；同一决定重试返回已有结果，不同决定返回 409。留存管理员身份、时间与结果。
       x-scenarios: [S2, S3, S4]
       x-implementation-status: planned
@@ -743,9 +744,10 @@ paths:
       operationId: takeDownContent
       summary: 管理员直接下架内容并记录原因
       description: |
-        可下架任务、作品或评论；下架任务后其作品、评论和文件不再通过公开接口可见。
-        不物理删除历史记录，不恢复投票资格；历史票有效性及运行处置规则须在功能实现时补全。
-      x-scenarios: [S4]
+        可下架任务、作品或评论；作品下架表示撤销审核通过，进入 approval_revoked，不是切换为私有。
+        下架任务后其作品、评论和文件不再通过公开接口可见；作品撤销通过后立即退出展示及候选列表。
+        不物理删除历史记录，不恢复投票资格。技术提案：保留历史选择，当前统计不再计入撤销通过作品的票；在途运行处置仍待补全。
+      x-scenarios: [S4, H1]
       x-implementation-status: planned
       security: [{WebSession: [admin], CsrfToken: []}]
       requestBody:
@@ -806,7 +808,7 @@ paths:
                 configuration: {$ref: '#/components/schemas/RunConfiguration'}
       responses:
         '202':
-          description: 已建立运行记录；可按 ID 轮询，不代表执行成功或作品已公开
+          description: 已建立运行记录；可按 ID 轮询，不代表执行成功或作品已过审
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ChallengeRun'}
@@ -1120,7 +1122,13 @@ components:
     PublicationState:
       type: string
       enum: [draft, pending_review, published, rejected, taken_down]
-      description: 任务草稿可缺作品；追加作品创建后直接 pending_review。客户端不可直接设置发布状态。
+      description: 仅用于任务的发布流程；任务草稿可缺作品。作品使用独立的 EntryReviewState，客户端不可直接设置状态。
+    EntryReviewState:
+      type: string
+      enum: [draft, pending_review, approved, rejected, approval_revoked]
+      description: |
+        作品只按审核结果决定展示，没有独立公开/私有状态。任务可见且 approved 即允许展示；通过被撤销后为 approval_revoked。
+        初始作品可以随任务保存 draft；追加及云端作品创建后进入 pending_review。状态只能由对应的投稿/审核流程改变。
     Conclusion:
       type: string
       enum: [undetermined, human_leading, agent_leading]
@@ -1152,23 +1160,20 @@ components:
     Permissions:
       type: object
       additionalProperties: false
-      required: [publish, cloudUse]
+      required: [cloudUse]
       properties:
-        publish:
-          type: boolean
-          const: true
-          description: 投稿者确认有权将该作品提交公开；审核仍校验来源与授权材料
         cloudUse:
           type: boolean
           description: 是否允许该作品用于云端挑战；必须显式选择，无默认授权，启动及重启仍检查有效性
-        statement: {type: string, description: 授权说明或依据，不填写密钥或无关个人信息}
+        statement: {type: string, description: 来源权利或云端使用授权的说明，不填写密钥或无关个人信息；不是作品展示开关}
+      description: 仅记录用途授权；作品是否允许展示由审核结果决定，不接受 publish/public/private 字段。
     AgentConfiguration:
       type: object
       additionalProperties: false
       required: [model]
       properties:
         model: {type: string, minLength: 1}
-        prompt: {type: string, description: 不含密钥的提示词；公开作品仅展示投稿者允许公开的内容}
+        prompt: {type: string, description: 不含密钥的提示词；完整运行配置供投稿审核及获授权的云端使用，不随作品展示响应返回}
         harness: {type: string}
         skills:
           type: array
@@ -1259,7 +1264,7 @@ components:
         authorId: {$ref: '#/components/schemas/Id'}
         revision: {type: integer, minimum: 1}
         origin: {type: string, enum: [initial, additional, cloud]}
-        state: {$ref: '#/components/schemas/PublicationState'}
+        state: {$ref: '#/components/schemas/EntryReviewState'}
         content: {$ref: '#/components/schemas/EntryInput'}
         reviewId: {$ref: '#/components/schemas/NullableId'}
         rejectionReason: {type: [string, 'null']}
@@ -1274,12 +1279,12 @@ components:
         description: {type: string}
         category: {type: [string, 'null']}
         author: {$ref: '#/components/schemas/Author'}
-        heat: {type: number, description: 平台热度排序值；不包含可还原的票数或胜率}
+        heat: {type: number, description: 平台热度排序值；不包含可还原的票数或得票占比}
         publishedAt: {$ref: '#/components/schemas/Timestamp'}
-    PublicEntry:
+    ApprovedEntry:
       type: object
       additionalProperties: false
-      required: [id, taskId, side, title, description, source, artifacts, author, publishedAt]
+      required: [id, taskId, side, title, description, source, artifacts, author, approvedAt]
       properties:
         id: {$ref: '#/components/schemas/Id'}
         taskId: {$ref: '#/components/schemas/Id'}
@@ -1292,8 +1297,8 @@ components:
           minItems: 1
           items: {$ref: '#/components/schemas/Artifact'}
         author: {$ref: '#/components/schemas/Author'}
-        publishedAt: {$ref: '#/components/schemas/Timestamp'}
-      description: 只投影公开内容，不原样返回投稿授权材料、运行私有配置或未审核文件
+        approvedAt: {$ref: '#/components/schemas/Timestamp'}
+      description: 任务可见且作品审核通过时的展示内容；没有公开/私有状态，不返回投稿审核材料、完整运行配置或未过审作品内容。
     VotingEligibility:
       type: object
       additionalProperties: false
@@ -1323,30 +1328,59 @@ components:
           then:
             properties:
               reason: {type: 'null'}
-    Comparison:
+    Ballot:
       type: object
       additionalProperties: false
-      required: [id, taskId, left, right]
+      required: [id, taskId, catalogRevision, entries, currentVote]
       properties:
         id: {$ref: '#/components/schemas/Id'}
         taskId: {$ref: '#/components/schemas/Id'}
-        left: {$ref: '#/components/schemas/PublicEntry'}
-        right: {$ref: '#/components/schemas/PublicEntry'}
-      description: 两件不同作品属于此 taskId，分属 human 和 agent；跨字段关系由服务端验证
+        catalogRevision: {type: integer, minimum: 1}
+        entries:
+          type: array
+          items: {$ref: '#/components/schemas/ApprovedEntry'}
+          description: 同一目录版本下该任务全部过审作品；ID 唯一，包含全部 human/agent，无分页、抽样或截断。
+        currentVote:
+          oneOf:
+            - {$ref: '#/components/schemas/Vote'}
+            - {type: 'null'}
+          description: 仅本人当前选择；尚未投票为 null，不含其他账号的选择或任何计票数据。
+      description: 服务端绑定账号、任务、版本及完整候选集合；空 entries 表示没有可选作品，不能提交投票。
+    VoteInput:
+      type: object
+      additionalProperties: false
+      required: [ballotId, entryId, expectedVoteRevision]
+      properties:
+        ballotId: {$ref: '#/components/schemas/Id'}
+        entryId: {$ref: '#/components/schemas/Id'}
+        expectedVoteRevision: {type: integer, minimum: 0, description: 当前选票的 revision，首次投票为 0}
+      description: 只选择一个作品 ID；作品必须仍属于完整且当前有效的候选集合。
     Vote:
       type: object
       additionalProperties: false
-      required: [id, taskId, comparisonId, choice, createdAt]
+      required: [id, taskId, entryId, revision, createdAt, updatedAt]
       properties:
         id: {$ref: '#/components/schemas/Id'}
         taskId: {$ref: '#/components/schemas/Id'}
-        comparisonId: {$ref: '#/components/schemas/Id'}
-        choice: {type: string, enum: [left, right, tie]}
+        entryId: {$ref: '#/components/schemas/Id'}
+        revision: {type: integer, minimum: 1}
         createdAt: {$ref: '#/components/schemas/Timestamp'}
+        updatedAt: {$ref: '#/components/schemas/Timestamp'}
+      description: 当前账号在该任务的一份选择记录；改选增加 revision、不新增票数。不嵌入已撤销过审作品的内容。
+    EntryVoteCount:
+      type: object
+      additionalProperties: false
+      required: [entryId, side, votes, voteShare]
+      properties:
+        entryId: {$ref: '#/components/schemas/Id'}
+        side: {type: string, enum: [human, agent]}
+        votes: {type: integer, minimum: 0}
+        voteShare: {type: [number, 'null'], minimum: 0, maximum: 1}
+      description: 仅在显式统计响应中返回；votes / totalVotes，零总票时 voteShare 为 null。
     TaskStatistics:
       type: object
       additionalProperties: false
-      required: [taskId, eligibility, totalVotes, humanVotes, agentVotes, ties, humanWinRate, agentWinRate, conclusion, computedAt]
+      required: [taskId, eligibility, totalVotes, humanVotes, agentVotes, humanVoteShare, agentVoteShare, entryVotes, catalogRevision, conclusion, computedAt]
       properties:
         taskId: {$ref: '#/components/schemas/Id'}
         eligibility:
@@ -1358,15 +1392,19 @@ components:
         totalVotes: {type: integer, minimum: 0}
         humanVotes: {type: integer, minimum: 0}
         agentVotes: {type: integer, minimum: 0}
-        ties: {type: integer, minimum: 0}
-        humanWinRate: {type: [number, 'null'], minimum: 0, maximum: 1}
-        agentWinRate: {type: [number, 'null'], minimum: 0, maximum: 1}
+        humanVoteShare: {type: [number, 'null'], minimum: 0, maximum: 1}
+        agentVoteShare: {type: [number, 'null'], minimum: 0, maximum: 1}
+        entryVotes:
+          type: array
+          items: {$ref: '#/components/schemas/EntryVoteCount'}
+        catalogRevision: {type: integer, minimum: 1}
         conclusion: {$ref: '#/components/schemas/Conclusion'}
         computedAt: {$ref: '#/components/schemas/Timestamp'}
       description: |
-        仅计算有效真人选票，totalVotes = humanVotes + agentVotes + ties。
-        胜率提案为该方得票 / totalVotes，分母包含平票；零票时两方胜率均为 null。
-        多作品对汇总不宣称消除了抽样偏差；有效票规则和任务领先/翻转算法仍待明确。
+        技术提案：按账号在该任务的当前选择计票，只统计所选作品仍审核通过且有效的真人选票；撤销通过的作品不进入当前统计，历史选票记录保留。
+        entryVotes 覆盖该目录版本下全部过审作品（含零票），每个 entryId 唯一；totalVotes = 所有作品 votes 之和 = humanVotes + agentVotes。
+        各作品与两方的得票占比为各自票数 / totalVotes；零总票时占比均为 null。单选没有平票选项，不用两两对抗胜率解释这些占比。
+        同一目录与计票快照生成响应；具体防刷有效票规则、领先/翻转算法仍待明确，不预设投票阈值。
         taskId 必须与 eligibility.taskId 相同；统计生成失败可返回 503，但已提交的永久禁投不能回滚。
       allOf:
         - if:
@@ -1376,13 +1414,12 @@ components:
             properties:
               humanVotes: {const: 0}
               agentVotes: {const: 0}
-              ties: {const: 0}
-              humanWinRate: {type: 'null'}
-              agentWinRate: {type: 'null'}
+              humanVoteShare: {type: 'null'}
+              agentVoteShare: {type: 'null'}
           else:
             properties:
-              humanWinRate: {type: number}
-              agentWinRate: {type: number}
+              humanVoteShare: {type: number}
+              agentVoteShare: {type: number}
     BoardGroup:
       type: object
       additionalProperties: false
@@ -1587,7 +1624,7 @@ components:
       additionalProperties: false
       required: [items, nextCursor]
       properties:
-        items: {type: array, items: {$ref: '#/components/schemas/PublicEntry'}}
+        items: {type: array, items: {$ref: '#/components/schemas/ApprovedEntry'}}
         nextCursor: {$ref: '#/components/schemas/NextCursor'}
     SubmissionPage:
       type: object
