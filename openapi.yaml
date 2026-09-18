@@ -1,15 +1,16 @@
 openapi: 3.1.1
 info:
   title: Human Worth API
-  version: 0.2.0-draft
+  version: 0.4.0-draft
   summary: 人类价值平台的 HTTP 接口契约草案
   description: |
-    行为依据为 docs/prd.md 中的可信场景 S1～S6、2026-09-18 人类修订 H1，以及 AGENTS.md 的发帖、评论、投票目标。
+    行为依据为 docs/prd.md 中的可信场景 S1～S6、2026-09-18 人类修订 H1～H3，以及 AGENTS.md 的发帖、评论、投票目标。
     当前仅 /api/health 的 GET、HEAD 已实现；其余 operation 均为 planned，不能据此认定线上可调用。
     路径、字段、状态枚举、认证载体和分页等具体选择属于 Agent Self-Claimed，详见 docs/references.md。
 
     作品以审核结果决定展示，没有独立的公开/私有或公开授权开关；云端使用授权另行检查。
     投票一次给出该任务全部允许展示的过审作品，用户从中单选一件最认可的作品。
+    管理概览与运行记录不展示剩余额度、已用额度或消耗数值；启动/重启的预算配置及后台执行限制继续保留。
     普通 GET 不改变投票资格，不返回或预取单题得票、得票占比；投票响应也不附带统计。
     只有显式 POST statistics-access 可以读取具体统计，且必须先持久化账号 × 任务的永久禁投记录。
     网站、MCP 和管理员查看单题具体统计均经过此入口；管理角色不能绕过资格变化。
@@ -17,9 +18,13 @@ info:
 
     网站使用会话及 CSRF token；MCP token 仅用于公开内容读取和显式统计访问，不接受于投稿、投票或管理接口。
     账号和管理员身份由服务端认证取得，不接受客户端指定账号或角色。两种凭据必须映射到同一稳定账号 ID。
-    公开操作允许不带凭据；携带无效凭据时返回 401，不退回匿名访问；同时携带会话与 Bearer 时返回 400。
+    Google 登录使用服务端授权码流程（OIDC + PKCE S256），成功后建立网站会话；GET /api/me 查询本人身份。
+    登录入口和回调不要求已有网站会话，过期网站会话不阻止重新登录；它们拒绝 Bearer token，回调必须验证独立的登录流程 Cookie 与 state。
+    其他公开业务操作允许不带凭据；携带无效凭据时返回 401，不退回匿名访问；同时携带会话与 Bearer 时返回 400。
     业务接口启用前须接入 HTTPS；现有公网 HTTP 仅用于建设中页面和健康检查。
-    登录注册、token 签发/吊销、管理员授予、具体算法、文件限额及云端内部通信不在本草案中定案。
+    Google 正式回调须使用预先注册的 HTTPS 域名，不能使用现有公网 IP 地址；Client Secret 仅保存在服务端。
+    首次有效 Google 登录创建普通账号，再次登录复用稳定账号；不按邮箱自动合并账号或授予管理员。
+    MCP token 签发/吊销、管理员授予、具体算法、文件限额及云端内部通信仍待实现阶段补全。
 externalDocs:
   description: 产品需求与可信场景
   url: https://github.com/KDZZZZZZ/human-worth/blob/dev/docs/prd.md
@@ -50,6 +55,7 @@ x-mcp:
       description: 客户端须先说明永久失去该题投票权，再以明确确认为参数调用；不提交选票。
 tags:
   - {name: Health, description: 已实现的基础服务}
+  - {name: Authentication, description: Google 登录、回调和退出网站会话；当前均待实现}
   - {name: Account, description: 当前会话和本人投稿}
   - {name: Tasks, description: 推荐发现、任务与过审作品}
   - {name: Submissions, description: 草稿、上传与审核申请}
@@ -89,17 +95,133 @@ paths:
             Content-Type:
               schema: {type: string, const: 'application/json; charset=utf-8'}
 
+  /api/auth/google:
+    get:
+      tags: [Authentication]
+      operationId: startGoogleLogin
+      summary: 发起 Google 登录
+      description: |
+        浏览器以顶层页面导航打开本接口，接收 302 后进入 Google；不要用 fetch 跟随跨站登录跳转。
+        服务端创建十分钟有效、绑定浏览器的一次性登录流程，保存随机 state、nonce 和 PKCE verifier，发送 S256 challenge。
+        仅请求 openid、email、profile，使用 response_type=code；不请求离线访问或其他 Google API 权限。
+        同一浏览器重新发起会使前一次未完成流程失效；既有网站会话暂不改变。
+        Google redirect_uri 来自服务端的环境配置并与注册值完全一致，不接受客户端提供 redirect_uri、returnTo、角色或账号 ID。
+        已有网站会话即使过期也可重新登录；携带 Authorization/Bearer 返回 400，MCP 不暴露此入口。
+        Client Secret 和 PKCE verifier 不进入浏览器、URL 或日志；具体回调配置未就绪时返回 503，不降级到公网 HTTP/IP 回调。
+      x-scenarios: [H3]
+      x-implementation-status: planned
+      security: []
+      responses:
+        '302':
+          description: 创建登录流程并跳转至 Google；尚未登录 Human Worth
+          headers:
+            Location:
+              description: 服务端构造的 Google 授权地址，含客户端 ID、固定回调、最小 scopes、state、nonce 和 S256 challenge
+              schema: {type: string, format: uri}
+            Set-Cookie:
+              description: 随机登录流程凭据；十分钟有效，HttpOnly、Secure、SameSite=Lax、Path=/，不设置 Domain
+              schema: {type: string}
+              example: '__Host-human-worth-oauth=opaque-login-handle; Max-Age=600; Path=/; Secure; HttpOnly; SameSite=Lax'
+            Cache-Control: {$ref: '#/components/headers/NoStore'}
+            Referrer-Policy: {$ref: '#/components/headers/NoReferrer'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/auth/google/callback:
+    get:
+      tags: [Authentication]
+      operationId: completeGoogleLogin
+      summary: 接收 Google 回调并建立网站会话
+      description: |
+        由 Google 导航回调，不是前端手工提交 Google ID token 的接口。无需已有网站会话，但必须携带发起登录时的流程 Cookie。
+        state 必填且只能出现一次；code 与 error 必须二选一且只出现一次，重复参数或缺失/冲突返回 400。
+        忽略 Google 附带的其他响应参数，不用其决定身份、角色或跳转地址。
+        Identity 先验证流程 Cookie、state 与有效期，再原子占用一次性流程；多副本并发回调只允许一份继续，重放返回 400。
+        服务端使用授权码、固定 redirect_uri、Client Secret 和原 PKCE verifier 换取 token；验证 ID token 签名、发行方、受众、有效期、nonce，以及适用的 azp。
+        只接受 Google 发行方的允许值，规范为 https://accounts.google.com 后按 (issuer, sub) 关联稳定账号；邮箱、显示名和回调参数不能替代 sub。
+        首次登录原子创建普通账号，重复登录复用账号；不按相同邮箱自动绑定其他账号，不重建投票资格，不自动授予管理员。
+        成功时使当前浏览器的旧网站会话失效并签发新会话，清除流程 Cookie，303 回到 /；前端随后调用 GET /api/me 取得账号和 CSRF token。
+        用户拒绝授权且流程验证通过时，清除流程 Cookie 并 303 回到 /?login=cancelled，保留原有网站会话。
+        验证失败不建立新会话：无效/过期/重放流程返回 400；授权码或 ID token 无效返回 401；账号禁用返回 403；供应方或存储暂不可用返回 503。
+        流程占用后失败或结果未知须重新发起登录，不盲目重放授权码。已成功提交但响应丢失的会话轮换仍以持久记录为准；错误不改变其他账号或既有投票记录。
+        所有回调响应（包括错误）均 no-store、no-referrer；访问日志须屏蔽回调 query、Cookie、授权码和 token。
+        Google access/ID/refresh token 不返回前端、不作为网站或 MCP 凭据，不写 localStorage；携带 Bearer 返回 400。
+      x-scenarios: [H3]
+      x-implementation-status: planned
+      security: [{GoogleLoginTransaction: []}]
+      parameters:
+        - name: state
+          in: query
+          required: true
+          description: 发起流程时服务端生成的随机值，必须与该浏览器的一次性流程匹配
+          schema: {type: string, minLength: 1, maxLength: 1024}
+        - name: code
+          in: query
+          description: Google 返回的一次性授权码；与 error 恰有一个，不接受前端自行提供账号资料
+          schema: {type: string, minLength: 1, maxLength: 4096}
+        - name: error
+          in: query
+          description: Google 返回的授权错误；access_denied 表示用户拒绝，其余错误按脱敏后的错误响应处理
+          schema: {type: string, minLength: 1, maxLength: 128}
+          example: access_denied
+      responses:
+        '303':
+          description: 登录成功返回 /；用户拒绝授权返回 /?login=cancelled。具体账号通过 GET /api/me 查询
+          headers:
+            Location:
+              schema: {type: string, enum: ['/', '/?login=cancelled']}
+            Set-Cookie:
+              description: |
+                成功时设置新网站会话，并以第二条独立 Set-Cookie 清除 __Host-human-worth-oauth（空值、Max-Age=0、Path=/、Secure、HttpOnly、SameSite=Lax）。
+                用户拒绝时只清除流程 Cookie。重复的 Set-Cookie 必须分别发送，不能用逗号合并；下例仅展示成功时的网站会话字段。
+              schema: {type: string}
+              example: '__Host-human-worth-session=opaque-session; Path=/; Secure; HttpOnly; SameSite=Lax'
+            Cache-Control: {$ref: '#/components/headers/NoStore'}
+            Referrer-Policy: {$ref: '#/components/headers/NoReferrer'}
+        '400': {$ref: '#/components/responses/GoogleLoginProblem'}
+        '401': {$ref: '#/components/responses/GoogleLoginProblem'}
+        '403': {$ref: '#/components/responses/GoogleLoginProblem'}
+        '503': {$ref: '#/components/responses/GoogleLoginProblem'}
+        default: {$ref: '#/components/responses/GoogleLoginProblem'}
+
+  /api/auth/logout:
+    post:
+      tags: [Authentication]
+      operationId: logoutCurrentSession
+      summary: 退出当前网站会话
+      description: |
+        验证当前会话、X-CSRF-Token 与来源后，服务端撤销该会话并清除浏览器会话 Cookie。
+        不退出其他设备、不撤销 MCP token、不退出 Google 账号、不删除平台账号或恢复任何任务的投票资格。
+        已失效会话返回 401；不以只清除 Cookie 代替服务端撤销，不能通过 GET 触发退出。
+      x-scenarios: [H3]
+      x-implementation-status: planned
+      security: [{WebSession: [], CsrfToken: []}]
+      responses:
+        '204':
+          description: 当前会话已在服务端撤销，无响应体
+          headers:
+            Set-Cookie:
+              schema: {type: string}
+              example: '__Host-human-worth-session=; Max-Age=0; Path=/; Secure; HttpOnly; SameSite=Lax'
+            Cache-Control: {$ref: '#/components/headers/NoStore'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
   /api/me:
     get:
       tags: [Account]
       operationId: getCurrentSession
       summary: 获取当前网站账号与 CSRF token
-      x-scenarios: [S2, S3, S4, S5]
+      x-scenarios: [S2, S3, S4, S5, H3]
       x-implementation-status: planned
       security: [{WebSession: []}]
       responses:
         '200':
-          description: 本人身份；csrfToken 仅用于当前网站会话的写请求
+          description: Google 登录成功后查询本人身份；csrfToken 仅用于当前网站会话的写请求，不返回 Google token
+          headers:
+            Cache-Control: {$ref: '#/components/headers/NoStore'}
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Session'}
@@ -613,8 +735,9 @@ paths:
     get:
       tags: [Administration]
       operationId: getAdminDashboard
-      summary: 获取管理员每日待办和额度概览
-      x-scenarios: [S4]
+      summary: 获取管理员每日待办和运行概览
+      description: 汇总待审任务、待审作品、未处理举报及运行中/失败的挑战数量；不返回剩余或已用额度。
+      x-scenarios: [S4, H2]
       x-implementation-status: planned
       security: [{WebSession: [admin]}]
       responses:
@@ -769,7 +892,7 @@ paths:
       tags: [Challenges]
       operationId: listChallengeRuns
       summary: 分页查看云端运行、异常及结果
-      x-scenarios: [S4]
+      x-scenarios: [S4, H2]
       x-implementation-status: planned
       security: [{WebSession: [admin]}]
       parameters:
@@ -777,7 +900,7 @@ paths:
         - {$ref: '#/components/parameters/Limit'}
       responses:
         '200':
-          description: 运行阶段、配置和消耗；不附带具体真人票数
+          description: 运行阶段、轮次、配置和异常；不返回额度余额、消耗数值或具体真人票数
           content:
             application/json:
               schema: {$ref: '#/components/schemas/RunPage'}
@@ -822,8 +945,8 @@ paths:
       tags: [Challenges]
       operationId: getChallengeRun
       summary: 查看一次运行的配置、阶段、异常和候选登记状态
-      description: 不把生成完成、登记、审核发布或真人反馈混作获胜；具体真人统计仍走 statistics-access。
-      x-scenarios: [S4]
+      description: 不把生成完成、登记、审核发布或真人反馈混作获胜；不返回额度余额或消耗数值，具体真人统计仍走 statistics-access。
+      x-scenarios: [S4, H2]
       x-implementation-status: planned
       security: [{WebSession: [admin]}]
       responses:
@@ -976,7 +1099,14 @@ components:
       description: |
         网站会话，Secure、HttpOnly、SameSite=Lax、Path=/，不设置 Domain。
         服务端验证会话并取得稳定账号；security 中的 admin 表示还须检查平台管理员角色。
-        登录流程待定；不接受 Bearer token 替代会话执行网站写入或管理操作。
+        经 Google 回调验证后签发；不接受 Google token 或 Bearer token 替代会话执行网站写入或管理操作。
+    GoogleLoginTransaction:
+      type: apiKey
+      in: cookie
+      name: __Host-human-worth-oauth
+      description: |
+        发起 Google 登录时签发的一次性浏览器流程凭据，最长十分钟；Secure、HttpOnly、SameSite=Lax、Path=/，不设置 Domain。
+        只用于回调绑定，必须同时校验 state、nonce 和 PKCE；它不是已登录会话，也不能授权业务操作。
     CsrfToken:
       type: apiKey
       in: header
@@ -1028,7 +1158,26 @@ components:
     NoStore:
       description: 禁止客户端与共享缓存存储响应
       schema: {type: string, const: no-store}
+    NoReferrer:
+      description: 不把登录回调地址及其敏感 query 作为 Referer 转发
+      schema: {type: string, const: no-referrer}
   responses:
+    GoogleLoginProblem:
+      description: |
+        脱敏的登录失败；不返回授权码、state、token、Cookie、Client Secret 或供应方原始错误正文。
+        400 invalid_oauth_state / invalid_request；401 invalid_google_login；403 account_disabled；503 login_unavailable。
+        终结或失效流程应清除其浏览器 Cookie；确认拒绝时不改变既有网站会话，投票资格始终保留。
+        提交结果未知时以服务端持久记录为准，客户端重新发起登录，不重放回调或假定旧会话仍有效。
+      headers:
+        Cache-Control: {$ref: '#/components/headers/NoStore'}
+        Referrer-Policy: {$ref: '#/components/headers/NoReferrer'}
+        Set-Cookie:
+          description: 需要清理流程时发送；不清除已有网站会话
+          schema: {type: string}
+          example: '__Host-human-worth-oauth=; Max-Age=0; Path=/; Secure; HttpOnly; SameSite=Lax'
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
     Problem:
       description: |
         业务接口统一 application/problem+json；status 与 HTTP 状态相同。
@@ -1515,22 +1664,13 @@ components:
     AdminDashboard:
       type: object
       additionalProperties: false
-      required: [pendingTaskReviews, pendingEntryReviews, openReports, activeRuns, failedRuns, quota]
+      required: [pendingTaskReviews, pendingEntryReviews, openReports, activeRuns, failedRuns]
       properties:
         pendingTaskReviews: {type: integer, minimum: 0}
         pendingEntryReviews: {type: integer, minimum: 0}
         openReports: {type: integer, minimum: 0}
         activeRuns: {type: integer, minimum: 0}
         failedRuns: {type: integer, minimum: 0}
-        quota:
-          type: array
-          items:
-            type: object
-            additionalProperties: false
-            required: [remaining, used]
-            properties:
-              remaining: {$ref: '#/components/schemas/Quantity'}
-              used: {$ref: '#/components/schemas/Quantity'}
     RunConfiguration:
       type: object
       additionalProperties: false
@@ -1557,7 +1697,7 @@ components:
     ChallengeRun:
       type: object
       additionalProperties: false
-      required: [id, taskId, parentRunId, administratorId, status, stage, round, taskConclusion, configuration, consumed, failureReason, candidates, createdAt, updatedAt, endedAt]
+      required: [id, taskId, parentRunId, administratorId, status, stage, round, taskConclusion, configuration, failureReason, candidates, createdAt, updatedAt, endedAt]
       properties:
         id: {$ref: '#/components/schemas/Id'}
         taskId: {$ref: '#/components/schemas/Id'}
@@ -1568,8 +1708,7 @@ components:
         round: {type: integer, minimum: 0}
         taskConclusion: {$ref: '#/components/schemas/Conclusion'}
         configuration: {$ref: '#/components/schemas/RunConfiguration'}
-        consumed: {$ref: '#/components/schemas/Quantity'}
-        failureReason: {type: [string, 'null'], description: 经脱敏的模型、额度或材料失效原因，不带单题票数}
+        failureReason: {type: [string, 'null'], description: 经脱敏的模型、运行限制或材料失效原因，不夹带额度余额、消耗数值或单题票数}
         candidates:
           type: array
           items:

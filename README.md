@@ -13,11 +13,12 @@
 当前交付包括需求文档、项目治理、CI、本机自动部署，以及建设中页面和 `/api/health`。投稿、投票、审核和云端挑战尚未实现。
 
 - [协作与设计补全规则](AGENTS.md)
-- [分布式 Go 后端设计：数据类型、状态机与 Proto](docs/backend.md)（设计草案，尚未实现）
+- [后端架构划分：七个业务服务、网关与挑战执行器](docs/backend-architecture.md)（目标架构，尚未实现）
+- [Identity 设计：核心对象、登录鉴权与 platform 实现清单](docs/backend-identity.md)（设计，尚未实现）
+- [部署与实验计划：当前环境、kind 集群、故障演练和回退](docs/deployment.md)（基座已部署，集群待实施）
 - [OpenAPI YAML 接口契约草案](openapi.yaml)（仅健康检查已实现，其余接口标记为 planned）
 - [Swagger 在线文档](http://123.56.161.234:18090/docs/)（只读浏览与 YAML 下载）
 - [分支与 PR 合并规则](docs/development.md)
-- [部署、端口、排障和回退](docs/deployment.md)
 - [成熟参考与实现取舍](docs/references.md)
 
 ## 开发

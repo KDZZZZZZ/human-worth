@@ -63,7 +63,62 @@ npm run ci
 
 以下为 **Agent Self-Claimed**：作品使用独立审核枚举 `EntryReviewState`，不复用任务发布枚举；删除 `Permissions.publish`，保留用途不同的 `cloudUse`。`GetBallot` 一次返回完整审核目录快照及本人当前选择；`CastVote` 只接收一个 `entryId`。目录修订绑定 ballot，新增或撤销过审作品后，旧快照的新投票须刷新；目录冻结或无法确认完整集合时失败，不返回抽样结果。选择记录按账号×任务唯一，用修订号和最近成功请求摘要处理并发与幂等，旧请求不能覆盖新选择。
 
-当前计票提案：统计只计仍过审作品上的有效真人当前选择，并列出所有过审作品（含零票）；改选不增加总票数，撤销过审作品的旧选择保留历史而不计入当前结果。作品与人类/agent 两方使用“得票占比”，不沿用成对对抗的平票与胜率字段。失去投票资格后不可首投或改选；目录刷新、token 更换和新增作品均不能恢复资格。完整协议与未来并发验收见 [backend](backend.md)，此次只有契约和设计变更。
+当前计票提案：统计只计仍过审作品上的有效真人当前选择，并列出所有过审作品（含零票）；改选不增加总票数，撤销过审作品的旧选择保留历史而不计入当前结果。作品与人类/agent 两方使用“得票占比”，不沿用成对对抗的平票与胜率字段。失去投票资格后不可首投或改选；目录刷新、token 更换和新增作品均不能恢复资格。HTTP 契约见 [OpenAPI](../openapi.yaml)，跨服务事务边界见[架构划分](backend-architecture.md)，并发演练见[实验清单](deployment.md#experiment-checklist)。
+
+## 移除额度展示
+
+2026-09-18，用户明确要求“不要再显示额度了”，见 [PRD H2](prd.md#hide-quota)。据此移除管理员概览的 `quota` 和运行展示的 `consumed`，后续 Proto 同样不提供这些展示字段，不新增替代展示接口。删除哪些字段属于 Agent Self-Claimed 的契约映射；启动/重启的预算配置、内部资源校验和结算继续沿用已有设计。原始场景仅作为历史依据保留，不再要求展示额度或消耗。
+
+<a id="google-login"></a>
+## Google 登录
+
+2026-09-18，用户明确要求增加 Google 登录，见 [PRD H3](prd.md#google-login)。OpenAPI 已补充登录、回调和当前会话退出接口，核心对象、状态和内部接口见 [Identity 设计](backend-identity.md)；业务均为 planned，未配置 Google 凭据或发布登录功能。
+
+| 官方参考 / 版本 | 采用与差异 | 验收判据 |
+| --- | --- | --- |
+| [Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect)、[协议参考](https://developers.google.com/identity/openid-connect/reference)，核实于 2026-09-18 | 使用服务端授权码流程；验证 state、签名、issuer/aud/exp/nonce 与适用的 azp；规范 Google issuer 后按 sub 关联账号，邮箱仅为资料 | 无效 token、重放与账号禁用被拒绝；邮箱变化或再次登录不创建替代账号、不恢复投票资格 |
+| [RFC 9700 §2.1.1](https://www.rfc-editor.org/rfc/rfc9700.html#section-2.1.1)，2025 | 使用 PKCE S256，并将一次性流程绑定浏览器；Google 支持情况以协议参考为依据 | 双副本并发回调只占用一次；错误 verifier/nonce/state 不能建立会话；未知换码结果不盲目重试 |
+| [Google Web Server 回调规则](https://developers.google.com/identity/protocols/oauth2/web-server#uri-validation)，核实于 2026-09-18 | 正式回调使用预注册 HTTPS 域名；不采用当前裸公网 IP。固定回到站内 /，不接受任意 returnTo/redirect_uri | Google 客户端、域名和回调完全匹配；校验开发代理浏览器入口、Cookie 与回调的一致性；不以 HTTP/IP 入口宣称登录可用 |
+
+本项目的具体选择（Agent Self-Claimed）：十分钟流程 Cookie、scopes 为 openid/email/profile、首次登录自动创建普通账号、不按邮箱自动合并、服务端会话轮换、当前会话退出，以及三个 HTTP/RPC 的命名。Google token 不进入前端或 MCP；Secret 仅在服务端配置。开发代理继续连接公网 API，登录联调的 HTTPS 与预注册回调配置尚待实现，不修改现有运行入口。
+
+<a id="identity-design"></a>
+## Identity 详细设计与 platform
+
+2026-09-18，用户要求先写 Identity 的核心对象、核心功能逻辑及公共基座清单，并指定 `/home/oops/services/sub2api` 为 Google 登录实现参考；随后明确本轮只学习逻辑和实现，密钥后续提供。交付见 [Identity 设计](backend-identity.md)。会话期限、内部断言、MCP 生命周期、技术选型和目录组织为 Agent Self-Claimed；未修改参考应用、引入真实凭据或部署 Identity。
+
+### 指定的本机实现
+
+sub2api 版本文件 `backend/cmd/server/VERSION` 为 0.1.155；本机工作副本无可解析 HEAD，因此用本次读取文件的 SHA-256 标识来源。版本文件不代替源码指纹，也不说明运行镜像与源码完全一致。
+
+| 本机来源 | 核实内容与取舍 |
+| --- | --- |
+| [Google 处理器](/home/oops/services/sub2api/backend/internal/handler/auth_email_oauth.go) | 有 start/callback、十分钟 Cookie、服务端换码和 UserInfo 查询；本项目分到 gateway/Identity，并保留已定的 PKCE、ID token 验证、共享一次性流程和 HttpOnly 网站会话 |
+| [账号登录关联](/home/oops/services/sub2api/backend/internal/service/auth_email_oauth_auto.go) | 先查外部身份，也有按邮箱关联和凭据签发；本项目只按 issuer/sub 关联，不移植邀请、密码注册、赠送额度和前端 token 交付 |
+| [配置读取](/home/oops/services/sub2api/backend/internal/service/setting_oauth.go) | 数据库设置覆盖基础配置并检查必填项；本项目首版使用部署配置及 Secret 文件，无运行时跨应用数据库依赖 |
+| [回调测试](/home/oops/services/sub2api/backend/internal/handler/auth_email_oauth_test.go) | 已有账号登录和新用户流程具有明确测试；本次阅读源码，未运行这些测试；本项目另验双副本、稳定账号与安全 Cookie |
+
+文件指纹（按上表顺序）：
+
+```text
+f9048cdd67ec5b930baf87b93148fd7fafadc97ad9d22107337158696fa6efb6  auth_email_oauth.go
+9db73c5addc2ae5bc35db9898a76ffdff5d7f8b224dad2a0b1e1ea45feecaa89  auth_email_oauth_auto.go
+dfbfdb2577647883b6818002b0d5a7590e1df988b4a7f3dced440c48ead5f358  setting_oauth.go
+8b51e7006604a4298b23d382676e804ca7ab0b4a6b261c56d2c241a3cd4d9527  auth_email_oauth_test.go
+```
+
+### 规范与实现补充
+
+| 官方来源 / 核实日期 | 采用范围与验收判据 |
+| --- | --- |
+| 上节 [Google OIDC、PKCE 与回调规则](#google-login)，2026-09-18 | Google 流程采用项目既有安全边界；同一 sub 的邮箱变化不改变账号；错误 nonce/verifier/issuer/audience 被拒 |
+| [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)、[CSRF](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)，2026-09-18 | 高熵不透明会话、服务端到期与撤销、CSRF token 及来源检查；24 小时会话等具体期限由本项目提出，不宣称是规范定值 |
+| [Go OAuth2](https://pkg.go.dev/golang.org/x/oauth2)、[go-oidc v3](https://pkg.go.dev/github.com/coreos/go-oidc/v3/oidc)、[golang-jwt 校验选项](https://golang-jwt.github.io/jwt/usage/parse/)，2026-09-18 | 复用成熟库进行协议和签名验证，显式限制算法、issuer/audience、必要字段；Identity 自己验证 nonce/azp 和当前凭据状态；实际依赖版本在实现时锁定 |
+| [PostgreSQL 18 事务隔离](https://www.postgresql.org/docs/18/transaction-iso.html)、[pgxpool](https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool)，2026-09-18 | 用唯一键、条件更新和本地事务实现流程占用与并发建号；连接数按所有副本计算；数据库事务不跨外部换码 |
+| [gRPC Authentication](https://grpc.io/docs/guides/auth/)、[Health Checking](https://grpc.io/docs/guides/health-checking/)，2026-09-18 | mTLS 服务身份、内部校验入口、就绪状态和停止接单；不因 Google 短时失败触发所有身份副本重启 |
+| [Go slog](https://pkg.go.dev/log/slog)、[OpenTelemetry Go](https://opentelemetry.io/docs/languages/go/)，2026-09-18 | 复用日志与遥测能力，关联调用耗时和错误；过滤凭据与回调 query，不以账号/邮箱作为指标标签 |
+
+首批基座以支撑 gateway 与 Identity 为界，不预先搭建通用认证框架或引入 Redis。关键身份变更与审计/outbox 同事务；跨服务投递在 Moderation 接入时补齐，身份撤销先通过权威查询生效。以上是项目适配，文档核对不能证明真实 Google 登录、多副本并发或集群可用性通过。
 
 ## Swagger 文档发布
 
@@ -71,7 +126,7 @@ npm run ci
 
 | 官方参考 / 版本 | 补全选择 | 验收判据 |
 | --- | --- | --- |
-| [Swagger UI 安装](https://swagger.io/docs/open-source-tools/swagger-ui/usage/installation/)，`swagger-ui-dist` 5.33.0 | 使用官方独立浏览器资源，精确锁定开发依赖，保留许可证并随页面发布 | 构建可重现；浏览器渲染 OpenAPI 3.1.1 的全部 38 个操作，不请求外部 CDN |
+| [Swagger UI 安装](https://swagger.io/docs/open-source-tools/swagger-ui/usage/installation/)，`swagger-ui-dist` 5.33.0 | 使用官方独立浏览器资源，精确锁定开发依赖，保留许可证并随页面发布 | 构建可重现；浏览器渲染构建时的全部操作（首次发布 38 个），不请求外部 CDN |
 | [Swagger UI 配置](https://swagger.io/docs/open-source-tools/swagger-ui/usage/configuration/) | `supportedSubmitMethods: []` 关闭执行，`validatorUrl: null` 关闭在线校验，展示扩展字段并禁用 URL 配置覆盖 | 实现状态可见，没有 Try it out 或凭据输入，不向外部校验服务发送契约 |
 | [Nginx alias](https://nginx.org/en/docs/http/ngx_http_core_module.html#alias) | 在既有网关 `/docs/` 提供独立静态 release，保留应用代理 | 配置校验、资源摘要、浏览器访问和既有健康检查通过，应用 revision 不变 |
 
@@ -84,14 +139,33 @@ npm run ci
 <a id="backend-design"></a>
 ## 分布式 Go 后端设计
 
-2026-09-17，用户要求把五个模块的核心类型、状态机和 Proto 写入 [backend 文档](backend.md)。待补缺口是服务间身份传递、数据写入归属、统计副作用与并发、终态与跨服务登记的顺序，以及可验证的内部接口。以下选择均为 Agent Self-Claimed；本次没有安装数据库、迁移后端或实现业务 RPC。
+以下参考用于补全服务间身份传递、数据写入归属、统计副作用与并发、终态与跨服务登记的顺序，以及内部接口。早期综合草稿已按用户要求删除，当前依据为[七服务架构](backend-architecture.md)及各模块设计，首个模块为 [Identity](backend-identity.md)。以下技术选择均为 Agent Self-Claimed；尚未安装业务数据库或实现业务 RPC。
 
 | 官方参考 / 版本 | 采用与差异 | 验收判据 |
 | --- | --- | --- |
-| [Protocol Buffers proto3](https://protobuf.dev/programming-guides/proto3/)，语法规范 | 有编号的强类型消息、UNSPECIFIED 零值、optional 存在性、oneof、删除字段保留编号/名称；不直接用 ProtoJSON 覆盖现有 HTTP JSON | 整体提取文档 Proto，使用编译器检查所有消息、枚举、引用及服务方法 |
+| [Protocol Buffers proto3](https://protobuf.dev/programming-guides/proto3/)，语法规范 | 有编号的强类型消息、UNSPECIFIED 零值、optional 存在性、oneof、已发布字段删除时保留编号/名称；不直接用 ProtoJSON 覆盖现有 HTTP JSON | 编写独立 Proto 文件，使用编译器检查消息、枚举、引用及服务方法，并核对 HTTP 映射 |
 | [gRPC Authentication](https://grpc.io/docs/guides/auth/) | 经认证的服务连接与身份断言；业务服务仍复核主体、用途和权限 | MCP token 不获得网站写权限；不能通过伪造 actor/role 字段调用内部接口 |
 | [gRPC Deadlines](https://grpc.io/docs/guides/deadlines/)、[Retry](https://grpc.io/docs/guides/retry/)、[Cancellation](https://grpc.io/docs/guides/cancellation/)、[Status Codes](https://grpc.io/docs/guides/status-codes/)，核实于 2026-09-17 | deadline 传递、有界重试、稳定业务错误；请求取消不等于运行取消 | 响应丢失后用同一业务键找回；业务运行终态持久化，不能以连接关闭代替 |
 | [PostgreSQL 18 行锁](https://www.postgresql.org/docs/18/explicit-locking.html#LOCKING-ROWS) | 提案使用服务本地事务、唯一约束和一致锁顺序；先创建资格行再锁定 | 并发首投/首查统计不能绕过永久资格；验证应使用真实数据库和多个进程 |
 | [AWS transactional outbox](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html) | 业务与待发送事件同事务、至少一次投递、消费去重；先用数据库轮询，不要求 AWS 或消息中间件 | 重复/乱序消息不回退状态；提交后进程崩溃仍可继续投递 |
 
 本项目进一步推导两项协作协议：内容下架前先关闭投票目录，云端终态前先封闭内容登记；它们用于跨服务防止迟到写入，不能仅靠 outbox 自动获得。阶段租约与 epoch 阻止旧 worker 结果生效，也不等于供应方计费调用恰好一次。具体 Go/gRPC 运行版本、算法、权限生命周期与额度策略仍待实施时锁定。
+
+<a id="microservices-lab"></a>
+## 服务划分与单机多节点学习环境
+
+2026-09-18，人类明确希望增加分布式微服务学习内容，并要求按照讨论重新编写架构划分、部署计划与可模拟场景，随后要求“先只使用一套实验配置”。交付见[七服务架构](backend-architecture.md)和[统一部署文档的集群计划](deployment.md#lab-plan)，统一使用 lab 基线。七服务 Proto 待按模块编写；尚未安装集群。以下为 Agent Self-Claimed 的设计选择，节点数、初始资源预算和实验配置不是已验证容量。
+
+| 官方参考 / 版本 | 采用与差异 | 验收判据 |
+| --- | --- | --- |
+| [Microsoft domain analysis](https://learn.microsoft.com/en-us/azure/architecture/microservices/model/domain-analysis)，在线文档，核实于 2026-09-18 | 以业务能力与数据所有权划界；独立 Asset/Moderation，保留 Discovery；执行租约仍归 Challenge，worker 独立进程 | 每个权威状态有唯一所有者；明确审核决定应用和跨服务恢复，不按调用方数量机械拆服务 |
+| [kind Nodes](https://kind.sigs.k8s.io/docs/user/configuration/#nodes)，在线配置说明，核实于 2026-09-18 | 只维护 lab：1 个控制平面 + 3 个工作节点；数据库保留 1 主 2 备；不把逻辑节点当成额外物理容量 | 检查真实 Pod 落点、宿主机资源、节点失联；控制平面只验中断恢复，不作 HA 结论 |
+| [kind v0.33.0 节点基础镜像](https://github.com/kubernetes-sigs/kind/blob/v0.33.0/images/base/Dockerfile)、[Kubernetes Pods](https://kubernetes.io/docs/concepts/workloads/pods/)，核实于 2026-09-18 | 区分宿主机 Docker、kind 节点容器、节点内 containerd、Pod、应用容器与业务进程；首版每个业务 Pod 一个应用容器。引用版本仅用于结构依据，部署版本另行固定 | 图中九类应用各两个 Pod，共十八个业务主进程；同一服务的两个副本分散到不同工作节点；系统、数据库及监控不混入业务副本计数 |
+| [Kubernetes topology spread](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/)、[Disruptions](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/)，核实于 2026-09-18 | 按主机名分散同服务副本；滚动更新与 PDB 分别配置，PDB 不防止意外节点故障 | drain、突然宕机、滚动发布分别测试；故障后仍核验业务数据 |
+| [Kubernetes NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/)、[Calico on kind](https://docs.tigera.io/calico/latest/getting-started/kubernetes/kind)，核实于 2026-09-18 | 使用实际执行策略的 CNI，默认拒绝并按依赖放行；mTLS/业务权限独立校验 | 合法链路可用；越权访问拒绝；不以只创建 NetworkPolicy YAML 作为网络隔离证据 |
+| [gRPC load balancing](https://grpc.io/docs/guides/custom-load-balancing/)，核实于 2026-09-18 | Headless DNS 与内置 round_robin；复用现有客户端策略，不自研均衡器 | 从逐 Pod 请求量验证分流和端点更新；不能仅凭双副本宣称均衡 |
+| [CloudNativePG 1.28 replication](https://cloudnative-pg.io/docs/1.28/replication/)，版本化设计参考 | 主备独立卷，同步复制保持所需持久性并验证 failover quorum；部署时再锁定受支持工具组合 | 切换后已确认投票、永久禁投和幂等登记不丢失；不能安全提升时保持不可用 |
+| [Kubernetes probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)，核实于 2026-09-18 | 分离启动、就绪与存活；依赖短暂故障不直接触发全体业务重启 | 探针状态、流量摘除、优雅退出和依赖恢复分别有证据 |
+| [tc-netem](https://man7.org/linux/man-pages/man8/tc-netem.8.html)，在线手册，核实于 2026-09-18 | 在实验网络命名空间定向注入网络异常；业务重复请求另由驱动器生成 | 记录注入、业务判据、自动清理和恢复；不把 TCP 重传当作 RPC 重复执行 |
+
+七服务划分、Moderation 决定与 Content 应用回执的协调、实验资源预算和 D01～D14 矩阵是本项目的具体推导。参考资料说明工具与模式能力，不证明 Human Worth 已具备对应实现或通过了故障演练。
