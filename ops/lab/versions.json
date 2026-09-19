@@ -1,0 +1,15 @@
+{
+  "kind": "v0.33.0",
+  "kubernetes": "v1.36.4",
+  "manifests": {
+    "calico.yaml": {"url": "https://raw.githubusercontent.com/projectcalico/calico/v3.32.2/manifests/calico.yaml", "sha256": "a8c828a06a87c629a282ebbc424895b77f3a030251993e41ea400a743675bb02"},
+    "cnpg.yaml": {"url": "https://github.com/cloudnative-pg/cloudnative-pg/releases/download/v1.30.0/cnpg-1.30.0.yaml", "sha256": "f8bede43fe4ee0d478c2355b204a36876b2ae4faac60f2a9452280b293da3b88"}
+  },
+  "images": {
+    "quay.io/calico/cni:v3.32.2": "sha256:0ef740bc587f25565905adf1d1f61a7faff0d571c449c6bdd789feed743d3ef7",
+    "quay.io/calico/node:v3.32.2": "sha256:99b03fe91e8bfbcb153ae65ef4b701b24ce541ffdd74ff314eb041096008f7fd",
+    "quay.io/calico/kube-controllers:v3.32.2": "sha256:7870b67ebb13fabc3005252b44fe6e78b21635649bd3072b80afa1684b6565d0",
+    "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.0": "sha256:a2701eb97cdd2a34b1fdb2cb51987f544b706e40bec72ae7146cd8580efefebb",
+    "ghcr.io/cloudnative-pg/postgresql:18.4-standard-trixie": "sha256:ebf3919504d7523a63e8e2fee9b051211de714644b36469275558c624afd50ec"
+  }
+}

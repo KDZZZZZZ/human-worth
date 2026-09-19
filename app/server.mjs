@@ -82,7 +82,7 @@ if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.me
   catch (error) { if (error.code !== 'ENOENT') throw error; }
   const frontendDev = process.argv.includes('--frontend-dev');
   if (frontendDev && process.env.NODE_ENV === 'production') throw new Error('Frontend development proxy cannot run in production');
-  const apiOrigin = frontendDev ? process.env.FRONTEND_API_ORIGIN || 'http://123.56.161.234:18090' : undefined;
+  const apiOrigin = frontendDev ? process.env.FRONTEND_API_ORIGIN || 'https://worth.oopsbox.cn' : undefined;
   const app = createApp(revision, apiOrigin);
   app.listen(Number(process.env.PORT || (frontendDev ? 18100 : 18090)), process.env.HOST || '127.0.0.1', () => {
     console.log(JSON.stringify({ event: 'listening', port: app.address().port, revision }));

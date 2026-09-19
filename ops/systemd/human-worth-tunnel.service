@@ -6,7 +6,7 @@ StartLimitIntervalSec=0
 
 [Service]
 User=human-worth-tunnel
-ExecStart=/usr/bin/ssh -F /dev/null -NT -i /var/lib/human-worth-tunnel/id_ed25519 -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=10 -o ExitOnForwardFailure=yes -o ServerAliveInterval=20 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/var/lib/human-worth-tunnel/known_hosts -R 127.0.0.1:28090:127.0.0.1:18090 human-worth-tunnel@123.56.161.234
+ExecStart=/usr/bin/ssh -F /dev/null -NT -i /var/lib/human-worth-tunnel/id_ed25519 -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=10 -o ExitOnForwardFailure=yes -o ServerAliveInterval=20 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/var/lib/human-worth-tunnel/known_hosts -R 127.0.0.1:28090:127.0.0.1:18090 -R 127.0.0.1:28443:127.0.0.1:18443 human-worth-tunnel@123.56.161.234
 Restart=always
 RestartSec=5
 NoNewPrivileges=yes

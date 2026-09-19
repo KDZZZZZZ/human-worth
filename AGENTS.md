@@ -29,11 +29,11 @@
 
 - **已确认治理**：GitHub public 仓库 `KDZZZZZZ/human-worth`；默认 / 日常基线 `dev`；`dev` 和 `main` 只允许 PR，同行审批人数为 0；合入 dev 前通过 CI，合入后自动部署本机，经阿里云 CLI 中已有服务器 IP 提供前端 / API 公网入口。
 - **API 环境路由（人类明确要求）**：前端开发调用公网 API，部署后走内部调用。前端统一使用相对 `/api/*`；`npm run dev:frontend` 的本地代理连接公网，部署入口由 Nginx 通过内部隧道转发，不在前端组件中硬编码公网地址。
-- **后端目标（人类明确要求）**：分布式 Go 架构，以学习分布式微服务为目标。当前具体设计采用七个业务服务、gateway 与 challenge-worker，见[架构划分](docs/backend-architecture.md)与[部署及实验计划](docs/deployment.md)；服务边界和实验配置属于技术方案。模块设计从 [Identity](docs/backend-identity.md) 开始，七服务 Proto 尚待逐项编写；旧综合后端草稿已按用户要求删除。上述设计不表示业务或集群已经部署。
+- **后端目标（人类明确要求）**：分布式 Go 架构，以学习分布式微服务为目标。当前具体设计采用七个业务服务、gateway 与 challenge-worker，见[架构划分](docs/backend-architecture.md)与[部署及实验计划](docs/deployment.md)；服务边界和实验配置属于技术方案。模块设计从 [Identity](docs/backend-identity.md) 开始，Identity Proto、Go 实现及双副本 kind lab 已完成首批落地，其余六服务契约待逐项编写；旧综合后端草稿已按用户要求删除。公网仍为已发布基座，不能把实验实现描述成全站产品已上线。
 - **作品与投票（2026-09-18 人类修订）**：作品通过审核即允许展示，不设置独立公开/私有状态或公开授权开关；投票时一次展示该任务全部过审作品，用户从中单选一件最认可的作品。见 [PRD H1](docs/prd.md#human-revisions)。
 - **额度展示（2026-09-18 人类修订）**：管理员概览和运行展示不显示额度余额、已用额度或消耗数值，见 [PRD H2](docs/prd.md#hide-quota)；本次修改不取消既有后台预算控制。
-- **Google 登录（2026-09-18 人类修订）**：支持 Google 登录，见 [PRD H3](docs/prd.md#google-login)。OpenAPI 已补充登录、回调与退出契约，仍待实现；登录与换凭据不改变稳定账号和原有投票资格。具体 OAuth、Cookie 与建号规则属于技术方案。
-- **实现范围**：当前基座使用 Node.js 24 标准库、Python 3 控制器、systemd 与 ECS Nginx / SSH；仅有建设中页面和健康检查，产品业务仍待实现。以上方案为 agent 在用户授权内选定，不是人类指定技术栈。
+- **Google 登录（2026-09-18 人类修订）**：支持 Google 登录，见 [PRD H3](docs/prd.md#google-login)。OpenAPI 与 Go 已实现登录、回调、会话、退出和 MCP 凭据生命周期；真实 Google 用户登录待公网发布后验收；登录与换凭据不改变稳定账号和原有投票资格。具体 OAuth、Cookie 与建号规则属于技术方案。
+- **实现范围**：当前基座使用 Node.js 24 标准库、Python 3 控制器、systemd 与 ECS Nginx / SSH；公网提供建设中页面和健康检查，新增 HTTPS 域名 worth.oopsbox.cn。Go Identity 与 gateway 运行在隔离 lab，Go 工程及检查见 [backend/README.md](backend/README.md)；其余产品业务待实现。以上方案为 agent 在用户授权内选定，不是人类指定技术栈。
 - **产品参数**：可信场景没有定值的推荐、热度、文件限制、投票阈值等，按下文成熟参考流程自主研究并提出可验证的实现选择；不要伪装为用户已确认，也不要仅因缺少细节就停止工作。
 
 历史授权涵盖创建与配置公开仓库、保护规则、CI、本机部署和公网入口，以及当时完成这些工作的必要推送、PR 与合并验证。**这些历史授权不构成后续任务自动开 PR 的许可；创建 PR 必须有覆盖当前任务的明确人类命令。** 具体规则见 [PR 创建授权](#pr-authorization)。
@@ -122,7 +122,7 @@ PRD 中的可信场景应保留原文及来源信息。场景中的历史故事�
 | --- | --- | --- | --- |
 | 产品流程与 UI | PRD 场景 S1～S6、功能需求、页面与入口 | 场景由人类明确指定为可信；PRD 不扩大行为范围 | 首页发现、投稿、管理员 Dashboard、统计查看、看板排行变更 |
 | 架构与模块 | PRD 场景中的角色边界与交接、[架构划分](docs/backend-architecture.md)、[Identity 设计](docs/backend-identity.md) | Go 与分布式学习为人类目标；七服务边界、数据归属和协作协议为技术方案 | 云端交互、模块职责或调用方向变化 |
-| 公开 API / MCP | PRD 场景 S3、S5 及 FR-05、OpenAPI、各模块接口设计 | 读取用途、token 身份及统计副作用明确；HTTP 为草案，独立 Proto 文件待编写 | MCP 能力、统计访问或投稿入口变化 |
+| 公开 API / MCP | PRD 场景 S3、S5 及 FR-05、OpenAPI、各模块接口设计 | 读取用途、token 身份及统计副作用明确；HTTP 区分实现/发布状态；Identity Proto 已实现，其余模块待编写 | MCP 能力、统计访问或投稿入口变化 |
 | 数据 | PRD 场景 S2～S5、状态流转与业务不变量、各模块核心对象设计 | 发布状态与账号 × 任务资格明确；具体存储和事务协议为技术提案 | 投稿、审核、资格持久化、重试与运行记录变化 |
 | 安全与权限 | PRD 场景 S3～S5、用户与权限 | 管理员权限及作品授权边界明确；尚无详细安全方案 | 身份、材料授权、管理操作或资格检查变化 |
 | 测试与验收 | PRD 的可信场景与验收矩阵、本文件 | 场景可作为判断依据；无现成测试框架 | 文档核对与后续功能实现 |
@@ -200,8 +200,9 @@ PRD 中的可信场景应保留原文及来源信息。场景中的历史故事�
 
 ### 当前可用的检查与部署验收
 
-- `npm ci --ignore-scripts`：按 lockfile 安装；当前无第三方运行时依赖。
+- `npm ci --ignore-scripts`：按 lockfile 安装；Node 基座无第三方运行时依赖，Go 依赖固定在 backend/go.mod 和 go.sum。
 - `npm run ci`：可信场景快照与本地链接、PR 方向及任务分支命名、Node 语法、实际 HTTP 前端 / API 测试、部署 CI 门槛及归档边界测试。GitHub 必需检查名为 `CI`。
+- Go：在 backend 执行 `buf lint`、`buf generate`、`go vet ./...`、`go test -race -tags=integration ./...`，集成测试只连接专用 PostgreSQL；命令与 lab 故障开关见 [Go 说明](backend/README.md)。
 - `npm start`：本机基础服务，默认 `127.0.0.1:18090`；只实现建设中页面与 `/api/health`。
 - `gh pr checks <编号>` 与 GitHub rulesets API：核实 PR 检查及远端真实规则，不能只看配置文件。
 - 合入 dev 后检查 push CI、`human-worth-deploy` 日志和公网 `/api/health`，返回 revision 必须等于预期 dev SHA。命令见 [部署文档](docs/deployment.md)。

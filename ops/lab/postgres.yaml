@@ -1,0 +1,90 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: database
+  namespace: human-worth
+spec:
+  instances: 3
+  # Lab RPCs have a 15s maximum deadline; allow them to finish before fast shutdown.
+  smartShutdownTimeout: 20
+  stopDelay: 90
+  switchoverDelay: 90
+  # The installer replaces this tag with its verified digest from versions.json.
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.4-standard-trixie
+  enableSuperuserAccess: false
+  storage: {size: 2Gi, storageClass: standard}
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+  affinity:
+    nodeSelector: {human-worth.io/worker: "true"}
+    podAntiAffinityType: required
+    topologyKey: kubernetes.io/hostname
+  bootstrap:
+    initdb:
+      database: human_worth
+      owner: bootstrap_owner
+      postInitApplicationSQL:
+        - REVOKE CREATE ON SCHEMA public FROM PUBLIC
+        - REVOKE CREATE ON DATABASE human_worth FROM PUBLIC
+  managed:
+    roles:
+      - name: identity_owner
+        login: true
+        passwordSecret: {name: identity-owner-password}
+      - name: identity_runtime
+        login: true
+        passwordSecret: {name: identity-runtime-password}
+      - name: identity_operator
+        login: true
+        passwordSecret: {name: identity-operator-password}
+  postgresql:
+    parameters:
+      max_connections: "60"
+      shared_buffers: 64MB
+      work_mem: 2MB
+      log_statement: none
+      log_min_error_statement: panic
+      log_parameter_max_length_on_error: "0"
+    pg_hba:
+      - hostnossl all all all reject
+      - hostssl human_worth identity_owner,identity_runtime,identity_operator 10.244.0.0/16 scram-sha-256
+    synchronous:
+      method: any
+      number: 1
+      dataDurability: required
+      failoverQuorum: true
+  probes:
+    liveness:
+      isolationCheck: {enabled: true}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: database, namespace: human-worth}
+spec:
+  podSelector:
+    matchLabels: {cnpg.io/cluster: database}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: {matchLabels: {cnpg.io/cluster: database}}
+        - podSelector: {matchLabels: {app: identity}}
+        - podSelector: {matchLabels: {app: identity-migrate}}
+        - podSelector: {matchLabels: {app: identity-admin}}
+      ports: [{protocol: TCP, port: 5432}]
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: cnpg-system}}
+        - podSelector: {matchLabels: {cnpg.io/cluster: database}}
+      ports: [{protocol: TCP, port: 8000}]
+  egress:
+    - to:
+        - podSelector: {matchLabels: {cnpg.io/cluster: database}}
+      ports: [{protocol: TCP, port: 5432}, {protocol: TCP, port: 8000}]
+    # K8s API endpoint (clusterIP or node IP after DNAT); no Internet capability.
+    - to:
+        - ipBlock: {cidr: 10.96.0.1/32}
+      ports: [{protocol: TCP, port: 443}]
+    - to:
+        - ipBlock: {cidr: 172.16.0.0/12}
+        - ipBlock: {cidr: 192.168.0.0/16}
+      ports: [{protocol: TCP, port: 6443}]

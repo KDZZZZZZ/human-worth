@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package humanworth.identity.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/identity/v1;identityv1";
+
+// Raw credentials only travel over authenticated gateway -> identity mTLS.
+service IdentityService {
+  rpc StartGoogleLogin(StartGoogleLoginRequest) returns (StartGoogleLoginResponse);
+  rpc CompleteGoogleLogin(CompleteGoogleLoginRequest) returns (CompleteGoogleLoginResponse);
+  rpc ResolvePrincipal(ResolvePrincipalRequest) returns (ResolvePrincipalResponse);
+  rpc VerifyActor(VerifyActorRequest) returns (VerifyActorResponse);
+  rpc GetCurrentSession(GetCurrentSessionRequest) returns (GetCurrentSessionResponse);
+  rpc LogoutCurrentSession(LogoutCurrentSessionRequest) returns (LogoutCurrentSessionResponse);
+  rpc CreateMcpToken(CreateMcpTokenRequest) returns (CreateMcpTokenResponse);
+  rpc ListMyMcpTokens(ListMyMcpTokensRequest) returns (ListMyMcpTokensResponse);
+  rpc RevokeMcpToken(RevokeMcpTokenRequest) returns (RevokeMcpTokenResponse);
+}
+
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  ROLE_USER = 1;
+  ROLE_ADMIN = 2;
+}
+
+enum ClientKind {
+  CLIENT_KIND_UNSPECIFIED = 0;
+  CLIENT_KIND_ANONYMOUS = 1;
+  CLIENT_KIND_WEB_SESSION = 2;
+  CLIENT_KIND_MCP_READ = 3;
+}
+
+enum CredentialState {
+  CREDENTIAL_STATE_UNSPECIFIED = 0;
+  CREDENTIAL_STATE_ACTIVE = 1;
+  CREDENTIAL_STATE_REVOKED = 2;
+  CREDENTIAL_STATE_EXPIRED = 3;
+}
+
+message Account {
+  string id = 1;
+  string display_name = 2;
+}
+
+message Principal {
+  string account_id = 1;
+  Role role = 2;
+  ClientKind client_kind = 3;
+  string credential_id = 4;
+  int64 auth_version = 5;
+}
+
+message StartGoogleLoginRequest {
+  string previous_flow_cookie = 1;
+}
+message StartGoogleLoginResponse {
+  string authorization_url = 1;
+  string flow_cookie = 2;
+  int32 max_age_seconds = 3;
+}
+message CompleteGoogleLoginRequest {
+  string flow_cookie = 1;
+  string state = 2;
+  oneof outcome {
+    string code = 3;
+    string provider_error = 4;
+  }
+  string previous_session_cookie = 5;
+}
+message CompleteGoogleLoginResponse {
+  string redirect_path = 1;
+  string session_cookie = 2;
+  int32 max_age_seconds = 3;
+}
+
+// Audience, method, origin and write intent come from gateway's fixed route map.
+message ResolvePrincipalRequest {
+  oneof credential {
+    string session_cookie = 1;
+    string mcp_token = 2;
+  }
+  string audience = 3;
+  string full_method = 4;
+  string origin = 5;
+  string csrf_token = 6;
+}
+message ResolvePrincipalResponse {
+  Principal principal = 1;
+  string actor_assertion = 2;
+}
+message VerifyActorRequest {
+  string actor_assertion = 1;
+  // Supplied by the receiving service interceptor, never by an HTTP client.
+  string full_method = 2;
+}
+message VerifyActorResponse {
+  Principal principal = 1;
+}
+message GetCurrentSessionRequest { string actor_assertion = 1; }
+message GetCurrentSessionResponse {
+  Account account = 1;
+  Role role = 2;
+  string csrf_token = 3;
+}
+message LogoutCurrentSessionRequest { string actor_assertion = 1; }
+message LogoutCurrentSessionResponse {}
+message McpToken {
+  string id = 1;
+  string name = 2;
+  string create_request_id = 3;
+  CredentialState state = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  google.protobuf.Timestamp revoked_at = 7;
+}
+message CreateMcpTokenRequest {
+  string actor_assertion = 1;
+  string name = 2;
+  string create_request_id = 3;
+}
+message CreateMcpTokenResponse {
+  McpToken credential = 1;
+  string token = 2;
+}
+message ListMyMcpTokensRequest {
+  string actor_assertion = 1;
+  string cursor = 2;
+  int32 limit = 3;
+}
+message ListMyMcpTokensResponse {
+  repeated McpToken items = 1;
+  string next_cursor = 2;
+}
+message RevokeMcpTokenRequest {
+  string actor_assertion = 1;
+  string credential_id = 2;
+}
+message RevokeMcpTokenResponse {}

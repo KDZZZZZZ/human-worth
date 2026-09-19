@@ -169,3 +169,19 @@ dfbfdb2577647883b6818002b0d5a7590e1df988b4a7f3dced440c48ead5f358  setting_oauth.
 | [tc-netem](https://man7.org/linux/man-pages/man8/tc-netem.8.html)，在线手册，核实于 2026-09-18 | 在实验网络命名空间定向注入网络异常；业务重复请求另由驱动器生成 | 记录注入、业务判据、自动清理和恢复；不把 TCP 重传当作 RPC 重复执行 |
 
 七服务划分、Moderation 决定与 Content 应用回执的协调、实验资源预算和 D01～D14 矩阵是本项目的具体推导。参考资料说明工具与模式能力，不证明 Human Worth 已具备对应实现或通过了故障演练。
+
+## Identity 实现与 lab 固定版本（2026-09-19）
+
+本轮基于用户“按这个顺序完成”的实现授权，并使用用户指定域名与另行提供的 Google Web 客户端。所有依赖、具体期限、密钥格式、部署脚本和验证方法均为 Agent Self-Claimed。sub2api 仅作为逻辑参考，没有修改其运行配置。
+
+| 来源 / 固定版本 | 采用与差异 | 本次验证范围 |
+| --- | --- | --- |
+| [Go 1.27.1](https://go.dev/dl/)、[Buf v1.72.0](https://github.com/bufbuild/buf/releases/tag/v1.72.0) | 一个 Go module、三个入口；Buf 自带编译器，生成插件由 go run 固定版本；程序和实验镜像记录来源摘要 | Proto lint、生成一致性、vet、构建和 race 集成测试 |
+| [go-oidc v3.21.0](https://github.com/coreos/go-oidc/tree/v3.21.0)、[OAuth2 v0.37.0](https://pkg.go.dev/golang.org/x/oauth2@v0.37.0)、[JWT v5.3.1](https://github.com/golang-jwt/jwt/tree/v5.3.1) | 固定 Google issuer、端点与 RS256；自行补 nonce/azp 与一次性流程；内部断言固定 HS256，只在 Identity 持有签名密钥 | 真实 HTTP 测试供应方覆盖签名、JWKS 故障、nonce/PKCE、重放与不盲目换码重试；不能替代 Google 真人授权 |
+| [Google OIDC](https://developers.google.com/identity/openid-connect/openid-connect)、[OIDC 协议参考](https://developers.google.com/identity/openid-connect/reference) | 固定 worth.oopsbox.cn 回调，服务端 token/JWKS 调用；独立 state、nonce 与 PKCE verifier | 授权 URL 和真实 Google 错误路径另在 lab 检查；成功真人登录待公开发布 |
+| [kind v0.33.0](https://github.com/kubernetes-sigs/kind/releases/tag/v0.33.0)、[配置](https://kind.sigs.k8s.io/docs/user/configuration/)、[Calico 3.32 安装](https://docs.tigera.io/calico/latest/getting-started/kubernetes/kind) | K8s 1.36.4、Calico 3.32.2，选择与数据库 Operator 支持区间重合的版本；关闭 kind 默认 CNI；分别约束 Docker 节点和 kubelet 可分配资源 | 实际 Pod 分散、允许/拒绝网络链路，不能把 Docker 容器当成独立物理主机 |
+| [CloudNativePG 1.30.0 源码与发布清单](https://github.com/cloudnative-pg/cloudnative-pg/tree/v1.30.0)、[PostgreSQL 18 锁](https://www.postgresql.org/docs/18/explicit-locking.html) | PG 18.4，独立 PVC、同步确认任一份备库、required durability、failoverQuorum；Identity schema owner 与运行/运维账号分离 | 实际迁移发现重复 CREATE SCHEMA 需要数据库级权限，改为先查 schema，再仅在不存在时创建；受限 owner 回归测试覆盖该缺陷 |
+| [Squid ACL](https://www.squid-cache.org/Doc/config/acl/)、[PID 文件](https://www.squid-cache.org/Doc/config/pid_filename/) | 只允许指定 Google 域名的 CONNECT；非 root、只读、不缓存、不记录 URL；容器前台运行不写 PID，限制文件描述符及内存 | Google JWKS 允许，其他域名 403；gateway 与未授权 Pod 无法连接数据库或代理 |
+| [Nginx HTTPS](https://nginx.org/en/docs/http/configuring_https_servers.html)、[Certbot](https://eff-certbot.readthedocs.io/en/stable/using.html)、[flarectl](https://github.com/cloudflare/cloudflare-go/tree/v0.118.0/cmd/flarectl) | 独立 server_name 和 DNS A 记录，Let’s Encrypt 证书与定时续期；CLI/密钥在仓库外；发布应用仍遵守 dev/CI 门槛 | HTTPS 健康、HTTP 跳转及静态 Swagger 可访问；公网连接原已发布基座 |
+
+依赖精确版本以 [go.mod](../backend/go.mod) 为准；上游清单 SHA-256 和镜像 digest 以 [versions.json](../ops/lab/versions.json) 为准。网络与恢复检查入口见[部署文档](deployment.md#identity-lab)，结论只覆盖实际执行的 Identity 链路。早前小节中“尚未实现”的表述是当时设计记录，不代表本轮状态。

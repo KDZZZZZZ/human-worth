@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: identity, namespace: human-worth}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Service
+metadata: {name: identity, namespace: human-worth}
+spec:
+  clusterIP: None
+  selector: {app: identity}
+  ports: [{name: grpc, port: 8443, targetPort: grpc}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: identity, namespace: human-worth}
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector: {matchLabels: {app: identity}}
+  strategy:
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
+  template:
+    metadata: {labels: {app: identity}}
+    spec:
+      serviceAccountName: identity
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 20
+      nodeSelector: {human-worth.io/worker: "true"}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector: {matchLabels: {app: identity}}
+      securityContext: {runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: identity
+          image: human-worth/identity:local
+          imagePullPolicy: Never
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 400m, memory: 192Mi}
+          env:
+            - {name: PUBLIC_ORIGIN, value: "https://worth.oopsbox.cn"}
+            - {name: IDENTITY_DATABASE_URL_FILE, value: /identity-secrets/database-url}
+            - {name: IDENTITY_ENCRYPTION_KEYS_FILE, value: /identity-secrets/encryption-keys.json}
+            - {name: IDENTITY_SIGNING_KEYS_FILE, value: /identity-secrets/signing-keys.json}
+            - {name: GOOGLE_OAUTH_CLIENT_ID, valueFrom: {secretKeyRef: {name: google-oauth, key: client-id, optional: true}}}
+            - {name: GOOGLE_OAUTH_CLIENT_SECRET_FILE, value: /google/client-secret}
+            - {name: GOOGLE_OAUTH_REDIRECT_URI, value: "https://worth.oopsbox.cn/api/auth/google/callback"}
+            - {name: GOOGLE_OAUTH_CONFIG_VERSION, value: google-v1}
+            - {name: SERVICE_CERT_FILE, value: /tls/tls.crt}
+            - {name: SERVICE_KEY_FILE, value: /tls/tls.key}
+            - {name: SERVICE_CA_FILE, value: /tls/ca.crt}
+            - {name: HTTPS_PROXY, value: "http://google-egress:3128"}
+            - {name: NO_PROXY, value: ".svc,.cluster.local,identity,database-rw"}
+            - {name: POD_NAME, valueFrom: {fieldRef: {fieldPath: metadata.name}}}
+            - {name: GOMEMLIMIT, value: 150MiB}
+          ports: [{name: grpc, containerPort: 8443}, {name: health, containerPort: 8081}]
+          startupProbe: {httpGet: {path: /livez, port: health}, periodSeconds: 2, failureThreshold: 30}
+          livenessProbe: {httpGet: {path: /livez, port: health}, periodSeconds: 10}
+          readinessProbe: {httpGet: {path: /readyz, port: health}, periodSeconds: 3, timeoutSeconds: 3, failureThreshold: 2}
+          volumeMounts:
+            - {name: tls, mountPath: /tls, readOnly: true}
+            - {name: identity-secrets, mountPath: /identity-secrets, readOnly: true}
+            - {name: database-ca, mountPath: /database-ca, readOnly: true}
+            - {name: google, mountPath: /google, readOnly: true}
+      volumes:
+        - {name: tls, secret: {secretName: identity-tls, defaultMode: 0440}}
+        - {name: identity-secrets, secret: {secretName: identity-runtime, defaultMode: 0440}}
+        - {name: database-ca, secret: {secretName: database-ca, defaultMode: 0440, items: [{key: ca.crt, path: ca.crt}]}}
+        - {name: google, secret: {secretName: google-oauth, optional: true, defaultMode: 0440}}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: {name: identity, namespace: human-worth}
+spec:
+  minAvailable: 1
+  selector: {matchLabels: {app: identity}}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: identity, namespace: human-worth}
+spec:
+  podSelector: {matchLabels: {app: identity}}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{podSelector: {matchLabels: {app: gateway}}}]
+      ports: [{protocol: TCP, port: 8443}]
+  egress:
+    - to: [{podSelector: {matchLabels: {cnpg.io/cluster: database}}}]
+      ports: [{protocol: TCP, port: 5432}]
+    - to: [{podSelector: {matchLabels: {app: google-egress}}}]
+      ports: [{protocol: TCP, port: 3128}]

@@ -1,11 +1,12 @@
 openapi: 3.1.1
 info:
   title: Human Worth API
-  version: 0.4.0-draft
+  version: 0.5.0-draft
   summary: 人类价值平台的 HTTP 接口契约草案
   description: |
     行为依据为 docs/prd.md 中的可信场景 S1～S6、2026-09-18 人类修订 H1～H3，以及 AGENTS.md 的发帖、评论、投票目标。
-    当前仅 /api/health 的 GET、HEAD 已实现；其余 operation 均为 planned，不能据此认定线上可调用。
+    /api/health 已在线上基座实现；Identity 的登录、会话和 MCP 凭据管理已实现并有本地集成验证，部署状态见 x-deployment-status。
+    其他业务 operation 仍为 planned；代码已实现不等于当前公网版本已发布，具体运行状态见 docs/deployment.md。
     路径、字段、状态枚举、认证载体和分页等具体选择属于 Agent Self-Claimed，详见 docs/references.md。
 
     作品以审核结果决定展示，没有独立的公开/私有或公开授权开关；云端使用授权另行检查。
@@ -21,10 +22,11 @@ info:
     Google 登录使用服务端授权码流程（OIDC + PKCE S256），成功后建立网站会话；GET /api/me 查询本人身份。
     登录入口和回调不要求已有网站会话，过期网站会话不阻止重新登录；它们拒绝 Bearer token，回调必须验证独立的登录流程 Cookie 与 state。
     其他公开业务操作允许不带凭据；携带无效凭据时返回 401，不退回匿名访问；同时携带会话与 Bearer 时返回 400。
-    业务接口启用前须接入 HTTPS；现有公网 HTTP 仅用于建设中页面和健康检查。
+    业务凭据只通过 HTTPS；网站域名为 https://worth.oopsbox.cn，公网 HTTP 跳转至 HTTPS。
     Google 正式回调须使用预先注册的 HTTPS 域名，不能使用现有公网 IP 地址；Client Secret 仅保存在服务端。
     首次有效 Google 登录创建普通账号，再次登录复用稳定账号；不按邮箱自动合并账号或授予管理员。
-    MCP token 签发/吊销、管理员授予、具体算法、文件限额及云端内部通信仍待实现阶段补全。
+    MCP token 通过本人网站会话创建、列出和撤销；管理员授予使用受限维护 Job，不暴露公开授予接口。
+    具体业务算法、文件限额及后续服务通信仍待实现阶段补全。
 externalDocs:
   description: 产品需求与可信场景
   url: https://github.com/KDZZZZZZ/human-worth/blob/dev/docs/prd.md
@@ -55,7 +57,7 @@ x-mcp:
       description: 客户端须先说明永久失去该题投票权，再以明确确认为参数调用；不提交选票。
 tags:
   - {name: Health, description: 已实现的基础服务}
-  - {name: Authentication, description: Google 登录、回调和退出网站会话；当前均待实现}
+  - {name: Authentication, description: Google 登录、回调和退出网站会话；已实现，公网发布状态见部署文档}
   - {name: Account, description: 当前会话和本人投稿}
   - {name: Tasks, description: 推荐发现、任务与过审作品}
   - {name: Submissions, description: 草稿、上传与审核申请}
@@ -81,6 +83,11 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/Health'}
               example: {status: ok, service: human-worth, stage: foundation, revision: development}
+        '503':
+          description: Identity 入口无法确认身份服务及其数据库已就绪
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
     head:
       tags: [Health]
       operationId: headHealth
@@ -94,6 +101,10 @@ paths:
             Cache-Control: {$ref: '#/components/headers/NoStore'}
             Content-Type:
               schema: {type: string, const: 'application/json; charset=utf-8'}
+        '503':
+          description: Identity 入口未就绪；与 GET 状态相同，无响应体
+          headers:
+            Cache-Control: {$ref: '#/components/headers/NoStore'}
 
   /api/auth/google:
     get:
@@ -109,7 +120,8 @@ paths:
         已有网站会话即使过期也可重新登录；携带 Authorization/Bearer 返回 400，MCP 不暴露此入口。
         Client Secret 和 PKCE verifier 不进入浏览器、URL 或日志；具体回调配置未就绪时返回 503，不降级到公网 HTTP/IP 回调。
       x-scenarios: [H3]
-      x-implementation-status: planned
+      x-implementation-status: implemented
+      x-deployment-status: pending-public-release
       security: []
       responses:
         '302':
@@ -148,7 +160,8 @@ paths:
         所有回调响应（包括错误）均 no-store、no-referrer；访问日志须屏蔽回调 query、Cookie、授权码和 token。
         Google access/ID/refresh token 不返回前端、不作为网站或 MCP 凭据，不写 localStorage；携带 Bearer 返回 400。
       x-scenarios: [H3]
-      x-implementation-status: planned
+      x-implementation-status: implemented
+      x-deployment-status: pending-public-release
       security: [{GoogleLoginTransaction: []}]
       parameters:
         - name: state
@@ -195,7 +208,8 @@ paths:
         不退出其他设备、不撤销 MCP token、不退出 Google 账号、不删除平台账号或恢复任何任务的投票资格。
         已失效会话返回 401；不以只清除 Cookie 代替服务端撤销，不能通过 GET 触发退出。
       x-scenarios: [H3]
-      x-implementation-status: planned
+      x-implementation-status: implemented
+      x-deployment-status: pending-public-release
       security: [{WebSession: [], CsrfToken: []}]
       responses:
         '204':
@@ -215,7 +229,8 @@ paths:
       operationId: getCurrentSession
       summary: 获取当前网站账号与 CSRF token
       x-scenarios: [S2, S3, S4, S5, H3]
-      x-implementation-status: planned
+      x-implementation-status: implemented
+      x-deployment-status: pending-public-release
       security: [{WebSession: []}]
       responses:
         '200':
@@ -225,6 +240,110 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Session'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/me/mcp-tokens:
+    post:
+      tags: [Account]
+      operationId: createMcpToken
+      summary: 创建本人 MCP 读取凭据
+      description: |
+        仅当前网站会话可创建；校验 X-CSRF-Token 和精确 Origin，不接受 MCP token 代为签发。
+        token 为随机凭据，固定三十天有效，数据库只保存摘要；明文仅在本次 201 响应中返回一次。
+        createRequestId 在账号内唯一。相同 ID 再次请求返回 409，不重复创建，也不再次返回明文。
+        如果响应丢失，先通过列表中的 createRequestId 找到并撤销原凭据，再使用新 ID 创建。
+        新 token 仍属于原稳定账号，不改变任何任务的投票资格；MCP 业务工具本身由后续模块实现。
+      x-scenarios: [S3, S5, H3]
+      x-implementation-status: implemented
+      x-deployment-status: pending-public-release
+      security: [{WebSession: [], CsrfToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/WebOrigin'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, createRequestId]
+              properties:
+                name: {type: string, minLength: 1, maxLength: 80, description: 便于本人识别的名称，不能仅为空白}
+                createRequestId: {type: string, minLength: 1, maxLength: 128, description: 客户端随机生成并在同一次创建的重试中保持不变}
+      responses:
+        '201':
+          description: 凭据已创建；离开本响应后无法找回明文
+          headers:
+            Cache-Control: {$ref: '#/components/headers/NoStore'}
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [credential, token]
+                properties:
+                  credential: {$ref: '#/components/schemas/McpCredential'}
+                  token: {type: string, minLength: 1, description: 仅此次返回的明文；客户端自行妥善保存，不放入网站 localStorage}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+    get:
+      tags: [Account]
+      operationId: listMyMcpTokens
+      summary: 分页列出本人的 MCP 凭据
+      description: 返回名称、创建请求 ID、时间和有效/撤销/过期状态；不返回明文或凭据摘要，不列出网站会话。按不透明凭据 ID 排序，跨页时新创建的凭据可通过刷新首屏查看。
+      x-scenarios: [S3, S5, H3]
+      x-implementation-status: implemented
+      x-deployment-status: pending-public-release
+      security: [{WebSession: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: 仅本人凭据元数据；nextCursor 为 null 时没有下一页
+          headers:
+            Cache-Control: {$ref: '#/components/headers/NoStore'}
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items, nextCursor]
+                properties:
+                  items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/McpCredential'}}
+                  nextCursor: {$ref: '#/components/schemas/NextCursor'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/me/mcp-tokens/{credentialId}:
+    delete:
+      tags: [Account]
+      operationId: revokeMcpToken
+      summary: 撤销本人的一个 MCP 凭据
+      description: |
+        仅网站会话可操作，并校验 CSRF 与 Origin；其他账号的凭据与不存在均返回 404。
+        重复撤销返回 204；提交后新的鉴权和身份断言校验拒绝旧 token，不依赖进程内缓存。
+        已完成鉴权的在途业务另受对应业务事务约束；撤销不删除稳定账号或恢复投票资格。
+      x-scenarios: [S3, S5, H3]
+      x-implementation-status: implemented
+      x-deployment-status: pending-public-release
+      security: [{WebSession: [], CsrfToken: []}]
+      parameters:
+        - name: credentialId
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/Id'}
+        - {$ref: '#/components/parameters/WebOrigin'}
+      responses:
+        '204':
+          description: 已撤销，无响应体
+          headers:
+            Cache-Control: {$ref: '#/components/headers/NoStore'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
         default: {$ref: '#/components/responses/Problem'}
 
   /api/tasks:
@@ -1120,6 +1239,12 @@ components:
         仅可读取公开内容及显式访问统计；即使所属账号是管理员，也不可投稿、投票或控制云端。
         token 轮换不改变所属账号；多种凭据同时出现时拒绝请求，避免身份歧义。
   parameters:
+    WebOrigin:
+      name: Origin
+      in: header
+      required: true
+      description: 必须等于服务端配置的 PUBLIC_ORIGIN；浏览器自动发送，命令行调用也需提供，不信任任意子域名
+      schema: {type: string, format: uri}
     TaskId:
       name: taskId
       in: path
@@ -1238,8 +1363,8 @@ components:
       properties:
         status: {type: string, const: ok}
         service: {type: string, const: human-worth}
-        stage: {type: string, const: foundation}
-        revision: {type: string, description: 已部署 Git SHA；本地开发默认为 development}
+        stage: {type: string, enum: [foundation, identity]}
+        revision: {type: string, description: 发布版本为 Git SHA；实验镜像为 local-源码摘要，开发可为 development}
     Problem:
       type: object
       required: [type, title, status, code, detail]
@@ -1272,6 +1397,18 @@ components:
       type: string
       enum: [draft, pending_review, published, rejected, taken_down]
       description: 仅用于任务的发布流程；任务草稿可缺作品。作品使用独立的 EntryReviewState，客户端不可直接设置状态。
+    McpCredential:
+      type: object
+      additionalProperties: false
+      required: [id, name, createRequestId, state, createdAt, expiresAt, revokedAt]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        name: {type: string}
+        createRequestId: {type: string}
+        state: {type: string, enum: [active, revoked, expired], description: 账号 auth_version 变化后，旧凭据也视为 revoked}
+        createdAt: {$ref: '#/components/schemas/Timestamp'}
+        expiresAt: {$ref: '#/components/schemas/Timestamp'}
+        revokedAt: {$ref: '#/components/schemas/NullableTime'}
     EntryReviewState:
       type: string
       enum: [draft, pending_review, approved, rejected, approval_revoked]

@@ -2,15 +2,15 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.1 · 2026-09-18 · 设计，尚未实现 |
-| 人类要求 | 先设计 Identity，说明核心对象、核心功能逻辑和需要实现的 platform 公共基座；Google 登录参考本机 sub2api |
+| 版本 | v0.2 · 2026-09-19 · Identity 已实现，公网发布及真实 Google 用户登录待验收 |
+| 人类要求 | 先设计再按顺序实现 Identity；Google 登录参考本机 sub2api，入口使用 worth.oopsbox.cn |
 | 依据 | [PRD](prd.md) 的 S2～S5、[H3 Google 登录](prd.md#google-login)、[七服务架构](backend-architecture.md)、[OpenAPI](../openapi.yaml) |
 | 技术方案归属 | 本文的字段、期限、存储、RPC 补全与基座组织属于 Agent Self-Claimed |
-| 当前状态 | 只有契约与现有 Node.js 基座；没有 Go Identity、业务数据库或登录功能部署 |
+| 当前状态 | Go 实现、9 个 RPC、SQL 迁移、真实 PostgreSQL 测试已完成；双副本部署在隔离 kind lab，公网仍运行已发布 Node.js 基座 |
 
 **Identity 回答三个问题：你是谁、你的凭据是否仍有效、你以什么身份调用哪个接口。** 是否能修改某件作品、投某个任务，仍由对应业务服务判断。
 
-阅读顺序：先看核心对象和功能流程；准备写代码时再看接口、[platform 清单](#platform)与验收。本文是身份模块设计依据，独立 Proto 文件待按本文编写；其余服务设计见[架构划分](backend-architecture.md)，部署统一见[部署与实验计划](deployment.md)。
+阅读顺序：先看核心对象和功能流程；准备写代码时再看接口、[platform 清单](#platform)与验收。本文是身份模块设计依据，RPC 契约源为 [identity.proto](../backend/proto/humanworth/identity/v1/identity.proto)；其余服务设计见[架构划分](backend-architecture.md)，部署统一见[部署与实验计划](deployment.md)。
 
 ## 1. 边界：哪些归 Identity
 
@@ -35,6 +35,7 @@ Google 客户端 Secret 仅给 Identity。gateway 不向业务服务转发原始
 | **Account 账号** | `account_id`、`display_name`、`role`、`state`、`auth_version`、创建/更新时间 | ID 永久稳定；角色只有 USER/ADMIN；状态 ACTIVE/DISABLED；首次 Google 登录只建普通账号 |
 | **ExternalIdentity 外部身份** | `issuer`、`subject`、`account_id`、可选邮箱及验证标记、更新时间 | `UNIQUE(issuer, subject)`；Google 的 `sub` 原样、区分大小写；邮箱仅为资料，不作为关联键 |
 | **GoogleLoginTransaction 登录流程** | `flow_id`、流程 Cookie 摘要、`state_hash`、`nonce_hash`、加密的 PKCE verifier、OAuth 配置版本、固定回调 URI、状态、`exchange_attempt_id`、到期时间 | 十分钟有效；同一流程最多一次换码；所有副本共享；终态不能重新开放 |
+| **LoginFamily 浏览器流程族** | `family_id`、创建时间 | 同一个旧流程 Cookie 并发发起时锁定同一 family，取消旧 pending/exchanging，避免双副本各保留一份旧流程 |
 | **CredentialRecord 凭据** | `credential_id`、`account_id`、`kind`、`token_hash`、签发时 `auth_version`、状态、创建/到期/撤销时间 | WEB_SESSION 与 MCP_READ 分开；摘要唯一；明文随机凭据不落库；所有校验读取权威主库 |
 | **WebSession 会话附属数据** | `credential_id`、加密的 `csrf_token`、加密密钥版本 | 与 WEB_SESSION 一对一；同一会话重复获取 CSRF token 不会让其他标签页失效 |
 | **McpTokenMetadata 凭据附属数据** | `credential_id`、用户填写的名称、`create_request_id` | 与 MCP_READ 一对一；名称不影响权限；`(account_id, create_request_id)` 唯一，供响应丢失后查回记录 |
@@ -85,7 +86,7 @@ Google 客户端 Secret 仅给 Identity。gateway 不向业务服务转发原始
 | D. 本地提交 | 再校验流程仍属本 attempt 且未取消/过期；找回或创建账号、写入外部关联、新会话和 CSRF token、撤销当前浏览器旧会话、写审计并将流程置 SUCCEEDED | 一个本地事务提交；失败不能留下已成功账号关联却未完成的半次登录状态 |
 | E. 返回浏览器 | 设置新网站 Cookie，以另一条独立 Set-Cookie 清流程 Cookie，303 返回 `/`；前端读取 `/api/me` | 多条 Set-Cookie 分开发送；不把 Google token 或网站会话明文放进 URL、JSON、localStorage |
 
-Google 两种允许的 issuer 写法在完整验证后规范为 `https://accounts.google.com`，以 `(issuer, sub)` 查账号。若首次登录竞争产生唯一键冲突，整个建号事务回滚，再从主库查回已存在的关联；可以重试本地事务，不能重做 Google 换码。账号与关联在同一事务创建，不留下孤立重复账号。稳定关联及 issuer/sub 规则依据 [Google OIDC](https://developers.google.com/identity/openid-connect/openid-connect)。
+Google 两种允许的 issuer 写法在完整验证后规范为 `https://accounts.google.com`，以 `(issuer, sub)` 查账号。首次登录按 issuer/sub 获取事务级 advisory lock，再查关联与建号；唯一键作为最终约束。锁冲突或数据库失败明确报错，不自动重做 Google 换码。账号与关联在同一事务创建，不留下孤立重复账号。稳定关联及 issuer/sub 规则依据 [Google OIDC](https://developers.google.com/identity/openid-connect/openid-connect)。
 
 已有账号需锁定并重新检查状态和版本；禁用期间不能靠新登录创建替代账号。邮箱和显示名变动只更新资料，不更新关联，不授予管理员。没有显示名时使用普通默认名称，不把邮箱作为公开显示名。
 
@@ -116,7 +117,7 @@ Identity 的认证 RPC 使用服务身份白名单，不能安装一个会递归
 
 ### 3.5 MCP 凭据生命周期
 
-既有契约要求 MCP token 属于用户本人。首版补全方案如下，公开管理接口将在实现该能力时与 OpenAPI/Proto 一起落定：
+既有契约要求 MCP token 属于用户本人。以下生命周期已经实现，对应 HTTP 与 RPC 同步记录在 OpenAPI 和 Proto：
 
 | 操作 | 核心逻辑 |
 | --- | --- |
@@ -130,9 +131,9 @@ MCP 工具只开放 `list_tasks`、`get_task`、`view_task_statistics`。最后�
 
 ### 3.6 角色与账号状态管理
 
-首次登录不授予管理员，Google 邮箱域名也不授予管理员。实验阶段用受限运维 Job 调用 Identity 自己的管理用例，输入已存在的账号 ID、目标状态/角色、预期 `auth_version` 和原因；操作者来自运维身份。Job 使用 Identity 的代码和专用权限，不给其他业务服务写账号表的入口。
+首次登录不授予管理员，Google 邮箱域名也不授予管理员。实验阶段用受限运维 Job 调用 Identity 自己的管理用例，输入已存在的账号 ID、目标状态/角色和预期 `auth_version`，审计记录目标角色与状态；操作者来自运维身份。Job 使用 Identity 的代码和专用权限，不给其他业务服务写账号表的入口。
 
-管理用例锁定账号、检查预期版本，更新状态/角色并递增 `auth_version`，同事务记录审计。凭据保存的签发版本与新版本不符时全部失效；账号恢复后不复活旧凭据。并发签发凭据也要锁定同一账号并读取当前版本。首次管理员需要人工指定已验证账号；本轮设计不执行任何授予或封禁。面向网站的账号管理 UI/API 后续另行设计。
+管理用例锁定账号、检查预期版本，更新状态/角色并递增 `auth_version`，同事务记录审计。凭据保存的签发版本与新版本不符时全部失效；账号恢复后不复活旧凭据。并发签发凭据也要锁定同一账号并读取当前版本。首次管理员需要人工指定已验证账号；测试只操作合成账号，不自动授予真实用户管理员。面向网站的账号管理 UI/API 后续另行设计。
 
 ## 4. 多副本下怎样保证正确
 
@@ -150,15 +151,15 @@ Identity 沿用同一套 lab 配置：两个 Pod，连接同一 PostgreSQL 主�
 | Google 暂时不可用 | 新登录失败，已有本地会话仍可验证；不把 Google 可达性设成整个服务的存活探针 |
 | 密钥轮换或滚动发布 | 两副本先同时具备新旧 key ID，再切换新签发；旧解密/验签 key 保留到对应数据失效或重加密完成 |
 
-涉及同一事务中的多个账号（例如切换账号并撤销旧会话），按账号 ID 排序加锁，再按凭据 ID 排序；登录流程行在账号锁之前锁定。审计与 outbox 最后追加。所有外部 HTTP/RPC 都在数据库事务之外；死锁/唯一冲突只对可恢复的本地事务做有界重试，不把整个 OAuth 流程包进自动重试。
+涉及同一事务中的多个账号（例如切换账号并撤销旧会话），按账号 ID 排序加锁，再锁定本次相关凭据；登录 family 和流程行在账号锁之前锁定。审计与 outbox 最后追加。所有外部 HTTP/RPC 都在数据库事务之外；当前事务错误直接返回，不自动重试 OAuth 或写 RPC。
 
-凭据摘要使用高熵随机 token 的 SHA-256；PKCE verifier 和 CSRF 值使用标准 AEAD 加密并绑定记录 ID/字段用途，密钥来自 Secret 文件。不要自写 OAuth/JWT/JWKS 验证器；候选为 `golang.org/x/oauth2`、`coreos/go-oidc/v3` 与 `golang-jwt/jwt/v5`，实施时固定版本并验证 Google issuer 兼容行为。库完成签名等通用校验后，Identity 仍显式检查 nonce 和适用的 azp，不能假定库替代业务绑定。内存中的 Google token 用后释放，不存储 refresh token。
+凭据摘要使用高熵随机 token 的 SHA-256；PKCE verifier 和 CSRF 值使用标准 AEAD 加密并绑定记录 ID/字段用途，密钥来自 Secret 文件。不要自写 OAuth/JWT/JWKS 验证器；已采用 `golang.org/x/oauth2`、`coreos/go-oidc/v3` 与 `golang-jwt/jwt/v5`，版本见 [go.mod](../backend/go.mod)，并覆盖 Google issuer 兼容行为。库完成签名等通用校验后，Identity 仍显式检查 nonce 和适用的 azp，不能假定库替代业务绑定。内存中的 Google token 用后释放，不存储 refresh token。
 
 流程进入终态时清除加密 verifier；过期流程和凭据按小批次清理，多个副本的清理动作必须可重复执行。到期拒绝在请求校验中完成，清理延迟不会延长有效期。审计与账号关联按独立保留策略保存，不随会话过期删除账号。
 
 ## 5. 接口边界与 Proto 落地范围
 
-### 首批六个 RPC
+### 已实现的九个 RPC
 
 | RPC | 调用方 | 输入 / 输出重点 | 对外入口 |
 | --- | --- | --- | --- |
@@ -171,16 +172,16 @@ Identity 沿用同一套 lab 配置：两个 Pod，连接同一 PostgreSQL 主�
 
 敏感登录返回值只供 gateway 设置 Cookie，不能自动用 ProtoJSON 透传。内部方法默认拒绝未列明的服务身份；健康检查独立配置访问规则。
 
-管理概览由 gateway 聚合；`ListAuditEvents`、`IngestAuditEvent` 属于 Moderation 的审计投影，不放入 IdentityService。下一步按上述六个方法、核心对象和 OpenAPI 编写独立 Proto 文件，编译并核对 HTTP 映射；当前表格是接口设计，不是已经存在的 Proto 实现。
+管理概览由未来的 gateway 聚合；`ListAuditEvents`、`IngestAuditEvent` 属于 Moderation 的审计投影，不放入 IdentityService。上述六个方法和下面三个 MCP 生命周期方法均已生成 Go 接口并实现。
 
-MCP 管理拟补 `CreateMcpToken(name, create_request_id)`、`ListMyMcpTokens(cursor)`、`RevokeMcpToken(credential_id)`，都以网站 Principal 决定所有者；列表返回元信息，创建额外返回一次明文。账号运维暂用本模块 Job 用例，不新增公开 RPC。以上补充在实现前需要同步到正式 Proto/OpenAPI，不能从设计表自动暴露 HTTP 或 MCP 工具。
+MCP 管理已补 `CreateMcpToken(name, create_request_id)`、`ListMyMcpTokens(cursor)`、`RevokeMcpToken(credential_id)`，都以网站 Principal 决定所有者；列表返回元信息，创建额外返回一次明文。账号运维暂用本模块 Job 用例，不新增公开 RPC。公开入口为 `POST/GET /api/me/mcp-tokens` 与 `DELETE /api/me/mcp-tokens/{credentialId}`；MCP 工具本身仍待 Content/Voting 等模块实现。
 
 错误延续既有映射：格式/流程问题 400，凭据无效 401，来源/CSRF/用途/角色禁止 403，依赖不可用 503。未知账号与无效凭据不返回可枚举的资料；错误只包含稳定原因和 request ID，不包含 Google 原始响应体。回调所有响应使用 no-store/no-referrer。
 
 <a id="platform"></a>
 ## 6. 为 Identity 实现哪些 platform 公共基座
 
-**先实现能支撑 Identity 和 gateway 的公共能力，再随第二个业务服务提取真正重复的代码。** 当前仓库只有 Node.js/Python 基座，没有可直接复用的 Go platform；既有 CI 与部署保护继续保留。
+**先实现能支撑 Identity 和 gateway 的公共能力，再随第二个业务服务提取真正重复的代码。** 已在 [platform](../backend/internal/platform) 实现下表所需公共能力，既有 Node.js/Python 基座与部署保护继续保留。
 
 ### 6.1 第一批：运行 Identity 必需
 
@@ -191,10 +192,10 @@ MCP 管理拟补 `CreateMcpToken(name, create_request_id)`、`ListMyMcpTokens(cu
 | **gRPC 通信** | 服务端/客户端初始化、mTLS、证书服务身份、deadline、panic 转内部错误、消息大小限制；K8s DNS 与 round_robin | platform 提供机制，各模块登记允许调用者；错误证书、伪造身份被拒；合法调用能落到两个副本 |
 | **数据库连接与迁移执行** | `pgxpool` 连接主端点、连接上限、context 超时、事务回滚；迁移独立 Job、版本表与锁 | platform 复用连接与迁移机制；Identity 拥有 SQL、表与事务。两个 Pod 不竞相修改 schema，滚动版本兼容 |
 | **请求上下文与错误** | request ID、trace context、已验证 ServicePrincipal/Principal 的 context 存取；gRPC code＋稳定 reason | 不把调用者自报账号当主体；gateway 单独维护 HTTP 映射；Identity 自己执行账号/凭据策略 |
-| **日志和基本遥测** | `log/slog` JSON、OpenTelemetry 的 trace/指标接入；记录方法、耗时、错误率、连接池；敏感字段白名单 | 能跟踪 gateway→Identity→数据库/Google；不采集 Cookie、token、回调 query；账号/邮箱不用作指标标签 |
+| **日志和基本遥测** | `log/slog` JSON、OpenTelemetry 的 trace/指标接入；记录方法、耗时、错误率、连接池；敏感字段白名单 | 已有 gateway→Identity→数据库查询/Google 换码 span、JSON 日志、Prometheus 指标；OTLP 接收端尚未部署，不采集 SQL 参数、Cookie、token、回调 query |
 | **入口资源保护** | 有界请求大小、并发和超时；登录入口基础限流；Google HTTP 客户端复用连接并限制响应大小 | 先做进程级保护并明确双副本会扩大总限额，不能宣称全局限流；超限及时拒绝，无无限排队/重试 |
 
-目录可采用 `backend/internal/platform/`，用小包承载已经被多个入口使用的机制；业务代码在 `backend/internal/identity/`，HTTP/Cookie 适配在 gateway。这里是未来实现建议，本轮不创建空工程目录。
+目录可采用 `backend/internal/platform/`，用小包承载已经被多个入口使用的机制；业务代码在 `backend/internal/identity/`，HTTP/Cookie 适配在 gateway。对应目录均已有真实调用方；schema 迁移执行仍留在 Identity，等第二个模块需要时再提取。
 
 建议初始内部普通 RPC 总期限 2 秒、Google 登录回调总期限 15 秒，Google 换码最多占用其中 10 秒；子调用始终受父 deadline 限制。每个 Identity 副本连接池先设上限 4，双副本共 8，滚动增加一份时为 12，迁移连接另算；这些是实验起点，后续按观测调整。
 
@@ -202,7 +203,7 @@ MCP 管理拟补 `CreateMcpToken(name, create_request_id)`、`ListMyMcpTokens(cu
 
 | 项目 | Identity 阶段做到什么 |
 | --- | --- |
-| Go/Proto 构建 | 建一个 Go module，锁定 Go、protoc、生成插件及依赖版本；生成代码检查、格式检查、`go test`、`go test -race` 接入 CI |
+| Go/Proto 构建 | 建一个 Go module，锁定 Go、Buf 编译器、生成插件及依赖版本；生成代码检查、格式检查、`go test`、`go test -race` 接入 CI |
 | 真实数据库测试 | 临时 PostgreSQL 与隔离 schema；验证唯一约束、事务回滚、双进程竞争、撤销和失效；不能只用内存仓库替代 |
 | HTTP 与 Google 联调 | 测试 OIDC 供应方覆盖签名/JWKS、issuer/aud/nonce、PKCE、超时和重放；再用真实 Google 测试账号走浏览器回调 |
 | lab 部署 | 独立镜像、两个 Pod、服务证书、Secret 挂载、主库连接、readiness、允许的网络调用；Identity 的 Google HTTPS 出口单独放行 |
@@ -234,11 +235,11 @@ Google 换码、账号关联、会话/CSRF、MCP 用途与角色变更都是 Ide
 
 sub2api 的 Google 登录设置名是 `google_oauth_client_id`、`google_oauth_client_secret`、`google_oauth_redirect_url`；配置组 `google_oauth` 提供基础值。用户后续明确本轮只学习登录逻辑和实现，密钥另行提供；本设计不依赖取得现有密钥。
 
-Human Worth 实现时使用 `GOOGLE_OAUTH_CLIENT_ID`、`GOOGLE_OAUTH_CLIENT_SECRET_FILE`、`GOOGLE_OAUTH_REDIRECT_URI` 等配置，Secret 只读挂载到 Identity。需要的是 Web OAuth 客户端凭据；Google/Gemini API key 或服务账号私钥不能代替网页登录 Client Secret。即使复用已有客户端，也须为 Human Worth 登记精确回调并核实授权配置；本轮未修改 sub2api、Google 控制台或运行中的 Secret。
+Human Worth 实现时使用 `GOOGLE_OAUTH_CLIENT_ID`、`GOOGLE_OAUTH_CLIENT_SECRET_FILE`、`GOOGLE_OAUTH_REDIRECT_URI` 等配置，Secret 只读挂载到 Identity。需要的是 Web OAuth 客户端凭据；Google/Gemini API key 或服务账号私钥不能代替网页登录 Client Secret。即使复用已有客户端，也须为 Human Worth 登记精确回调并核实授权配置；本轮未修改 sub2api 或 Google 控制台；已将用户提供的 Web 客户端凭据保存到仓库外私有文件，并通过 Secret 挂载到 lab Identity。
 
 ## 8. 实施顺序与验收
 
-1. **定 Identity Proto 与表迁移**：按首批六个 RPC 编写接口，校对数据唯一键、敏感返回值和 gateway 映射。
+1. **定 Identity Proto 与表迁移**：按九个 RPC 编写接口，校对数据唯一键、敏感返回值和 gateway 映射。
 2. **做第一批 platform 与最小入口**：能启动、健康检查、mTLS 通信、连接主库、记录脱敏日志；保留现有 Node.js 公网服务。
 3. **做 Google 登录闭环**：先写状态/并发测试，再实现发起、回调、会话和退出；随后验证真实 Google 浏览器登录。
 4. **补角色变更与 MCP 生命周期**：完成对应管理契约、版本失效、用途校验与本地审计。
@@ -256,6 +257,21 @@ Human Worth 实现时使用 `GOOGLE_OAUTH_CLIENT_ID`、`GOOGLE_OAUTH_CLIENT_SECR
 | 密钥与观测 | 两副本密钥轮换兼容；日志、trace、错误、镜像及 Git 不包含真实凭据；新登录失败不拖垮已有会话认证 |
 | 部署与依赖故障 | Pod 切换会话保留；主库故障不降级放行；Google 断连只影响新登录；真实 HTTPS 代理链保持 Cookie/Origin/callback 一致 |
 
-以上都是未来运行时验收要求。本轮只验证文档、契约引用和参考来源，不把文档通过、模拟供应方测试或 Pod 就绪当作真实 Google 登录已完成。
+上表是完整验收要求，实际证据分层记录在下文；模拟供应方测试和 Pod 就绪不能替代真实 Google 用户登录，也不能证明尚未实现的 Voting 资格规则。
 
-2026-09-18 文档验证：`python3 scripts/check_docs.py`、`git diff --check` 退出码均为 0；六个 RPC 的职责与 HTTP/内部入口已核对，sub2api 参考文件指纹可复核。文档整理后接口设计保留在本文，独立 Proto 尚待编写；未运行 Google 登录或新增软件测试。
+历史记录（2026-09-18，仅文档）：`python3 scripts/check_docs.py`、`git diff --check` 退出码均为 0；六个 RPC 的职责与 HTTP/内部入口已核对，sub2api 参考文件指纹可复核。文档整理后接口设计保留在本文，独立 Proto 尚待编写；未运行 Google 登录或新增软件测试。
+
+
+## 9. 实现与验证入口
+
+- [Go 工程说明](../backend/README.md)：生成 Proto、检查与本地测试命令。
+- [登录与账号代码](../backend/internal/identity)、[HTTP 适配](../backend/internal/gateway)、[迁移 SQL](../backend/internal/identity/migrations/001_identity.sql)。
+- [lab 安装与故障验证](deployment.md#identity-lab)：真实双副本、数据库、网络权限和运维 Job。
+
+实现固定网站会话 24 小时、MCP token 30 天、ActorAssertion 30 秒、登录流程 10 分钟。单 gateway 每分钟允许 60 次登录发起；两副本合计上限随副本数变化，不是全局或每用户配额。普通 RPC 总期限 2 秒，回调 15 秒，Google HTTP 10 秒；单进程最多 64 个在途业务请求。每 Identity 连接池最多 4 条连接，滚动期间 3 份合计最多 12 条。
+
+过期 web 会话保留 7 天后清理；MCP 元信息与撤销记录保留以维持创建请求 ID 的防重语义。审计先保存在本模块的 outbox 表，尚未向 Moderation 投递。其余模块在路由策略表中的 RPC 名称是待对应模块定稿的权限用例，不表示这些业务接口已经实现。
+
+2026-09-19：`go vet ./...`、`go test -race -tags=integration ./... -count=1 -timeout=120s` 通过。测试使用隔离 PostgreSQL、两个真实 mTLS gRPC 服务器、两个 HTTPS gateway，以及测试专用 OIDC HTTP/JWKS 供应方；覆盖并发首次登录、回调占用/替换/迟到、签名与 nonce/PKCE、CSRF、撤销、权限版本、MCP 防重、受限迁移/运行账号、密钥重叠及数据库断连拒绝。生产程序没有切换到测试供应方的配置开关。
+
+用户提供的 Google 凭据已配置，真实用户授权成功、浏览器回调和正式会话仍待受保护 dev 发布后的人工登录验收。当前入口固定为 `https://worth.oopsbox.cn`；本地 HTTP 开发代理可以读取公网 API，但不能声称支持该域名 Cookie 的本地登录。需要完整本地登录时再登记一套可信 HTTPS 回调与 Origin 配置。

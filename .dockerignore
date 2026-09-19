@@ -1,0 +1,7 @@
+*
+!backend/
+!backend/**
+!public/
+!public/brand/
+!public/brand/logo.png
+backend/**/*_test.go

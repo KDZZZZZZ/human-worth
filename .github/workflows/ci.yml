@@ -17,7 +17,16 @@ jobs:
   ci:
     name: CI
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+        env:
+          POSTGRES_PASSWORD: ci-disposable-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -27,3 +36,26 @@ jobs:
           node-version: '24'
       - run: npm ci --ignore-scripts
       - run: npm run ci
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Install pinned Buf
+        run: |
+          curl --fail --silent --show-error --location https://github.com/bufbuild/buf/releases/download/v1.72.0/buf-Linux-x86_64 --output /tmp/buf
+          echo '8720830e26a733da55bb89bcd3cb44849c0965fc0c44fb5d691cccdc64dca5af  /tmp/buf' | sha256sum --check
+          chmod +x /tmp/buf
+          sudo install /tmp/buf /usr/local/bin/buf
+      - name: Identity contracts, build and real database tests
+        working-directory: backend
+        env:
+          IDENTITY_TEST_DATABASE_URL: postgres://postgres:ci-disposable-password@127.0.0.1:5432/postgres?sslmode=disable
+        run: |
+          test -z "$(gofmt -l cmd internal)"
+          buf lint
+          buf generate
+          git diff --exit-code -- gen
+          go vet ./...
+          go test -race -tags=integration ./... -count=1 -timeout=120s
+          go build ./cmd/...
+          node --check internal/gateway/web/account.js

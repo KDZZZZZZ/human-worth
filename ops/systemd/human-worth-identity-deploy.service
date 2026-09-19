@@ -1,0 +1,18 @@
+[Unit]
+Description=Deploy CI-approved Human Worth Identity into the existing kind lab
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+# The lab's existing operator already owns Docker and its private kubeconfig.
+User=oops
+Environment=PATH=/home/oops/.local/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=-/home/oops/.config/human-worth/deploy.env
+WorkingDirectory=/usr/local/lib/human-worth/lab
+ExecStart=/usr/bin/python3 /usr/local/lib/human-worth/lab/release.py
+TimeoutStartSec=1200
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/home/oops/.local/share/human-worth-identity /home/oops/.config/human-worth/lab

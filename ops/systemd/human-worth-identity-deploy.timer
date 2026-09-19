@@ -1,0 +1,10 @@
+[Unit]
+Description=Check for a CI-approved Human Worth Identity release
+
+[Timer]
+OnBootSec=90s
+OnUnitInactiveSec=60s
+Persistent=true
+
+[Install]
+WantedBy=timers.target
