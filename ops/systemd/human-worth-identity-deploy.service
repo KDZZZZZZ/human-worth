@@ -8,6 +8,7 @@ Type=oneshot
 # The lab's existing operator already owns Docker and its private kubeconfig.
 User=oops
 Environment=PATH=/home/oops/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=DOCKER_CONFIG=/home/oops/.config/human-worth/lab/docker
 EnvironmentFile=-/home/oops/.config/human-worth/deploy.env
 WorkingDirectory=/usr/local/lib/human-worth/lab
 ExecStart=/usr/bin/python3 /usr/local/lib/human-worth/lab/release.py
