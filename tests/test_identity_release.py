@@ -15,6 +15,20 @@ spec.loader.exec_module(release)
 
 
 class IdentityReleaseTest(unittest.TestCase):
+    def test_health_wait_handles_transient_failure_and_has_a_deadline(self):
+        with patch.object(release,'health',side_effect=[False,False,True]),patch.object(release.time,'sleep') as sleep:
+            self.assertTrue(release.wait_health('approved'))
+            self.assertEqual(sleep.call_count,2)
+        with patch.object(release,'health',return_value=False),patch.object(release.time,'monotonic',side_effect=[0,46]),patch.object(release.time,'sleep') as sleep:
+            self.assertFalse(release.wait_health('approved'))
+            sleep.assert_not_called()
+
+    def test_rollback_uses_the_same_field_manager_as_releases(self):
+        deployment={'metadata':{'name':'gateway'},'spec':{'replicas':2}}
+        with patch.object(release,'kube') as kube:
+            release.restore([deployment],None)
+            self.assertIn('--field-manager=human-worth-release',kube.call_args_list[0].args)
+
     def test_gate_rejects_changed_head_failed_ci_and_malformed_sha(self):
         sha='a'*40
         record=dict(id=1,head_sha=sha,head_branch='dev',event='push',path='.github/workflows/ci.yml',head_repository={'full_name':release.REPO},status='completed',conclusion='success')

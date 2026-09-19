@@ -38,6 +38,15 @@ def health(revision):
     except (subprocess.SubprocessError,ValueError):return False
 
 
+def wait_health(revision,timeout=45):
+    # Pod readiness can precede headless DNS/gRPC and NodePort convergence.
+    deadline=time.monotonic()+timeout
+    while True:
+        if health(revision):return True
+        if time.monotonic()>=deadline:return False
+        time.sleep(1)
+
+
 def snapshot():
     items=json.loads(kube('-n','human-worth','get','deployments','identity','gateway','--ignore-not-found','-o','json',capture=True).stdout)['items']
     return [{'apiVersion':'apps/v1','kind':'Deployment','metadata':{'name':p['metadata']['name'],'namespace':'human-worth'},'spec':p['spec']} for p in items]
@@ -46,7 +55,7 @@ def snapshot():
 def restore(deployments,previous_build):
     # Restore former pod templates and Secret references; do not undo SQL migrations.
     for deployment in deployments:
-        kube('-n','human-worth','patch','deployment',deployment['metadata']['name'],'--type=json','-p',json.dumps([{'op':'replace','path':'/spec','value':deployment['spec']}]))
+        kube('-n','human-worth','patch','deployment',deployment['metadata']['name'],'--field-manager=human-worth-release','--type=json','-p',json.dumps([{'op':'replace','path':'/spec','value':deployment['spec']}]))
         kube('-n','human-worth','rollout','status','deployment/'+deployment['metadata']['name'],'--timeout=180s')
     if previous_build is not None:(STATE/'build.json').write_text(previous_build)
 
@@ -78,12 +87,12 @@ def reconcile(check_only=False):
     app.REPO=release
     try:
         app.main(revision=sha,before_activation=lambda:require_approved(sha))
-        if not health(sha):raise RuntimeError('Activated Identity health revision mismatch')
+        if not wait_health(sha):raise RuntimeError('Activated Identity health revision mismatch')
     except Exception:
         if previous:
             restore(previous,previous_build)
             old_revision=previous[0]['spec']['template']['spec']['containers'][0]['image'].rsplit(':',1)[1]
-            if not health(old_revision):raise RuntimeError('Release failed and previous revision is not healthy') from None
+            if not wait_health(old_revision):raise RuntimeError('Release failed and previous revision is not healthy') from None
         else:
             # No previously healthy deployment: keep a partial first release out of service.
             kube('-n','human-worth','scale','deployment/identity','deployment/gateway','--replicas=0',capture=True)

@@ -156,7 +156,9 @@ def main(revision=None, before_activation=None):
             if google.exists(): fingerprint.update(google.read_bytes())
         text=text.replace('metadata: {labels: {app: '+name+'}}','metadata: {labels: {app: '+name+'}, annotations: {human-worth.io/config: "'+fingerprint.hexdigest()+'"}}')
         if name=='identity': text=text.replace('value: google-v1','value: '+oauth_version)
-        apply(text)
+        # These application manifests belong to the release controller. Reclaim
+        # fields changed by an earlier rollback; do not force infrastructure fields.
+        kube('apply','--server-side','--field-manager=human-worth-release','--force-conflicts','-f','-',input=text)
         kube('-n','human-worth','rollout','status','deployment/'+name,'--timeout=180s')
     print('Identity lab deployed; successful human Google login still requires public release and browser validation',flush=True)
 
