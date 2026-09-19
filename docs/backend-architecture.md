@@ -7,7 +7,7 @@
 | 方案归属 | 七个业务服务、进程边界、数据归属、协作协议与实施顺序为 Agent Self-Claimed 的具体设计 |
 | 产品依据 | [PRD](prd.md) 的 S1～S6、H1～H3；过审展示、完整候选单选、查看统计后永久禁投、隐藏额度、Google 登录 |
 | 配套文档 | [部署与实验计划](deployment.md)、[Identity 设计](backend-identity.md)、[成熟参考](references.md#microservices-lab) |
-| 当前实际状态 | 公网仍是 Node.js 基座与 Swagger；本机 kind lab 已运行 Go gateway、Identity 双副本及 PostgreSQL 三实例 |
+| 当前实际状态 | 公网域名已连接 Go gateway/Identity；本机 kind lab 运行双副本应用与 PostgreSQL 三实例；Node 基座保留作入口回退 |
 
 本文是当前七服务划分的依据。各模块分别编写核心对象、状态机、功能逻辑和接口设计，再形成独立 Proto 文件；七服务契约尚未定稿。公开 HTTP 草案由 [OpenAPI](../openapi.yaml) 管理，Google 登录见 Identity 设计；Identity 的登录、会话和 MCP 凭据管理也已有代码，公开部署状态见统一部署文档。
 
@@ -141,4 +141,4 @@ Challenge 的两个副本均可参与调度，通过数据库工作项领取和�
 | E. 挑战执行 | Challenge 状态机、租约、worker、产物登记 | 多副本领取、旧租约、重复结果、取消与登记竞争通过 |
 | F. 集群演练 | 同一套 lab [实验计划](deployment.md#lab-plan) 的逐项实验证据 | 区分应用、数据库、单控制平面中断恢复；不宣称控制平面高可用；明确未完成项 |
 
-当前已完成 Identity 的设计、9 个 RPC、核心实现、公共基座与独立 lab。后续按 Content → Asset/Moderation → Voting → Discovery → Challenge/worker 逐模块定契约、实现和验收；不等待所有 Proto 一次性定稿。公网新增 worth.oopsbox.cn 的 HTTPS 入口仍连接受保护 dev 的基座，Go 公开上线待发布；创建 PR 仍必须收到覆盖相应改动的人类命令。
+当前已完成 Identity 的设计、9 个 RPC、核心实现、公共基座、lab 与公网发布；用户已确认真人 Google 登录成功。后续按 Content → Asset/Moderation → Voting → Discovery → Challenge/worker 逐模块定契约、实现和验收；不等待所有 Proto 一次性定稿。worth.oopsbox.cn 经私有 TLS 隧道连接集群，应用只部署通过 dev push CI 的提交；创建 PR 仍必须收到覆盖相应改动的人类命令。

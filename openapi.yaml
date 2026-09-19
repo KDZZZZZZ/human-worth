@@ -5,8 +5,8 @@ info:
   summary: 人类价值平台的 HTTP 接口契约草案
   description: |
     行为依据为 docs/prd.md 中的可信场景 S1～S6、2026-09-18 人类修订 H1～H3，以及 AGENTS.md 的发帖、评论、投票目标。
-    /api/health 已在线上基座实现；Identity 的登录、会话和 MCP 凭据管理已实现并有本地集成验证，部署状态见 x-deployment-status。
-    其他业务 operation 仍为 planned；代码已实现不等于当前公网版本已发布，具体运行状态见 docs/deployment.md。
+    健康检查与 Identity 的登录、会话和 MCP 凭据管理已在 worth.oopsbox.cn 上线；真人 Google 登录已由用户确认，部署状态见 x-deployment-status。
+    其他业务 operation 仍为 planned；只有标记为 implemented 的操作已有实现，具体运行状态见 docs/deployment.md。
     路径、字段、状态枚举、认证载体和分页等具体选择属于 Agent Self-Claimed，详见 docs/references.md。
 
     作品以审核结果决定展示，没有独立的公开/私有或公开授权开关；云端使用授权另行检查。
@@ -121,7 +121,7 @@ paths:
         Client Secret 和 PKCE verifier 不进入浏览器、URL 或日志；具体回调配置未就绪时返回 503，不降级到公网 HTTP/IP 回调。
       x-scenarios: [H3]
       x-implementation-status: implemented
-      x-deployment-status: pending-public-release
+      x-deployment-status: published
       security: []
       responses:
         '302':
@@ -161,7 +161,7 @@ paths:
         Google access/ID/refresh token 不返回前端、不作为网站或 MCP 凭据，不写 localStorage；携带 Bearer 返回 400。
       x-scenarios: [H3]
       x-implementation-status: implemented
-      x-deployment-status: pending-public-release
+      x-deployment-status: published
       security: [{GoogleLoginTransaction: []}]
       parameters:
         - name: state
@@ -209,7 +209,7 @@ paths:
         已失效会话返回 401；不以只清除 Cookie 代替服务端撤销，不能通过 GET 触发退出。
       x-scenarios: [H3]
       x-implementation-status: implemented
-      x-deployment-status: pending-public-release
+      x-deployment-status: published
       security: [{WebSession: [], CsrfToken: []}]
       responses:
         '204':
@@ -230,7 +230,7 @@ paths:
       summary: 获取当前网站账号与 CSRF token
       x-scenarios: [S2, S3, S4, S5, H3]
       x-implementation-status: implemented
-      x-deployment-status: pending-public-release
+      x-deployment-status: published
       security: [{WebSession: []}]
       responses:
         '200':
@@ -255,7 +255,7 @@ paths:
         新 token 仍属于原稳定账号，不改变任何任务的投票资格；MCP 业务工具本身由后续模块实现。
       x-scenarios: [S3, S5, H3]
       x-implementation-status: implemented
-      x-deployment-status: pending-public-release
+      x-deployment-status: published
       security: [{WebSession: [], CsrfToken: []}]
       parameters:
         - {$ref: '#/components/parameters/WebOrigin'}
@@ -296,7 +296,7 @@ paths:
       description: 返回名称、创建请求 ID、时间和有效/撤销/过期状态；不返回明文或凭据摘要，不列出网站会话。按不透明凭据 ID 排序，跨页时新创建的凭据可通过刷新首屏查看。
       x-scenarios: [S3, S5, H3]
       x-implementation-status: implemented
-      x-deployment-status: pending-public-release
+      x-deployment-status: published
       security: [{WebSession: []}]
       parameters:
         - {$ref: '#/components/parameters/Cursor'}
@@ -328,7 +328,7 @@ paths:
         已完成鉴权的在途业务另受对应业务事务约束；撤销不删除稳定账号或恢复投票资格。
       x-scenarios: [S3, S5, H3]
       x-implementation-status: implemented
-      x-deployment-status: pending-public-release
+      x-deployment-status: published
       security: [{WebSession: [], CsrfToken: []}]
       parameters:
         - name: credentialId

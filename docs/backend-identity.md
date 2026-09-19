@@ -2,11 +2,11 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.2 · 2026-09-19 · Identity 已实现，公网发布及真实 Google 用户登录待验收 |
+| 版本 | v0.3 · 2026-09-19 · Identity 已发布，真人 Google 登录经用户确认 |
 | 人类要求 | 先设计再按顺序实现 Identity；Google 登录参考本机 sub2api，入口使用 worth.oopsbox.cn |
 | 依据 | [PRD](prd.md) 的 S2～S5、[H3 Google 登录](prd.md#google-login)、[七服务架构](backend-architecture.md)、[OpenAPI](../openapi.yaml) |
 | 技术方案归属 | 本文的字段、期限、存储、RPC 补全与基座组织属于 Agent Self-Claimed |
-| 当前状态 | Go 实现、9 个 RPC、SQL 迁移、真实 PostgreSQL 测试已完成；双副本部署在隔离 kind lab，公网仍运行已发布 Node.js 基座 |
+| 当前状态 | Go 实现、9 个 RPC、SQL 迁移和真实 PostgreSQL 测试已完成；公网经私有 TLS 隧道连接本机 kind lab 的双副本 gateway/Identity |
 
 **Identity 回答三个问题：你是谁、你的凭据是否仍有效、你以什么身份调用哪个接口。** 是否能修改某件作品、投某个任务，仍由对应业务服务判断。
 
@@ -274,4 +274,4 @@ Human Worth 实现时使用 `GOOGLE_OAUTH_CLIENT_ID`、`GOOGLE_OAUTH_CLIENT_SECR
 
 2026-09-19：`go vet ./...`、`go test -race -tags=integration ./... -count=1 -timeout=120s` 通过。测试使用隔离 PostgreSQL、两个真实 mTLS gRPC 服务器、两个 HTTPS gateway，以及测试专用 OIDC HTTP/JWKS 供应方；覆盖并发首次登录、回调占用/替换/迟到、签名与 nonce/PKCE、CSRF、撤销、权限版本、MCP 防重、受限迁移/运行账号、密钥重叠及数据库断连拒绝。生产程序没有切换到测试供应方的配置开关。
 
-用户提供的 Google 凭据已配置，真实用户授权成功、浏览器回调和正式会话仍待受保护 dev 发布后的人工登录验收。当前入口固定为 `https://worth.oopsbox.cn`；本地 HTTP 开发代理可以读取公网 API，但不能声称支持该域名 Cookie 的本地登录。需要完整本地登录时再登记一套可信 HTTPS 回调与 Origin 配置。
+用户提供的 Google 凭据已配置，接口已从受保护 dev 发布，用户于 2026-09-19 确认“登录成功，能看到账号”。当前入口固定为 `https://worth.oopsbox.cn`；本地 HTTP 开发代理可以读取公网 API，但不能声称支持该域名 Cookie 的本地登录。需要完整本地登录时再登记一套可信 HTTPS 回调与 Origin 配置。
