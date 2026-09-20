@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"errors"
+	contentpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1"
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/identity/v1"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/platform"
 	"github.com/golang-jwt/jwt/v5"
@@ -19,16 +20,19 @@ type policy struct {
 }
 
 var policies = map[string]policy{
-	pb.IdentityService_GetCurrentSession_FullMethodName:      {Audience: "identity"},
-	pb.IdentityService_LogoutCurrentSession_FullMethodName:   {Audience: "identity", Write: true},
-	pb.IdentityService_CreateMcpToken_FullMethodName:         {Audience: "identity", Write: true},
-	pb.IdentityService_ListMyMcpTokens_FullMethodName:        {Audience: "identity"},
-	pb.IdentityService_RevokeMcpToken_FullMethodName:         {Audience: "identity", Write: true},
-	"/humanworth.content.v1.ContentService/GetTask":          {Audience: "content", Anonymous: true, MCP: true},
-	"/humanworth.discovery.v1.DiscoveryService/ListTasks":    {Audience: "discovery", Anonymous: true, MCP: true},
-	"/humanworth.voting.v1.VotingService/ViewTaskStatistics": {Audience: "voting", Write: true, MCP: true},
-	"/humanworth.voting.v1.VotingService/CastVote":           {Audience: "voting", Write: true},
-	"/humanworth.challenge.v1.ChallengeService/StartRun":     {Audience: "challenge", Write: true, Admin: true},
+	contentpb.ContentService_CreateTaskDraft_FullMethodName:     {Audience: "content", Write: true},
+	contentpb.ContentService_GetMyTaskSubmission_FullMethodName: {Audience: "content"},
+	contentpb.ContentService_ReplaceTaskDraft_FullMethodName:    {Audience: "content", Write: true},
+	pb.IdentityService_GetCurrentSession_FullMethodName:         {Audience: "identity"},
+	pb.IdentityService_LogoutCurrentSession_FullMethodName:      {Audience: "identity", Write: true},
+	pb.IdentityService_CreateMcpToken_FullMethodName:            {Audience: "identity", Write: true},
+	pb.IdentityService_ListMyMcpTokens_FullMethodName:           {Audience: "identity"},
+	pb.IdentityService_RevokeMcpToken_FullMethodName:            {Audience: "identity", Write: true},
+	"/humanworth.content.v1.ContentService/GetTask":             {Audience: "content", Anonymous: true, MCP: true},
+	"/humanworth.discovery.v1.DiscoveryService/ListTasks":       {Audience: "discovery", Anonymous: true, MCP: true},
+	"/humanworth.voting.v1.VotingService/ViewTaskStatistics":    {Audience: "voting", Write: true, MCP: true},
+	"/humanworth.voting.v1.VotingService/CastVote":              {Audience: "voting", Write: true},
+	"/humanworth.challenge.v1.ChallengeService/StartRun":        {Audience: "challenge", Write: true, Admin: true},
 }
 
 type actorClaims struct {

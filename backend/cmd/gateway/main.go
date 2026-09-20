@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	contentpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1"
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/identity/v1"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/gateway"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/platform"
@@ -47,6 +48,21 @@ func run() error {
 		return errors.New("identity client initialization failed")
 	}
 	defer conn.Close()
+	// Optional for backward-compatible Identity-only deployments; draft routes fail closed.
+	var contentClient contentpb.ContentServiceClient
+	var contentConn *grpc.ClientConn
+	if target := os.Getenv("CONTENT_TARGET"); target != "" {
+		config, e := platform.TLS(os.Getenv("SERVICE_CERT_FILE"), os.Getenv("SERVICE_KEY_FILE"), os.Getenv("SERVICE_CA_FILE"), "content")
+		if e != nil {
+			return e
+		}
+		contentConn, e = grpc.NewClient(target, grpc.WithTransportCredentials(credentials.NewTLS(config)), grpc.WithDisableRetry(), grpc.WithDefaultServiceConfig(`{"loadBalancingConfig":[{"round_robin":{}}]}`), grpc.WithStatsHandler(otelgrpc.NewClientHandler()), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(131072), grpc.MaxCallSendMsgSize(65536)))
+		if e != nil {
+			return errors.New("content client initialization failed")
+		}
+		defer contentConn.Close()
+		contentClient = contentpb.NewContentServiceClient(contentConn)
+	}
 	runtime := platform.NewRuntime("gateway")
 	shutdown, err := platform.Trace(ctx, "gateway")
 	if err != nil {
@@ -75,9 +91,15 @@ func run() error {
 		if response.Status != healthpb.HealthCheckResponse_SERVING {
 			return errors.New("identity unavailable")
 		}
+		if contentConn != nil {
+			health, e := healthpb.NewHealthClient(contentConn).Check(ctx, &healthpb.HealthCheckRequest{})
+			if e != nil || health.GetStatus() != healthpb.HealthCheckResponse_SERVING {
+				return errors.New("content unavailable")
+			}
+		}
 		return nil
 	}
-	handler, err := gateway.New(pb.NewIdentityServiceClient(conn), gateway.Options{Origin: origin, LogoPath: platform.Value("SITE_LOGO_FILE", "../public/brand/logo.png"), TrustedProxies: proxies, Logger: runtime.Log, Registry: runtime.Registry, Ready: ready})
+	handler, err := gateway.New(pb.NewIdentityServiceClient(conn), gateway.Options{Content: contentClient, Origin: origin, LogoPath: platform.Value("SITE_LOGO_FILE", "../public/brand/logo.png"), TrustedProxies: proxies, Logger: runtime.Log, Registry: runtime.Registry, Ready: ready})
 	if err != nil {
 		return err
 	}

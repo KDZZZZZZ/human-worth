@@ -185,3 +185,15 @@ dfbfdb2577647883b6818002b0d5a7590e1df988b4a7f3dced440c48ead5f358  setting_oauth.
 | [Nginx HTTPS](https://nginx.org/en/docs/http/configuring_https_servers.html)、[Certbot](https://eff-certbot.readthedocs.io/en/stable/using.html)、[flarectl](https://github.com/cloudflare/cloudflare-go/tree/v0.118.0/cmd/flarectl) | 独立 server_name 和 DNS A 记录，Let’s Encrypt 证书与定时续期；CLI/密钥在仓库外；发布应用仍遵守 dev/CI 门槛 | HTTPS 健康、HTTP 跳转及静态 Swagger 可访问；公网连接原已发布基座 |
 
 依赖精确版本以 [go.mod](../backend/go.mod) 为准；上游清单 SHA-256 和镜像 digest 以 [versions.json](../ops/lab/versions.json) 为准。网络与恢复检查入口见[部署文档](deployment.md#identity-lab)，结论只覆盖实际执行的 Identity 链路。早前小节中“尚未实现”的表述是当时设计记录，不代表本轮状态。
+
+## Content 私有草稿（2026-09-20）
+
+本阶段依据用户明确提出的创建/读取/替换、身份隔离、并发重试与真实链路验收目标。沿用已有 Go 标准库、grpc-go、pgx 和 PostgreSQL，不引入 ORM、通用权限引擎或 Redis。
+
+| 官方来源 / 版本 | 采用与取舍（Agent Self-Claimed） | 可验证判据 |
+| --- | --- | --- |
+| [PostgreSQL 18 INSERT / ON CONFLICT](https://www.postgresql.org/docs/18/sql-insert.html) | `(author_id, create_key)` 唯一约束与 DO NOTHING，再用下一条 SELECT 查同账号记录；不依赖内存锁，不使用覆盖更新冒充创建重试 | 两个独立进程同键同内容只建一行；同键异内容409，跨账号隔离，编辑后创建重试不回滚 |
+| [PostgreSQL 18 explicit locking](https://www.postgresql.org/docs/18/explicit-locking.html) | FOR UPDATE + expectedRevision，在单一 Content 事务中整体替换任务和初始作品；外部鉴权先于事务 | 同版本竞争只有一项成功，其余409；失败不部分改写 |
+| [gRPC Retry](https://grpc.io/docs/guides/retry/)；grpc-go 版本见 [go.mod](../backend/go.mod) | 关闭应用层自动重试，不将网络超时当作未执行；创建靠持久幂等键，编辑靠版本及显式读取核对 | 服务重启后同键仍找回；旧版本 PUT 重试409；不盲目用新版本重放旧内容 |
+
+以上官方文档于 2026-09-20 核对。数据聚合、文件暂拒绝、32件/12000字节限额与本地进程测试均是阶段实现选择，不修改 PRD 的可信场景。完整方案及后续边界见 [Content 草稿](backend-content.md)。本地验收 PostgreSQL 为临时编译的官方 18.0，源码 SHA-256 为 `0d5b903b1e5fe361bca7aa9507519933773eb34266b1357c4e7780fdee6d6078`；这不是生产数据库版本升级建议，仓库 CI 与 lab 镜像未改变。

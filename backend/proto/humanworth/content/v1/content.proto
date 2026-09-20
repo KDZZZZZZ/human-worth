@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package humanworth.content.v1;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1;contentv1";
+
+// Private website drafts only. No review, publication or MCP methods in this phase.
+service ContentService {
+  rpc CreateTaskDraft(CreateTaskDraftRequest) returns (CreateTaskDraftResponse);
+  rpc GetMyTaskSubmission(GetMyTaskSubmissionRequest) returns (GetMyTaskSubmissionResponse);
+  rpc ReplaceTaskDraft(ReplaceTaskDraftRequest) returns (ReplaceTaskDraftResponse);
+}
+
+message ArtifactInput {
+  string kind = 1;
+  optional string asset_id = 2;
+  optional string url = 3;
+}
+message PermissionsInput {
+  optional bool cloud_use = 1;
+  optional string statement = 2;
+}
+message AgentConfigurationInput {
+  string model = 1;
+  optional string prompt = 2;
+  optional string harness = 3;
+  repeated string skills = 4;
+  // Stored draft metadata only; never fetched, interpreted or executed.
+  google.protobuf.Struct parameters = 5;
+}
+message EntryInput {
+  // Exactly human or agent, matching OpenAPI.
+  string side = 1;
+  string title = 2;
+  optional string description = 3;
+  string source = 4;
+  repeated ArtifactInput artifacts = 5;
+  PermissionsInput permissions = 6;
+  AgentConfigurationInput agent_configuration = 7;
+}
+message TaskDraftInput {
+  string title = 1;
+  optional string summary = 2;
+  optional string description = 3;
+  optional string category = 4;
+  // Initial drafts are ordered components of this aggregate, not public entries.
+  repeated EntryInput entries = 5;
+}
+message TaskSubmission {
+  string id = 1;
+  // Always derived from VerifyActor; not accepted in any input.
+  string author_id = 2;
+  int64 revision = 3;
+  // Always draft in this phase. No public/private flag or client-controlled state.
+  string state = 4;
+  TaskDraftInput content = 5;
+}
+message CreateTaskDraftRequest {
+  string actor_assertion = 1;
+  string idempotency_key = 2;
+  TaskDraftInput content = 3;
+}
+message CreateTaskDraftResponse { TaskSubmission submission = 1; }
+message GetMyTaskSubmissionRequest {
+  string actor_assertion = 1;
+  string task_id = 2;
+}
+message GetMyTaskSubmissionResponse { TaskSubmission submission = 1; }
+message ReplaceTaskDraftRequest {
+  string actor_assertion = 1;
+  string task_id = 2;
+  int64 expected_revision = 3;
+  TaskDraftInput content = 4;
+}
+message ReplaceTaskDraftResponse { TaskSubmission submission = 1; }

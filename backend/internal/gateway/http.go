@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	contentpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1"
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/identity/v1"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/platform"
 	"github.com/prometheus/client_golang/prometheus"
@@ -37,6 +38,7 @@ const FlowCookie = "__Host-human-worth-oauth"
 var web embed.FS
 
 type Options struct {
+	Content        contentpb.ContentServiceClient
 	Origin         string
 	LogoPath       string
 	TrustedProxies []netip.Prefix
@@ -93,6 +95,9 @@ func New(client pb.IdentityServiceClient, options Options) (http.Handler, error)
 		method, path, operation string
 		handler                 http.HandlerFunc
 	}{
+		{"POST", "/api/tasks", "createTaskDraft", h.createDraft},
+		{"GET", "/api/me/tasks/{taskId}", "getMyTaskSubmission", h.getDraft},
+		{"PUT", "/api/me/tasks/{taskId}", "replaceTaskDraft", h.replaceDraft},
 		{"GET", "/api/auth/google", "startGoogleLogin", h.start}, {"GET", "/api/auth/google/callback", "completeGoogleLogin", h.callback},
 		{"GET", "/api/me", "getCurrentSession", h.me}, {"POST", "/api/auth/logout", "logoutCurrentSession", h.logout},
 		{"POST", "/api/me/mcp-tokens", "createMcpToken", h.createToken}, {"GET", "/api/me/mcp-tokens", "listMyMcpTokens", h.listTokens},
@@ -199,7 +204,8 @@ func problem(w http.ResponseWriter, code int, reason string) {
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]any{"type": "about:blank", "title": http.StatusText(code), "status": code, "code": reason, "detail": http.StatusText(code)})
 }
-func rpcError(w http.ResponseWriter, err error) {
+func rpcError(w http.ResponseWriter, err error) { rpcErrorFor(w, err, "identity_unavailable") }
+func rpcErrorFor(w http.ResponseWriter, err error, unavailable string) {
 	s := status.Convert(err)
 	code := 503
 	reason := s.Message()
@@ -217,17 +223,17 @@ func rpcError(w http.ResponseWriter, err error) {
 	case codes.ResourceExhausted:
 		code = 429
 	default:
-		reason = "identity_unavailable"
+		reason = unavailable
 	}
 	// Server messages are stable reason identifiers, never arbitrary dependency text.
 	for _, c := range reason {
 		if !(c >= 'a' && c <= 'z' || c == '_') {
-			reason = "identity_unavailable"
+			reason = unavailable
 			break
 		}
 	}
 	if len(reason) > 80 || reason == "" {
-		reason = "identity_unavailable"
+		reason = unavailable
 	}
 	problem(w, code, reason)
 }
@@ -325,6 +331,9 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, response.RedirectPath, 303)
 }
 func (h *Handler) actor(w http.ResponseWriter, r *http.Request, method string) (string, bool) {
+	return h.actorFor(w, r, "identity", method)
+}
+func (h *Handler) actorFor(w http.ResponseWriter, r *http.Request, audience, method string) (string, bool) {
 	session, err := cookie(r, SessionCookie)
 	if err != nil {
 		problem(w, 400, "invalid_request")
@@ -339,7 +348,7 @@ func (h *Handler) actor(w http.ResponseWriter, r *http.Request, method string) (
 		problem(w, 400, "invalid_request")
 		return "", false
 	}
-	request := &pb.ResolvePrincipalRequest{Audience: "identity", FullMethod: method, Origin: r.Header.Get("Origin"), CsrfToken: r.Header.Get("X-CSRF-Token")}
+	request := &pb.ResolvePrincipalRequest{Audience: audience, FullMethod: method, Origin: r.Header.Get("Origin"), CsrfToken: r.Header.Get("X-CSRF-Token")}
 	if len(headers) == 1 {
 		kind, value, ok := strings.Cut(headers[0], " ")
 		if !ok || kind != "Bearer" || value == "" || strings.ContainsAny(value, " \t\r\n") {

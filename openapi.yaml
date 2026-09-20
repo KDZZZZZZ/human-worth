@@ -1,12 +1,13 @@
 openapi: 3.1.1
 info:
   title: Human Worth API
-  version: 0.5.0-draft
+  version: 0.6.0-draft
   summary: 人类价值平台的 HTTP 接口契约草案
   description: |
     行为依据为 docs/prd.md 中的可信场景 S1～S6、2026-09-18 人类修订 H1～H3，以及 AGENTS.md 的发帖、评论、投票目标。
     健康检查与 Identity 的登录、会话和 MCP 凭据管理已在 worth.oopsbox.cn 上线；真人 Google 登录已由用户确认，部署状态见 x-deployment-status。
-    其他业务 operation 仍为 planned；只有标记为 implemented 的操作已有实现，具体运行状态见 docs/deployment.md。
+    Content 的三个本人草稿操作已有本地实现，尚未公开部署；仅支持文本与外链作品草稿，文件材料仍待 Asset 接入。
+    其他业务 operation 仍为 planned；implemented 不等于已部署，具体运行状态见 docs/deployment.md。
     路径、字段、状态枚举、认证载体和分页等具体选择属于 Agent Self-Claimed，详见 docs/references.md。
 
     作品以审核结果决定展示，没有独立的公开/私有或公开授权开关；云端使用授权另行检查。
@@ -382,9 +383,20 @@ paths:
       tags: [Submissions]
       operationId: createTaskDraft
       summary: 保存新任务草稿
-      description: 可缺少一方或双方作品，不进入公开查询或审核，不启动云端挑战。
+      description: |
+        可缺少一方或双方作品，不进入公开查询或审核，不启动云端挑战。作者仅由会话确定，不接受 authorId/state。
+        本阶段仅保存文本和 HTTP(S) 外链，不抓取或执行链接；file 材料返回 409 asset_service_not_ready。
+        必须携带 Idempotency-Key。同账号同键、相同规范化内容重试返回原任务的当前快照（201），不回滚后续编辑；同键不同内容返回 409。
+        不同账号键空间隔离。键随草稿持久保存，不因超时、进程重启或会话更新失效。
+        HTTP 请求体上限 16384 字节，规范化 content 上限 12000 字节；最多 32 件初始作品，每件最多 32 个交付物。
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: 客户端为一次创建生成并在重试时复用；不要使用每次变化的 request ID。
+          schema: {type: string, pattern: '^[A-Za-z0-9_-]{16,128}$', minLength: 16, maxLength: 128}
       x-scenarios: [S2]
-      x-implementation-status: planned
+      x-implementation-status: implemented
       requestBody:
         required: true
         content:
@@ -487,8 +499,9 @@ paths:
       tags: [Account]
       operationId: getMyTaskSubmission
       summary: 读取本人任务与初始作品的投稿内容
+      description: 首阶段仅存在作者私有 draft；MCP、其他账号（含管理员）均不能读取。
       x-scenarios: [S2]
-      x-implementation-status: planned
+      x-implementation-status: implemented
       security: [{WebSession: []}]
       responses:
         '200':
@@ -500,12 +513,15 @@ paths:
     put:
       tags: [Submissions]
       operationId: replaceTaskDraft
-      summary: 修改本人草稿或被驳回的任务
+      summary: 替换本人任务草稿
       description: |
-        完整替换可编辑内容与初始作品列表，保存为 draft；pending_review、published、taken_down 返回 409。
-        expectedRevision 必须等于当前版本，否则 409；保留历史审核记录，不覆盖并发编辑。
+        完整替换可编辑内容与初始作品列表，仍为 draft。首阶段只创建/编辑 draft，不实现审核或驳回重提。
+        expectedRevision 必须等于当前版本，每次成功加一，否则 409 revision_conflict；同一旧版本重复 PUT 也返回 409。
+        客户端遇到超时先 GET 核对当前版本与内容，不自动用新版本重放旧编辑。其他账号与不存在的任务均返回 404。
+        后续接入审核时允许 rejected 修订回 draft 并保留审核历史；pending_review、published、taken_down 不可编辑。
+        与创建共用文件拒绝、内容/作品数量上限，写入成功不公开、不送审。
       x-scenarios: [S2]
-      x-implementation-status: planned
+      x-implementation-status: implemented
       requestBody:
         required: true
         content:

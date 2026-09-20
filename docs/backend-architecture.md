@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v1.2 · 2026-09-19 · 目标架构，Identity 已实现 |
+| 版本 | v1.2 · 2026-09-19 · 目标架构，Identity 已实现，Content 草稿本地实现 |
 | 本轮人类要求 | 以学习分布式微服务为目标，依据讨论重新编写架构划分、单机多节点部署计划和可模拟场景；先只使用一套实验配置 |
 | 方案归属 | 七个业务服务、进程边界、数据归属、协作协议与实施顺序为 Agent Self-Claimed 的具体设计 |
 | 产品依据 | [PRD](prd.md) 的 S1～S6、H1～H3；过审展示、完整候选单选、查看统计后永久禁投、隐藏额度、Google 登录 |
@@ -11,7 +11,7 @@
 
 本文是当前七服务划分的依据。各模块分别编写核心对象、状态机、功能逻辑和接口设计，再形成独立 Proto 文件；七服务契约尚未定稿。公开 HTTP 草案由 [OpenAPI](../openapi.yaml) 管理，Google 登录见 Identity 设计；Identity 的登录、会话和 MCP 凭据管理也已有代码，公开部署状态见统一部署文档。
 
-模块详细设计从 [Identity](backend-identity.md) 开始，包含核心对象、功能逻辑、接口约定与 [platform 公共基座清单](backend-identity.md#platform)。[Identity Proto](../backend/proto/humanworth/identity/v1/identity.proto) 已实现；其余六服务契约逐项设计。
+模块详细设计从 [Identity](backend-identity.md) 开始，包含核心对象、功能逻辑、接口约定与 [platform 公共基座清单](backend-identity.md#platform)。[Identity Proto](../backend/proto/humanworth/identity/v1/identity.proto) 已实现；[Content 首阶段](backend-content.md) 已增加三个本人草稿 RPC、本地服务与集成测试，不含审核/发布；其余五服务契约逐项设计。
 
 ## 1. 划分结果与理由
 
