@@ -85,7 +85,8 @@ func (r *Runtime) Unary(ctx context.Context, request any, info *grpc.UnaryServer
 		return nil, status.Error(codes.ResourceExhausted, "too_many_requests")
 	}
 	timeout := 2 * time.Second
-	if info.FullMethod == "/humanworth.identity.v1.IdentityService/CompleteGoogleLogin" {
+	// 批量校验初始材料属于有界慢调用，保留其余 RPC 的短期限。
+	if info.FullMethod == "/humanworth.identity.v1.IdentityService/CompleteGoogleLogin" || info.FullMethod == "/humanworth.challenge.v1.ChallengeService/StartRun" || info.FullMethod == "/humanworth.challenge.v1.ChallengeService/RestartRun" {
 		timeout = 15 * time.Second
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)

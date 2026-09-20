@@ -2,20 +2,20 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v1.2 · 2026-09-19 · 目标架构，Identity 已实现 |
+| 版本 | v1.5 · 2026-09-20 · 目标架构，Identity 已实现 |
 | 本轮人类要求 | 以学习分布式微服务为目标，依据讨论重新编写架构划分、单机多节点部署计划和可模拟场景；先只使用一套实验配置 |
 | 方案归属 | 七个业务服务、进程边界、数据归属、协作协议与实施顺序为 Agent Self-Claimed 的具体设计 |
-| 产品依据 | [PRD](prd.md) 的 S1～S6、H1～H3；过审展示、完整候选单选、查看统计后永久禁投、隐藏额度、Google 登录 |
-| 配套文档 | [部署与实验计划](deployment.md)、[Identity 设计](backend-identity.md)、[成熟参考](references.md#microservices-lab) |
+| 产品依据 | [PRD](prd.md) 的 S1～S6、H1～H11；过审展示、完整候选单选、查看统计后永久禁投、隐藏额度、Google 登录、管理员初始包、统一目标、先 R 后 P 及按需 ReAct |
+| 配套文档 | [部署与实验计划](deployment.md)、[Identity 设计](backend-identity.md)、[Challenge 设计](backend-challenge.md)、[成熟参考](references.md#microservices-lab) |
 | 当前实际状态 | 公网域名已连接 Go gateway/Identity；本机 kind lab 运行双副本应用与 PostgreSQL 三实例；Node 基座保留作入口回退 |
 
 本文是当前七服务划分的依据。各模块分别编写核心对象、状态机、功能逻辑和接口设计，再形成独立 Proto 文件；七服务契约尚未定稿。公开 HTTP 草案由 [OpenAPI](../openapi.yaml) 管理，Google 登录见 Identity 设计；Identity 的登录、会话和 MCP 凭据管理也已有代码，公开部署状态见统一部署文档。
 
-模块详细设计从 [Identity](backend-identity.md) 开始，包含核心对象、功能逻辑、接口约定与 [platform 公共基座清单](backend-identity.md#platform)。[Identity Proto](../backend/proto/humanworth/identity/v1/identity.proto) 已实现；其余六服务契约逐项设计。
+模块详细设计从 [Identity](backend-identity.md) 开始，包含核心对象、功能逻辑、接口约定与 [platform 公共基座清单](backend-identity.md#platform)。[Identity Proto](../backend/proto/humanworth/identity/v1/identity.proto) 已实现；本轮补充 [Challenge 设计](backend-challenge.md)，先定本模块及最小依赖契约、再用 mock 独立开发，其余模块逐项推进。
 
 ## 1. 划分结果与理由
 
-采用 **七个业务 RPC 服务 + gateway + challenge-worker，共九类独立应用进程**。每类进程可运行多个副本；数据库、对象存储、观测组件和 Kubernetes 控制平面另计。源码可以保留在同一个仓库，使用一个 Go module、多个 `cmd/` 入口和独立镜像构建目标。独立部署不要求九个代码仓库。
+采用 **七个业务 RPC 服务 + gateway + challenge-worker，共九类常驻应用进程**。每类进程可运行多个副本；挑战的临时执行 Job、受信中继、数据库、对象存储、观测组件和 Kubernetes 控制平面另计。源码可以保留在同一个仓库，使用一个 Go module、多个 `cmd/` 入口和独立镜像构建目标。独立部署不要求九个代码仓库。
 
 | 进程 / RPC Service | 职责与拥有的权威数据 | 主要协作 |
 | --- | --- | --- |
@@ -23,11 +23,11 @@
 | `identity` / `IdentityService` | 账号、Google 身份关联及一次性登录流程、角色、会话、MCP 凭据、身份版本与断言 | 验证 Google 回调、签发/撤销网站会话；为业务服务验证主体、调用用途与当前凭据有效性 |
 | `content` / `ContentService` | 任务、作品、投稿快照、评论、作品引用关系、权威展示状态、参选目录版本、云端登记开关与登记记录 | 核实 Asset 元信息；向 Moderation 投递审核请求；与 Voting 协调参选目录；接受受信 Challenge 登记 |
 | `asset` / `AssetService` | 上传会话、文件元信息、摘要、存储对象、上传者与资产可用状态 | 管理对象存储；下载前向 Content 核实关联内容的访问资格；独立处理传输与资源限制 |
-| `voting` / `VotingService` | 账号×任务永久资格、完整候选快照、当前选票、计票结果与系统结论 | 核实 Content 权威目录；向 Discovery、Challenge 提供不含具体票数的结论 |
+| `voting` / `VotingService` | 账号×任务永久资格、完整候选快照、当前选票、计票结果与系统结论 | 向 Discovery 提供安全结论；向 Challenge 的授权排序训练提供受限聚合监督快照，不作为用户统计入口 |
 | `moderation` / `ModerationService` | 审核案件与决定、举报完整生命周期、执行回执、跨服务审计查询投影 | 获取 Content 投稿快照；将决定交 Content 应用；消费各服务本地审计事件 |
-| `challenge` / `ChallengeService` | 运行状态机、不可变配置、材料、工作项、租约、候选、内部预算账本、取消意图 | 读取 Content 授权与 Voting 结论；调度 worker；协调候选登记与终止 |
+| `challenge` / `ChallengeService` | 两阶段状态机、角色输入、管理员初始包、当前提示、评判依据与拟合记录、工作项、租约、作品／报告、预算及取消意图 | 读取 Content 授权与 Voting 训练／验证快照；先 R 拟合达标，再固定 R 迭代 P／运行 E；调度 worker，协调登记与终止 |
 | `discovery` / `DiscoveryService` | 推荐与热度索引、查询快照、公开看板投影、事件消费进度 | 消费内容/结论事件；普通返回前向 Content 复核可见性；不拥有原始选票 |
-| `challenge-worker` / 无业务 RPC Service | 按租约执行生成、验证、匿名对抗或经验提炼；仅保存可丢弃的工作目录 | 调用 Challenge 领取、续租、读材料、提交进度与结果；通过受控出口调用模型 |
+| `challenge-worker` / 无业务 RPC Service | 按租约调用打包／排序模型，管理 E 的固定模板 Job，收集作品和 report.md，按角色将文字／文件传入模型 | 调用 Challenge 领取、续租、读材料和交结果；经受控模型出口调用，受限 K8s 权限只管理 E 的 Job |
 
 划分依据：
 
@@ -35,6 +35,7 @@
 - Asset 独立承担文件传输；Moderation 独立承担管理员工作流，二者从原 Content 拆出。
 - Discovery 独立处理推荐、热度和公开汇总。公开看板与具体计票的权限、副作用不同，不把二者合为普通统计入口。
 - `Execution` 首版是 Challenge 的内部工作项/租约模块，沿用同一个运行所有者；worker 仍为独立进程。需要跨多个业务复用执行系统时再评估独立服务。
+- P 打包、E 执行、R 排序是三个逻辑角色，不新增业务服务。先只迭代 R，可信拟合度超过阈值后固定 R，再只迭代 P 并运行固定 E。P 不看任何用户评论；R 面向 P 的评判依据使用独立无评论调用，并与自身作品／报告、名次和拟合度一起反馈。P/R 默认直接模型调用，按需用一个 `read_material` 工具完成 ReAct，权限随本次用途收窄；三角色统一使用 Completion；只有 E 使用隔离 Job/Pod 与命令工具。初始包固定，提示按阶段覆盖，无历史版本或回滚。详见 [Challenge 设计](backend-challenge.md)。
 - `platform` 只表示可复用的技术代码，例如配置、日志、服务启停、数据库连接与遥测初始化；没有一个聚合所有业务的 `platform` 进程。基础代码不包含审核、投票或挑战规则。
 
 上述边界按业务能力与数据归属选择，参考 [Microsoft 服务边界分析](https://learn.microsoft.com/en-us/azure/architecture/microservices/model/domain-analysis)。服务拆分增加的超时、一致性和恢复工作是本项目的学习内容，不能改变 PRD 规则。
@@ -58,7 +59,7 @@ flowchart LR
     Voting -->|完整参选目录| Content
     Content -->|同步目录与关闭参选| Voting
     Challenge -->|材料与候选登记| Content
-    Challenge -->|系统结论| Voting
+    Challenge -->|受限训练快照| Voting
     Worker[challenge-worker] -->|领取、续租、结果| Challenge
     Content -.->|公开内容事件| Discovery
     Voting -.->|安全结论事件| Discovery
@@ -82,7 +83,7 @@ flowchart LR
 - Google 登录的浏览器跳转与 Cookie 由 gateway 适配，换码、ID token 验证、账号关联和会话生命周期由 Identity 负责。流程保存在共享数据库，两个副本均可接收回调；不要求粘滞会话。集群默认拒绝未声明出口时，须为 Identity 配置访问 Google 发现文档、换码和签名公钥端点的受控 HTTPS 出口；动态域名授权经出口代理处理。细节见 [Identity 设计](backend-identity.md)。
 - 网关和内部调用者都使用可验证的服务身份；业务服务复核断言与自身权限。NetworkPolicy 只限制网络可达性，不能替代 mTLS、主体校验和管理员授权。
 - 网站与 MCP 凭据绑定同一账号。MCP 工具保持内容读取与显式统计访问白名单；即使账号是管理员，MCP token 也不获得投稿、投票或运行管理权限。
-- 具体统计只经 Voting 的显式入口返回；先提交永久禁投记录，再读统计并响应。普通详情、推荐、看板、日志、事件、管理概览不包含具体票数。
+- 用户、管理员与 MCP 的具体统计只经 Voting 显式入口返回，先提交永久禁投记录。R 训练／验证用独立受限机器契约取得标签，不给 P/E 或普通读取；H10 的拟合度是 R 对独立验证样本的一致率，可进入管理员运行摘要及 P 的有效评判反馈，不返回原始标签或本轮作品得票率。
 - 任务状态与作品审核状态由 Content 唯一写入。作品审核通过即允许展示，不恢复独立的公开/私有字段。云端使用授权保持独立用途。
 - 管理概览与运行展示不显示额度余额或消耗；内部预算、预留与幂等结算仍由 Challenge 管理。
 
@@ -112,7 +113,7 @@ Challenge 的两个副本均可参与调度，通过数据库工作项领取和�
 
 ## 5. 模块设计与接口约定
 
-**Identity Proto 已实现，其余六服务尚未定稿。** 模块详细设计从 [Identity](backend-identity.md) 开始；后续以独立 `.proto` 文件作为 RPC 契约源，设计文档引用文件，不重复维护消息定义。
+**Identity Proto 已实现，其余六服务尚未定稿。** [Challenge 设计](backend-challenge.md#rpc-contract) 已列出业务、worker、中继与最小依赖接口，下一步落实 Proto 与 mock；正式 `.proto` 文件作为 RPC 契约源，设计文档随后只维护语义，不重复维护消息定义。
 
 | 接口范围 | 负责方与约束 |
 | --- | --- |
@@ -141,4 +142,6 @@ Challenge 的两个副本均可参与调度，通过数据库工作项领取和�
 | E. 挑战执行 | Challenge 状态机、租约、worker、产物登记 | 多副本领取、旧租约、重复结果、取消与登记竞争通过 |
 | F. 集群演练 | 同一套 lab [实验计划](deployment.md#lab-plan) 的逐项实验证据 | 区分应用、数据库、单控制平面中断恢复；不宣称控制平面高可用；明确未完成项 |
 
-当前已完成 Identity 的设计、9 个 RPC、核心实现、公共基座、lab 与公网发布；用户已确认真人 Google 登录成功。后续按 Content → Asset/Moderation → Voting → Discovery → Challenge/worker 逐模块定契约、实现和验收；不等待所有 Proto 一次性定稿。worth.oopsbox.cn 经私有 TLS 隧道连接集群，应用只部署通过 dev push CI 的提交；创建 PR 仍必须收到覆盖相应改动的人类命令。
+当前已完成 Identity 的设计、9 个 RPC、核心实现、公共基座、lab 与公网发布；用户已确认真人 Google 登录成功。Challenge 的最小依赖 Proto、核心服务、P/R worker 与 E 适配代码已本地落地，真实 PostgreSQL＋有状态依赖 fake 联调通过；真实 E 沙箱与全部依赖闭环仍待验收。不等待 Content、Asset、Voting、Moderation 全部实现。表中 D/E 表示联调完成条件，模块开发可以交错推进；最终发布仍需真实依赖闭环验收。
+
+worth.oopsbox.cn 经私有 TLS 隧道连接集群，应用只部署通过 dev push CI 的提交；创建 PR 仍必须收到覆盖相应改动的人类命令。

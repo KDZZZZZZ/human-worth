@@ -62,7 +62,8 @@ func TLS(certFile, keyFile, caFile, serverName string) (*tls.Config, error) {
 				return errors.New("unverified server")
 			}
 			service, err := certificateService(state.PeerCertificates[0])
-			if err != nil || service != "identity" {
+			// 新增业务客户端后，证书中的服务身份须与本次目标服务一致。
+			if err != nil || service != strings.Split(serverName, ".")[0] {
 				return errors.New("wrong server identity")
 			}
 			return nil

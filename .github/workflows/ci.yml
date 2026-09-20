@@ -46,10 +46,11 @@ jobs:
           echo '8720830e26a733da55bb89bcd3cb44849c0965fc0c44fb5d691cccdc64dca5af  /tmp/buf' | sha256sum --check
           chmod +x /tmp/buf
           sudo install /tmp/buf /usr/local/bin/buf
-      - name: Identity contracts, build and real database tests
+      - name: Backend contracts, build and real database tests
         working-directory: backend
         env:
           IDENTITY_TEST_DATABASE_URL: postgres://postgres:ci-disposable-password@127.0.0.1:5432/postgres?sslmode=disable
+          CHALLENGE_TEST_DATABASE_URL: postgres://postgres:ci-disposable-password@127.0.0.1:5432/postgres?sslmode=disable
         run: |
           test -z "$(gofmt -l cmd internal)"
           buf lint

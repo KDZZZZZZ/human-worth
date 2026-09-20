@@ -29,6 +29,13 @@ var policies = map[string]policy{
 	"/humanworth.voting.v1.VotingService/ViewTaskStatistics": {Audience: "voting", Write: true, MCP: true},
 	"/humanworth.voting.v1.VotingService/CastVote":           {Audience: "voting", Write: true},
 	"/humanworth.challenge.v1.ChallengeService/StartRun":     {Audience: "challenge", Write: true, Admin: true},
+	// Challenge 管理接口逐个授权，MCP 和普通账号不能通过通用前缀获得权限。
+	"/humanworth.challenge.v1.ChallengeService/GetRun":            {Audience: "challenge", Admin: true},
+	"/humanworth.challenge.v1.ChallengeService/ListRuns":          {Audience: "challenge", Admin: true},
+	"/humanworth.challenge.v1.ChallengeService/GetRunSummary":     {Audience: "challenge", Admin: true},
+	"/humanworth.challenge.v1.ChallengeService/CancelRun":         {Audience: "challenge", Write: true, Admin: true},
+	"/humanworth.challenge.v1.ChallengeService/RestartRun":        {Audience: "challenge", Write: true, Admin: true},
+	"/humanworth.challenge.v1.ChallengeService/RegisterCandidate": {Audience: "challenge", Write: true, Admin: true},
 }
 
 type actorClaims struct {

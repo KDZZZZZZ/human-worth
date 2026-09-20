@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	challengepb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1"
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/identity/v1"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/platform"
 	"github.com/prometheus/client_golang/prometheus"
@@ -37,6 +38,7 @@ const FlowCookie = "__Host-human-worth-oauth"
 var web embed.FS
 
 type Options struct {
+	Challenge      challengepb.ChallengeServiceClient
 	Origin         string
 	LogoPath       string
 	TrustedProxies []netip.Prefix
@@ -99,6 +101,9 @@ func New(client pb.IdentityServiceClient, options Options) (http.Handler, error)
 		{"DELETE", "/api/me/mcp-tokens/{credentialId}", "revokeMcpToken", h.revokeToken},
 	} {
 		mux.HandleFunc(route.method+" "+route.path, h.operation(route.operation, route.handler))
+	}
+	if options.Challenge != nil {
+		h.challengeRoutes(mux)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
@@ -172,13 +177,19 @@ func (h *Handler) operation(name string, next http.HandlerFunc) http.HandlerFunc
 		w.Header().Set("X-Request-ID", requestID)
 		ctx = metadata.AppendToOutgoingContext(ctx, "x-request-id", requestID)
 		timeout := 2 * time.Second
+		bodyLimit := int64(16384)
+		// Challenge 初始包和三个提示可以超过身份接口的 16 KiB 请求上限。
+		if name == "startChallengeRun" || name == "restartChallengeRun" {
+			bodyLimit = 1 << 20
+			timeout = 15 * time.Second
+		}
 		if name == "completeGoogleLogin" {
 			timeout = 15 * time.Second
 		}
 		ctx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 		r = r.WithContext(ctx)
-		r.Body = http.MaxBytesReader(w, r.Body, 16384)
+		r.Body = http.MaxBytesReader(w, r.Body, bodyLimit)
 		next(w, r)
 	}
 }
@@ -340,6 +351,9 @@ func (h *Handler) actor(w http.ResponseWriter, r *http.Request, method string) (
 		return "", false
 	}
 	request := &pb.ResolvePrincipalRequest{Audience: "identity", FullMethod: method, Origin: r.Header.Get("Origin"), CsrfToken: r.Header.Get("X-CSRF-Token")}
+	if strings.HasPrefix(method, "/humanworth.challenge.v1.ChallengeService/") {
+		request.Audience = "challenge"
+	}
 	if len(headers) == 1 {
 		kind, value, ok := strings.Cut(headers[0], " ")
 		if !ok || kind != "Bearer" || value == "" || strings.ContainsAny(value, " \t\r\n") {

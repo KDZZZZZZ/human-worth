@@ -38,7 +38,7 @@
 
 补全选择：新任务草稿整体替换并按版本送审；被驳回追加作品修改后重新送审；审核历史保留。上传文件在作品过审前限网站上传者/管理员管理读取；任务可见且作品过审后允许展示和下载，每次访问校验审核状态，不提供长期下载地址。不存在独立的公开授权开关。看板先提供平台/分类的任务结论数量，避免通过单任务分组还原具体票数；热度不得编码可还原的单题统计。
 
-云端启动和重启显式要求预算、轮数及配置，用幂等键避免网络重试重复开销；具体 header 语义是本项目约定。候选登记按运行与候选唯一定位，先找回已有作品和审核状态；终态只能找回已有登记，不能新增作品。公开进度使用单独字段集合，管理员复盘的具体真人统计仍走资格变更入口。
+云端启动和重启显式要求预算、轮数及配置，用幂等键避免网络重试重复开销；具体 header 语义是本项目约定。候选登记按运行与候选唯一定位，先找回已有作品和审核状态；终态只能找回已有登记，不能新增作品。普通用户挑战进度入口已由 [H6](prd.md#remove-challenge-progress) 删除；管理员复盘的具体真人统计仍走资格变更入口。
 
 实现前仍须补全：登录与 token 生命周期、云端授权撤回、文件和内容限额、推荐/热度/有效票/领先/翻转算法、云端材料与验证规则、额度单位、下架对在途运行的影响。撤销过审后的当前计票与历史记录按下节提案处理。不能以 schema 校验通过替代这些设计及真实业务验收。
 
@@ -185,3 +185,32 @@ dfbfdb2577647883b6818002b0d5a7590e1df988b4a7f3dced440c48ead5f358  setting_oauth.
 | [Nginx HTTPS](https://nginx.org/en/docs/http/configuring_https_servers.html)、[Certbot](https://eff-certbot.readthedocs.io/en/stable/using.html)、[flarectl](https://github.com/cloudflare/cloudflare-go/tree/v0.118.0/cmd/flarectl) | 独立 server_name 和 DNS A 记录，Let’s Encrypt 证书与定时续期；CLI/密钥在仓库外；发布应用仍遵守 dev/CI 门槛 | HTTPS 健康、HTTP 跳转及静态 Swagger 可访问；公网连接原已发布基座 |
 
 依赖精确版本以 [go.mod](../backend/go.mod) 为准；上游清单 SHA-256 和镜像 digest 以 [versions.json](../ops/lab/versions.json) 为准。网络与恢复检查入口见[部署文档](deployment.md#identity-lab)，结论只覆盖实际执行的 Identity 链路。早前小节中“尚未实现”的表述是当时设计记录，不代表本轮状态。
+
+<a id="challenge-design"></a>
+## Challenge：管理员初始包、三角色优化与执行隔离
+
+2026-09-19，用户明确打包 P、执行 E、排序 R 三个角色，以及管理员手工准备初始包。2026-09-20 的 [H10](prd.md#ranker-before-packer) 进一步要求 P 不看任何评论，先只迭代 R，拟合度过阈值后固定 R，再只迭代 P／运行 E；R 给出评判依据和拟合度。[H11](prd.md#challenge-react-tools) 允许 P/R 按需使用 ReAct，工具按实际步骤精简设计；只有 E 使用工作区与 harness。输入结构、评分公式、阈值配置、数据划分、反馈调用及具体工具设计为 Agent Self-Claimed，交付见 [Challenge 设计](backend-challenge.md)。
+
+| 官方来源 / 版本 | 采用与差异 | 实施时的验收判据 |
+| --- | --- | --- |
+| [ReAct: Synergizing Reasoning and Acting in Language Models](https://arxiv.org/abs/2210.03629v3)，v3 · 2023-03-10，2026-09-20 核实 | 借鉴按需调用工具获取证据的循环；本项目 P/R 先共用一个受限材料读取工具，输入充分时直接返回；不引入论文任务的其他工具或框架，不要求披露隐藏推理 | 直接调用与工具往返均可完成；读取遵守角色与用途，循环有界；工具策略纳入 R 拟合证据，外层仍先 R 后 P |
+| [ProTeGi，EMNLP 2023，论文 494](https://aclanthology.org/2023.emnlp-main.494/)，DOI `10.18653/v1/2023.emnlp-main.494` | 只借鉴文字反馈改写提示；不引入候选搜索、择优或回退框架 | 每次生成一份新提示，校验后覆盖；拟合结果另按真人样本验证 |
+| [Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena](https://arxiv.org/abs/2306.05685)，2023，2026-09-20 核实 | 借鉴对照真人判断检验评审能力；论文中的对齐表现不能直接作为本项目阈值；本项目仍排序全部作品 | 用独立真人数据重算拟合度，检查顺序偏差与评判依据；不信任 R 自报高分 |
+| [scikit-learn 交叉验证说明](https://scikit-learn.org/stable/modules/cross_validation.html)，1.9.1 文档，2026-09-20 核实 | 采用训练与验证分离、避免反复调参污染评测的原则；无需引入库。准入批次尚未用于提示改写，已用于反馈的批次不再充当新的独立证据 | 数据来源与批次使用可追溯；样本不足、标签泄漏、反复复用验证批次不能放行 P/E |
+| [TextGrad，arXiv:2406.07496](https://arxiv.org/abs/2406.07496)，2024 论文，2026-09-19 核实 | 借鉴文本反馈优化组件；P 只优化执行提示，R 优化排序 prompt；管理员初始包、E 配置、模型参数和权限保持固定 | 改写必须有来源反馈，重新执行评测；不能以模型自述替代提升证据 |
+| [mini-swe-agent 基本循环](https://github.com/SWE-agent/mini-swe-agent/blob/04d809ceab9df28f9adaed044884180159172930/src/minisweagent/agents/default.py)，commit `04d809ceab9df28f9adaed044884180159172930`，2026-09-20 核实 | 仅借鉴“请求模型 → 执行命令 → 返回观察”的有限循环；E 用现有 Go Completion 客户端和单一 run_command，不引入该项目依赖、轨迹保存或自动重试 | 完整工具往返、结构化作品、模型／工具次数、退出码、超时与有界输出验证；安全边界另由隔离 Pod 提供 |
+| [Codex 配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)，本机 CLI `0.153.4`，2026-09-20 核实；此方案已弃用 | 当时核实的自定义提供商使用 Responses，与用户明确指定的 Completion 不符，因此移除 Codex 适配；不要求用户更换已连通的 Gemini 服务 | 所有角色直接请求 Completion，E 不再有 Responses 入口或 CLI 依赖 |
+| [Kubernetes Job](https://kubernetes.io/docs/concepts/workloads/controllers/job/)、[Pod 生命周期](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/)，2026-09-19 | 只有 E 的一次尝试使用一个 Job，Pod 内多次模型调用；P/R 不建 Pod；关闭 Job 自动重试。即使单副本也可能重复启动，不能假定只执行一次 | 稳定 Job 名与 UID 对账、唯一激活、租约代次、迟到结果拒绝、归档后清理 |
+| [Kubernetes 多租户隔离](https://kubernetes.io/docs/concepts/security/multi-tenancy/#sandboxing-containers)、[gVisor 架构](https://gvisor.dev/docs/architecture_guide/intro/)，2026-09-19 | 普通容器共享内核；gVisor 为不可信代码的候选用户态内核方案，仍须独立权限、网络与资源控制 | kind＋Completion 执行器＋gVisor 兼容、越界拒绝、资源超限与性能实测；未通过前只跑受控测试负载 |
+
+按 [H8](prd.md#simple-challenge-iteration) 保留当前提示、取消历史版本和回滚；迭代顺序以 H10 为准：第一阶段只覆盖 R 提示，拟合过阈值后冻结 R，第二阶段只覆盖 P 提示。阈值决定阶段切换，不恢复新旧版本择优。
+
+Agent Self-Claimed 的评分提案为可比作品对的顺序一致率；阈值和最少可比对数显式配置，按未四舍五入的分数严格大于阈值判定，等值、样本不足或记录失效均不放行 P/E。单选得票只代表可比样本的群体偏好，不代表每个人提供了完整排名，也不能从少量高分推断稳定泛化。拟合证据绑定当前 R 与独立样本；具体参数和优化效果尚未实测。
+
+P 完全不看评论与其他作品，R 又需为 P 提供依据，因此采用同一固定 R 的独立解释调用，只输入原始任务要求、选定附件及自身作品；不把含评论的全量排序理由摘录给 P。该调用是权限边界的实现选择，不增加第四个 agent；验收须覆盖评论、他人作品与训练标签通过提示、共享历史或反馈泄漏的反例。
+
+ReAct 的实际缺口是按需查阅已获准的附件和作品文件，现有材料清单与 `ReadMaterial` 足以支撑，因此只增加模型侧 `read_material`，不增加作品搜索、评论查询、投票查询或调用 E 的工具。工具和循环限制由服务端固定，复用角色及用途授权，不新增公开配置或 RPC；给 P 的解释调用使用独立的窄授权。具体格式适配及模型兼容仍需实施验证。
+
+取消协议沿用[本地事务与 outbox 参考](#backend-design)，明确为“冻结 Run → Content 封闭登记 → Run 终态”。本地 OpenAPI 0.7.0 草案补充管理员初始包、三角色配置、任务附件与文字作品输入，删除普通用户进度入口，并保留 `cancelling / finalizing` 和取消 202；登记采用 Content 待审作品＋审核请求 outbox，不声称跨服务原子创建审核案件。2026-09-20 已补齐最小 Proto、Challenge 核心与 worker，并用真实 PostgreSQL 和有状态 fake 验证模块流程；未做优化效果实验、部署真实沙箱或发布新版 Swagger。
+
+2026-09-20 修正：用户重申测试服务必须使用 Completion。P/R/E 现统一为非流式 `/v1/chat/completions`；E 默认复用已妥善保存的同一配置，通过短期 grant 中继调用，主密钥不进入执行环境。基础文本、P/R 材料工具往返及 E 的原生命令工具请求、测试观察回传、最终文本作品与两次预算结算均通过。此前单次 Responses 请求的 403 只说明那条请求失败，不作为 Gemini Completion 不可用的依据。真实 E Pod、沙箱、网络与资源控制仍待验收，协议测试不执行模型生成的命令。

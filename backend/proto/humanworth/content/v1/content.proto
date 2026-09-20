@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+package humanworth.content.v1;
+
+import "google/protobuf/timestamp.proto";
+import "humanworth/asset/v1/asset.proto";
+
+option go_package = "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1;contentv1";
+
+// ContentService 仅列出 Challenge 当前依赖的协作接口，普通网站内容接口另行扩展。
+service ContentService {
+  rpc GetChallengeTaskDescription(GetChallengeTaskDescriptionRequest) returns (GetChallengeTaskDescriptionResponse);
+  rpc ListChallengeWorks(ListChallengeWorksRequest) returns (ListChallengeWorksResponse);
+  rpc ListChallengeComments(ListChallengeCommentsRequest) returns (ListChallengeCommentsResponse);
+  rpc CheckChallengeMaterials(CheckChallengeMaterialsRequest) returns (CheckChallengeMaterialsResponse);
+  rpc OpenRunRegistration(OpenRunRegistrationRequest) returns (OpenRunRegistrationResponse);
+  rpc CloseRunRegistration(CloseRunRegistrationRequest) returns (CloseRunRegistrationResponse);
+  rpc RegisterChallengeCandidate(RegisterChallengeCandidateRequest) returns (RegisterChallengeCandidateResponse);
+  rpc GetChallengeRegistration(GetChallengeRegistrationRequest) returns (GetChallengeRegistrationResponse);
+}
+
+// Artifact 是作品正文或文件，链接只能作为补充；不携带作者与模型身份。
+message Artifact {
+  oneof value {
+    string text = 1;
+    humanworth.asset.v1.Asset file = 2;
+    string link = 3;
+  }
+}
+message Work {
+  string id = 1;
+  repeated Artifact artifacts = 2;
+}
+message TaskAttachment {
+  humanworth.asset.v1.Asset asset = 1;
+  bool cloud_use_allowed = 2;
+}
+message TaskDescription {
+  string task_id = 1;
+  int64 revision = 2;
+  string description = 3;
+  repeated TaskAttachment attachments = 4;
+}
+message Comment {
+  string id = 1;
+  string body = 2;
+}
+// SnapshotRef 固定任务、作品目录及评论截点，禁止跨版本拼接真人标签。
+message SnapshotRef {
+  string task_id = 1;
+  int64 task_revision = 2;
+  int64 catalog_revision = 3;
+  google.protobuf.Timestamp comment_cutoff = 4;
+}
+message GetChallengeTaskDescriptionRequest {
+  SnapshotRef snapshot = 1;
+}
+message GetChallengeTaskDescriptionResponse {
+  TaskDescription task = 1;
+  bool visible = 2;
+}
+message ListChallengeWorksRequest {
+  SnapshotRef snapshot = 1;
+}
+message ListChallengeWorksResponse {
+  repeated Work works = 1;
+  int64 catalog_revision = 2;
+}
+message ListChallengeCommentsRequest {
+  SnapshotRef snapshot = 1;
+}
+message ListChallengeCommentsResponse {
+  repeated Comment comments = 1;
+  google.protobuf.Timestamp cutoff_at = 2;
+}
+message MaterialRef {
+  string asset_id = 1;
+  string source_kind = 2;
+  string source_id = 3;
+}
+message CheckChallengeMaterialsRequest {
+  string run_id = 1;
+  SnapshotRef snapshot = 2;
+  string purpose = 3;
+  repeated string work_ids = 4;
+  repeated MaterialRef materials = 5;
+}
+message CheckChallengeMaterialsResponse {
+  bool allowed = 1;
+  string authorization_version = 2;
+}
+message OpenRunRegistrationRequest {
+  string run_id = 1;
+  string task_id = 2;
+}
+message OpenRunRegistrationResponse {
+  string state = 1;
+}
+// 关闭必须写墓碑，先关闭再收到打开请求也不能恢复通道。
+message CloseRunRegistrationRequest {
+  string run_id = 1;
+  string task_id = 2;
+}
+message CloseRunRegistrationResponse {
+  string state = 1;
+}
+message RegistrationReceipt {
+  string run_id = 1;
+  string candidate_id = 2;
+  string entry_id = 3;
+  string review_id = 4;
+  string review_state = 5;
+  bool created = 6;
+}
+// 登记、通道状态检查和审核 outbox 必须在 Content 自己的事务中提交。
+message RegisterChallengeCandidateRequest {
+  string run_id = 1;
+  string candidate_id = 2;
+  string task_id = 3;
+  string source_attempt_id = 4;
+  Work work = 5;
+  string executor_config_hash = 6;
+}
+message RegisterChallengeCandidateResponse {
+  RegistrationReceipt receipt = 1;
+}
+message GetChallengeRegistrationRequest {
+  string run_id = 1;
+  string candidate_id = 2;
+}
+message GetChallengeRegistrationResponse {
+  RegistrationReceipt receipt = 1;
+}

@@ -9,7 +9,7 @@
 | 宿主机到进程、完整副本分布与实施顺序 | [单机 kind 实验计划](#lab-plan) | 逐模块落地 |
 | 工具参数、资源预算和 14 项实验 | [实施参数与实验清单](#implementation-details) | 实施时查阅 |
 
-服务职责见[架构划分](backend-architecture.md)，身份与公共基座见 [Identity 设计](backend-identity.md)。版本：v2.2 · 2026-09-19。
+服务职责见[架构划分](backend-architecture.md)，身份与公共基座见 [Identity 设计](backend-identity.md)，临时执行环境见 [Challenge 设计](backend-challenge.md)。版本：v2.4 · 2026-09-19。
 
 <a id="current-deployment"></a>
 ## 1. 当前运行环境
@@ -96,6 +96,8 @@ HTTPS 已于 2026-09-19 建立；[worth.oopsbox.cn.conf](../ops/nginx/worth.oops
 
 源文件为根目录 [openapi.yaml](../openapi.yaml) 和 [docs/swagger](swagger)。`npm ci --ignore-scripts && npm run build:docs` 生成 `dist/docs/`，包含固定版本 Swagger UI、许可证及逐文件 SHA-256 清单。浏览器只请求同源资源，关闭在线校验器和 Try it out，不执行 API 请求。线上 0.5.0-draft 共 44 个操作：健康检查 2 个、Identity 7 个已上线，其余 35 个为 planned。Identity 标记 `published`。
 
+本地 0.7.0-draft 配套管理员初始包、Challenge 三角色配置、任务附件与文字／文件作品，保留取消／收尾及异步审核登记语义，并删除公网 challenge-progress；共 43 个操作，其中 34 个 planned。本轮未发布文档，也未实现 Challenge 接口。
+
 已配置 HTTPS 域名和用户提供的 Google Web 凭据，固定回调为 `https://worth.oopsbox.cn/api/auth/google/callback`。当前本地 HTTP 前端代理也尚未实现登录联调所需的回调与会话配置，具体要求见[后端身份设计](backend-identity.md)。
 
 公网 `/docs` 重定向到 `/docs/`，对应 `/var/www/human-worth-docs/current/`。Nginx 配置只增加该前缀的静态路由，其他路径继续使用原有应用代理。静态文档不依赖本机应用在线；API 的可用性仍依赖原有隧道和服务。
@@ -117,6 +119,10 @@ HTTPS 已于 2026-09-19 建立；[worth.oopsbox.cn.conf](../ops/nginx/worth.oops
 </details>
 
 <a id="identity-lab"></a>
+## Challenge 本地实现状态
+
+Challenge 核心服务与 P/R worker 已本地实现，并通过真实 PostgreSQL、双副本 mTLS 与依赖 fake 联调。E 已提供 Kubernetes/Completion 适配代码及[执行隔离清单](../ops/challenge/execution-isolation.yaml)，真实模型工具往返已通过，隔离运行时尚未验收，未安装到当前 lab，也未接入自动发布控制器。配置、构建及复跑见 [Go 说明](../backend/README.md#challenge-启动与验证)。Content/Asset/Voting 的本轮交付为最小 Proto，不能将 fake 登记视为真实产品投稿或审核。
+
 ## 当前 lab：只部署 Identity 所需部分
 
 先记住这一条链路：**公网 Nginx → 私有 TLS 隧道 → 本机 `127.0.0.1:18443` → gateway 两份 → Identity 两份 → PostgreSQL 一主两备**。Google 请求只由 Identity 经受限代理发出。所有数据都在同一台宿主机，数据库副本不等于异机备份。
@@ -242,7 +248,7 @@ sudo systemctl start human-worth-identity-deploy.service
 
 **先在一台服务器上搭一套名为 `lab` 的实验环境，逐步把 Go 服务放进去，再练习故障处理和独立发布。所有实验共用这套配置。**
 
-**按模块推进：Identity 已完成接口与实现，并先放入 lab；下一步再设计 Content。** 不等待所有模块设计结束才验第一条真实链路。
+**按模块推进：Identity 已完成并发布；下一步按 Challenge 设计先定 Proto，用依赖 mock 独立开发。** Content 等真实模块随后逐项联调；不等待全部设计结束才验证已有链路。
 
 ### 要部署什么
 
@@ -284,7 +290,7 @@ flowchart TB
 
 kind 负责搭建集群。运行时，控制平面负责调度，节点里的 kubelet 和 containerd 负责落实 Pod 配置、启动容器。**业务容器内运行 Go 程序，无需安装 Docker。**
 
-本项目首版每个业务 Pod 放一个应用容器，启动一个业务主进程。进程可以有多个 goroutine；挑战执行器也可能启动任务子进程，这些不另算服务副本。节点内运行时与 Pod 的依据见[分层参考](references.md#microservices-lab)。
+本项目首版每个常驻业务 Pod 放一个应用容器，启动一个业务主进程。进程可以有多个 goroutine；挑战的 Completion 执行循环与工具进程放在单独的临时 E Pod 中，不在常驻 worker 中执行作品代码。节点内运行时与 Pod 的依据见[分层参考](references.md#microservices-lab)。
 
 #### 每个服务如何部署
 
@@ -300,12 +306,18 @@ kind 负责搭建集群。运行时，控制平面负责调度，节点里的 ku
 | 审核：审核决定、举报和审计查询 | `moderation` | 2 |
 | 挑战：运行状态、任务分配和租约 | `challenge` | 2 |
 | 发现：推荐、热度和公开看板 | `discovery` | 2 |
-| 挑战执行器：领取任务、调用模型、上报结果 | `challenge-worker` | 2 |
-| **合计** | **9 类应用** | **18 个业务 Pod** |
+| 挑战执行器：调用打包／排序模型、管理 E 的 Job、上报结果 | `challenge-worker` | 2 |
+| **合计** | **9 类常驻应用** | **18 个常驻业务 Pod** |
 
-因此，业务全部实现并稳定运行后，是 **18 个业务 Pod → 18 个应用容器 → 18 个业务主进程**。系统组件、数据库和监控另算；发布或扩容期间也可能临时增加 Pod。
+因此，业务全部实现后的常驻规划是 **18 个业务 Pod → 18 个应用容器 → 18 个业务主进程**。挑战执行期间再增加临时 Job/Pod；受信中继、系统组件、数据库和监控另算，发布或扩容也可能临时增加 Pod。这是目标数量，当前只部署了前述 Identity 链路。
 
 原来的 `platform` 作为公共 Go 代码使用，`Execution` 作为 Challenge 内部模块使用，不额外部署进程。七个业务 RPC 服务的数据和接口边界见[架构划分](backend-architecture.md)。
+
+#### 挑战执行时临时增加什么
+
+打包 P 与排序 R 由常驻 worker 发起模型调用，材料不足时可在本 Attempt 内通过一个受限 `read_material` 工具完成 ReAct，不单独创建 Pod。工具复用材料读取与输入适配，每次读取检查用途和授权，每次模型续调计入预算；循环次数与期限有上限。先仅迭代 R，拟合度未超过阈值时不调用 P、不创建 E Job；达标后固定 R，才开始迭代 P／运行 E。**只有 E 的一次尝试使用一个 Job/Pod**，里面运行 Completion 执行循环、独立工作区和唯一命令工具。管理员初始包固定；P 不接收任何评论，使用自身作品／报告、名次与 R 的合规评判依据和拟合度。给 P 的评判调用由同一固定 R 在无评论、无其他作品的独立上下文和工具授权下完成；R 看不到任务包或 E 报告。
+
+lab 起点仍是同一套配置：两个 worker 每个最多管理一个活跃尝试，全局最多两个 E Job，其余排队；P/R 直接调用和 ReAct 均计入尝试并发和模型预算。执行 Pod 没有 worker 的集群管理权限或模型主密钥，只能经受控中继访问本次任务包与模型。资源、租约和 Completion 执行器／gVisor 检查见 [Challenge 的隔离方案](backend-challenge.md#execution-isolation)；这些能力尚未部署。
 
 #### 三个工作节点上的副本分布
 
@@ -348,11 +360,11 @@ flowchart LR
 
 这里只展示放置关系，服务之间的调用见[调用拓扑](backend-architecture.md#2-目标调用拓扑)。例如工作节点 1 停止后，Voting ② 仍在工作节点 3；它能否继续处理请求，还要看数据库等依赖是否可用。
 
-**配置要求是同一应用的两个副本分散到不同节点，不固定绑定上图的位置。** 节点重启、故障恢复或更新后位置可能改变，仍须检查分散情况。18 个业务 Pod 平均每节点 6 个只是示例，实际还要结合资源请求和配套组件调度。
+**配置要求是同一应用的两个副本分散到不同节点，不固定绑定上图的位置。** 节点重启、故障恢复或更新后位置可能改变，仍须检查分散情况。18 个常驻业务 Pod 平均每节点 6 个只是示例，实际还要结合临时执行 Pod、资源请求和配套组件调度。
 
 #### 数据库和配套组件放在哪里
 
-这些组件也在工作节点上运行，但不计入上面的 18 个业务 Pod。
+这些组件也在工作节点上运行，但不计入上面的 18 个常驻业务 Pod。
 
 | 组件 | 配置与位置 | 用途 |
 | --- | --- | --- |
@@ -369,15 +381,15 @@ flowchart LR
 
 | 顺序 | 做什么 | 做到什么算完成 |
 | --- | --- | --- |
-| **1. Identity** | 本模块设计、9 个 RPC、SQL、platform、登录与凭据 | 真实数据库与并发验证通过，再检查 lab 与真实 Google 登录 |
-| 2. 首批 lab | 先部署网关、Identity 双副本与数据库三实例 | 会话跨副本、网络隔离、故障恢复可验；当前正在这一阶段 |
-| 3. Content | 完成本模块设计和 Proto，再实现真实内容读写 | gateway → Identity → Content 鉴权链路成立；非法请求拒绝 |
-| 4. 补齐业务 | 逐步加入文件、审核、投票、发现、挑战和执行器 | 投稿、审核、投票、查看统计和挑战流程可以实际使用 |
+| 1. Identity 与首批 lab（已完成） | 设计、9 个 RPC、SQL、platform、双副本应用与三实例数据库 | 登录、会话跨副本、权限与恢复证据见上文；用户已确认 Google 登录 |
+| **2. Challenge 契约与独立开发** | 先定 Proto，用有状态 mock 实现先 R 后 P、拟合门槛、R 冻结、评判依据与无评论反馈 | 真实 PostgreSQL 多副本竞争；低于／等于阈值及无样本时 P/E 调用为零，达标后 R 固定；输入、取消与登记边界；mock 不替代联调 |
+| 3. 执行环境 | P/R 接受控模型调用及按需材料读取；在同一 lab 加 E 的临时 Job、中继与隔离运行时 | P/R 验直接输出、工具回传、越权拒绝与循环停止，不启动工作区；E 验建删 Pod、模型兼容、权限拒绝、回收与资源限制 |
+| 4. 真实依赖与业务闭环 | 逐项实现并接入 Content、Asset、Moderation、Voting，补 Discovery | 投稿、审核、投票、统计副作用与挑战登记使用真实接口通过验收 |
 | 5. 逐项演练 | 先测正常情况，再练故障、升级和性能 | 有请求结果、数据记录和恢复时间，能说明哪里符合预期、哪里失败 |
 
 每个阶段都在同一套方案上推进。业务模块按开发进度加入，无需现在一次性写完或部署全部服务。
 
-公网迁移放在实验验证之后，作为单独的发布任务处理：完成 HTTPS、切换入口、验证回退，并遵守[PR 与发布规则](../AGENTS.md#pr-authorization)。前端仍用相对 `/api`：开发时代理到公网，部署后由入口转发到内部网关。
+Identity 的公网迁移已完成；后续模块通过真实联调后再逐项发布，遵守[PR 与发布规则](../AGENTS.md#pr-authorization)。前端仍用相对 `/api`：开发时代理到公网，部署后由入口转发到内部网关。
 
 ### 能练习哪些情况
 
@@ -432,7 +444,7 @@ flowchart LR
 - 规划依据是本机 4 核 8 线程、约 16GB 内存。初始实验总预算以 4 个逻辑 CPU、8GiB 内存为起点，包含控制平面、网络、DNS、三个数据库实例、文件存储和监控；先测空载开销，给宿主机和现有服务留出余量。这不是容量已足够的保证。
 - 每个 Pod（K8s 调度应用实例的单位）配置 CPU/内存的 requests 和 limits。kind 各节点共用宿主机，不能把节点显示容量相加；限制节点容器时还要核对 kubelet 报告的可分配资源。
 - 应用保留双副本、数据库保留三实例。资源不足先降低压测并发、遥测采样和保留时间；仍不足则记录待测项或增加宿主机资源。观测组件及 Tempo 所需存储全部计入预算。
-- 挑战执行器每个副本先只同时运行 1 个任务，租约和执行记录保存在 Challenge 服务，执行器的临时工作目录可以丢弃。
+- 挑战 worker 每副本先只管理 1 个尝试，全局最多 2 个 E Job；P/R 只占模型调用及输入处理资源。租约和记录在 Challenge。临时 Pod、中继、文件输入处理与沙箱开销均计入预算；资源不足排队或失败，不放宽隔离或超卖宿主机。
 - 应用使用独立 Deployment；控制平面不承载业务。按服务设置 `topologySpreadConstraints`，使用 `kubernetes.io/hostname`、`maxSkew: 1` 分散副本，并核对实际落点。滚动更新预留临时副本容量，避免过严的反亲和规则阻塞发布。[拓扑分布约束](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/)
 - 三个工作节点支持失去一个节点后继续分散业务副本，前提是剩余容量和依赖可用。故障检测、驱逐、调度、镜像与卷都会影响恢复时间，需要实测。可用区标签只模拟调度规则，不增加物理隔离。
 
@@ -441,7 +453,7 @@ flowchart LR
 - HTTP/MCP 通过网关；业务服务仅提供内部 gRPC。使用 Kubernetes DNS 寻址，首版采用 Headless Service 与客户端 `round_robin`。实际检查地址更新和各副本请求量，不能仅凭副本数量判断流量已均衡。[gRPC 均衡策略](https://grpc.io/docs/guides/custom-load-balancing/)
 - 请求沿调用链传递超时期限；只在一个明确层级重试，限制次数和总时间。写请求只有定义了“重试不重复执行”的规则后才允许自动重试。
 - kind 关闭默认 CNI 后安装 Calico。应用网络默认拒绝未声明的访问，再按调用清单放行 DNS、RPC、数据库、文件存储和监控。NetworkPolicy 依赖支持它的网络插件，namespace 本身不构成隔离。[Calico on kind](https://docs.tigera.io/calico/latest/getting-started/kubernetes/kind)
-- 服务连接使用 mTLS（双方验证证书），身份断言限定接收方和用途，服务仍需检查业务权限。挑战执行器只访问 Challenge 和受控模型出口，不直连业务库、审核或投票；动态模型域名经受控出口代理处理，普通 NetworkPolicy 不负责域名授权。
+- 服务连接使用 mTLS（双方验证证书），身份断言限定接收方和用途。常驻 worker 访问 Challenge 和受控模型中继，并以受限 RBAC 管理 E 的 Job；不直连业务库、审核或投票。E Pod 只连 DNS 与模型／文件中继，无集群凭据；中继验证角色和当前尝试，动态模型域名由代理控制，普通 NetworkPolicy 不负责域名授权。
 - 实验入口和 Kubernetes API 先只绑定本机，使用独立端口；不占用现有 18090、18100 或 SSH 隧道。数据库、内部 RPC、pprof 不开放到公网。
 
 ### 数据与文件

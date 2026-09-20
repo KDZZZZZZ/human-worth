@@ -30,7 +30,7 @@
 - **已确认治理**：GitHub public 仓库 `KDZZZZZZ/human-worth`；默认 / 日常基线 `dev`；`dev` 和 `main` 只允许 PR，同行审批人数为 0；合入 dev 前通过 CI，合入后自动部署本机，经阿里云 CLI 中已有服务器 IP 提供前端 / API 公网入口。
 - **API 环境路由（人类明确要求）**：前端开发调用公网 API，部署后走内部调用。前端统一使用相对 `/api/*`；`npm run dev:frontend` 的本地代理连接公网，部署入口由 Nginx 通过内部隧道转发，不在前端组件中硬编码公网地址。
 - **前后端分工（2026-09-19 人类修订）**：后续后端任务默认只实现和验证接口、维护契约及后端文档；页面、组件和交互由前端同学负责。除非用户明确要求前端改动，不因实现或验收后端功能自行修改前端。
-- **后端目标（人类明确要求）**：分布式 Go 架构，以学习分布式微服务为目标。当前具体设计采用七个业务服务、gateway 与 challenge-worker，见[架构划分](docs/backend-architecture.md)与[部署及实验计划](docs/deployment.md)；服务边界和实验配置属于技术方案。模块设计从 [Identity](docs/backend-identity.md) 开始，Identity Proto、Go 实现及双副本 kind lab 已完成首批落地，其余六服务契约待逐项编写；旧综合后端草稿已按用户要求删除。公网已发布 Identity，不能把身份模块上线描述成全站产品已完成。
+- **后端目标（人类明确要求）**：分布式 Go 架构，以学习分布式微服务为目标。当前具体设计采用七个业务服务、gateway 与 challenge-worker，见[架构划分](docs/backend-architecture.md)与[部署及实验计划](docs/deployment.md)；服务边界和实验配置属于技术方案。模块设计从 [Identity](docs/backend-identity.md) 开始，Identity Proto、Go 实现及双副本 kind lab 已完成首批落地，Challenge Proto、核心实现及依赖 fake 联调已本地落地，三角色 Completion 及 E 工具往返已验证，E 真实沙箱仍待联调，未发布；Content/Asset/Voting 已提供 Challenge 所需最小 Proto，其余服务契约继续逐项编写；旧综合后端草稿已按用户要求删除。公网已发布 Identity，不能把身份模块上线描述成全站产品已完成。
 - **作品与投票（2026-09-18 人类修订）**：作品通过审核即允许展示，不设置独立公开/私有状态或公开授权开关；投票时一次展示该任务全部过审作品，用户从中单选一件最认可的作品。见 [PRD H1](docs/prd.md#human-revisions)。
 - **额度展示（2026-09-18 人类修订）**：管理员概览和运行展示不显示额度余额、已用额度或消耗数值，见 [PRD H2](docs/prd.md#hide-quota)；本次修改不取消既有后台预算控制。
 - **Google 登录（2026-09-18 人类修订）**：支持 Google 登录，见 [PRD H3](docs/prd.md#google-login)。OpenAPI 与 Go 已实现登录、回调、会话、退出和 MCP 凭据生命周期；真实 Google 用户登录已于 2026-09-19 经用户确认通过；登录与换凭据不改变稳定账号和原有投票资格。具体 OAuth、Cookie 与建号规则属于技术方案。
