@@ -38,6 +38,7 @@ spec:
       - name: identity_operator
         login: true
         passwordSecret: {name: identity-operator-password}
+      # module-database-roles
   postgresql:
     parameters:
       max_connections: "60"
@@ -49,6 +50,7 @@ spec:
     pg_hba:
       - hostnossl all all all reject
       - hostssl human_worth identity_owner,identity_runtime,identity_operator 10.244.0.0/16 scram-sha-256
+      # module-database-hba
     synchronous:
       method: any
       number: 1
@@ -71,6 +73,7 @@ spec:
         - podSelector: {matchLabels: {app: identity}}
         - podSelector: {matchLabels: {app: identity-migrate}}
         - podSelector: {matchLabels: {app: identity-admin}}
+        # module-database-clients
       ports: [{protocol: TCP, port: 5432}]
     - from:
         - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: cnpg-system}}

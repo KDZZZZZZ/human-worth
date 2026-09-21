@@ -1,0 +1,39 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [dev]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Verify automatic deployment
+    if: >-
+      github.repository == 'KDZZZZZZ/human-worth' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'dev' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      # The installed controller pulls successful CI every minute. Keeping this
+      # workflow separate lets CI finish before the controller checks its result.
+      - name: Wait for the exact revision and registered module endpoints
+        env:
+          EXPECTED_REVISION: ${{ github.event.workflow_run.head_sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 ops/verify_deployment.py "$EXPECTED_REVISION"

@@ -86,7 +86,7 @@ mTLS 客户端同时验证证书 DNS 和 SPIFFE URI 的预期服务名称，不�
 
 初始化脚本明确是一次性管理员动作；角色已存在时失败，不隐式覆盖密码或扩大既有权限。应用数据库及 public schema 不应向 PUBLIC 授予 CREATE（PG18 新库默认如此，旧库须管理员核对）。迁移使用独立 advisory transaction lock、文件摘要与版本记录，可重复执行、拒绝修改已应用文件；服务运行时不执行迁移。
 
-服务配置和构建命令见 [Go README](../backend/README.md)。已有 Dockerfile 的 SERVICE 参数可构建 content，不必复制镜像脚本。**未修改生产/kind 部署和 NetworkPolicy，不在本阶段自动部署。**
+服务配置和构建命令见 [Go README](../backend/README.md)。已有 Dockerfile 的 SERVICE 参数可构建 content，不必复制镜像脚本。2026-09-20 首阶段没有接入部署；2026-09-21 后续任务补上了 [统一模块自动部署](deployment.md#module-deployment)及 Content 声明，需合入并升级控制器后启用，不能把任务分支改动描述为公网已可用。
 
 ## 5. 并发、超时与重试
 

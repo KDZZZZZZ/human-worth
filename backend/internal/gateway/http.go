@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"embed"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	contentpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1"
@@ -25,6 +26,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,13 +40,14 @@ const FlowCookie = "__Host-human-worth-oauth"
 var web embed.FS
 
 type Options struct {
-	Content        contentpb.ContentServiceClient
-	Origin         string
-	LogoPath       string
-	TrustedProxies []netip.Prefix
-	Logger         *slog.Logger
-	Registry       *prometheus.Registry
-	Ready          func(context.Context) error
+	DeploymentStatusFile string
+	Content              contentpb.ContentServiceClient
+	Origin               string
+	LogoPath             string
+	TrustedProxies       []netip.Prefix
+	Logger               *slog.Logger
+	Registry             *prometheus.Registry
+	Ready                func(context.Context) error
 }
 type Handler struct {
 	client   pb.IdentityServiceClient
@@ -78,7 +81,23 @@ func New(client pb.IdentityServiceClient, options Options) (http.Handler, error)
 			problem(w, 503, "identity_unavailable")
 			return
 		}
-		jsonResponse(w, 200, map[string]string{"status": "ok", "service": "human-worth", "stage": "identity", "revision": platform.BuildVersion()})
+		result := map[string]any{"status": "ok", "service": "human-worth", "stage": "identity", "revision": platform.BuildVersion()}
+		// The directory-mounted ConfigMap changes only after all module rollouts.
+		// Missing/invalid status preserves startup health without claiming publication.
+		if file, err := os.Open(options.DeploymentStatusFile); err == nil {
+			var deployment struct {
+				Revision string   `json:"revision"`
+				Services []string `json:"services"`
+			}
+			if json.NewDecoder(io.LimitReader(file, 4096)).Decode(&deployment) == nil && len(deployment.Revision) == 40 && len(deployment.Services) > 0 {
+				if _, err := hex.DecodeString(deployment.Revision); err == nil && strings.ToLower(deployment.Revision) == deployment.Revision {
+					result["deploymentRevision"] = deployment.Revision
+					result["deployedServices"] = deployment.Services
+				}
+			}
+			file.Close()
+		}
+		jsonResponse(w, 200, result)
 	})
 	mux.HandleFunc("GET /{$}", h.page)
 	if options.LogoPath != "" {

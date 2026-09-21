@@ -6,6 +6,7 @@
 | --- | --- | --- |
 | 线上入口、开发代理、自动部署和回退 | [当前运行环境](#current-deployment) | Identity 已发布 |
 | Identity 安装、私有配置与验证 | [当前 lab](#identity-lab) | 首批服务已运行 |
+| CI 后发布 Content 与后续模块 | [模块自动部署](#module-deployment) | 任务分支实现；待合入与控制器升级 |
 | 宿主机到进程、完整副本分布与实施顺序 | [单机 kind 实验计划](#lab-plan) | 逐模块落地 |
 | 工具参数、资源预算和 14 项实验 | [实施参数与实验清单](#implementation-details) | 实施时查阅 |
 
@@ -210,7 +211,70 @@ Nginx 已启用经 CA 验证的私有 HTTPS 上游，其他站点配置摘要保
 3. 执行独立迁移 Job，依次滚动 Identity、gateway，并留出约 45 秒确认 HTTPS 健康版本。应用更新/回退共用 `human-worth-release` 字段管理器，只对两个应用的声明配置接管字段；基础设施不强制接管。失败恢复先前 Deployment，数据库迁移不自动回退，要求扩展兼容。
 4. 定时复查最新 dev；服务证书距过期一天时也滚动续发。成功发布后写入 `release-revision` 标记，普通 `app.py` 拒绝把未合入工作区覆盖到这套已发布环境。
 
-控制器源码、配置清单与基础设施权限变更需要另行安装，不从应用归档自动升级。lab 的运维账号 `oops` 已有本机 Docker 与该集群管理权限；这套控制器沿用它，适用于当前学习环境。镜像构建上下文为公开代码归档，密钥只在仓库外和集群 Secret 中。
+以上是已安装的 Identity 控制器行为。控制器源码与基础设施权限变更需要另行安装，不从应用归档自动升级；新版本的模块声明由下节规定随已通过 CI 的应用版本读取。lab 的运维账号 `oops` 已有本机 Docker 与该集群管理权限；这套控制器沿用它，适用于当前学习环境。镜像构建上下文为公开代码归档，密钥只在仓库外和集群 Secret 中。
+
+<a id="module-deployment"></a>
+### CI 后的统一模块部署（2026-09-21）
+
+人类要求“补 action 让通过 CI 之后自动部署”，并补充后续模块也要自动部署。以下是本轮技术实现，**尚未安装到公网控制器，不能仅因本地检查通过就标记线上启用**。
+
+1. `dev` 的 push `CI` 完整成功后，[Deploy workflow](../.github/workflows/deploy.yml) 通过 `workflow_run` 启动；PR、main、fork、失败或未完成的 CI 不进入部署检查。Deploy 与 CI 分开，避免本机等待 CI 完成而 CI 又等待部署。
+2. 本机既有 timer 每分钟拉取最新 dev，重复核对本仓库、分支、事件、不可变 SHA 与最新 CI 尝试。**实际发布继续由本机拉取控制器驱动**；Action 等待结果并使失败可见，不需要托管 runner 登录宿主机，也不新增云端密钥。
+3. [模块清单](../ops/lab/services.json) 随该 SHA 读取。目前登记 Identity、Content、gateway；其余服务没有条目，不生成空壳部署。控制器按清单构建镜像、生成各自证书、准备隔离数据库角色及 schema、运行迁移和授权，再按依赖顺序滚动；gateway 始终最后。原 `identity-admin` 运维镜像继续构建，不作为常驻模块。
+4. 每个模块的应用 YAML 同样来自该 SHA，经 [模块校验](../ops/lab/services.py) 限定为自身命名空间资源、固定镜像、双副本、健康探针及允许的凭据引用；不接受 RBAC、跨模块 Secret、其他命名空间或新增公网 NodePort。控制器不执行归档内的 shell/Python 部署脚本。基础设施模板和部署程序仍是仓库外安装的可信代码。
+5. 数据库模块使用 `<module>_owner` 迁移、`<module>_runtime` 运行；密码保存在私有状态目录和 Secret。授权 SQL 在数据库内以模块 owner 连接执行，不获得 postgres 管理员权限，不允许 psql 元命令。CNPG 的新增角色、HBA 和数据库 NetworkPolicy 由登记模块生成，保留 Identity 原有运行与运维角色。
+6. 所有模块滚动和 API 检查通过、再次确认 dev/CI 后，控制器更新 `release-status` ConfigMap。gateway 通过目录挂载读取完成状态，在 `/api/health` 增加可选 `deploymentRevision` / `deployedServices`。Action 必须同时确认当前 gateway SHA、完成 SHA、完整模块集合与登记的只读 API 检查；仅 gateway 已更新，或遗漏没有公开 API 的 worker，都不能标记部署完成。ConfigMap 更新可能延迟，控制器最多等待 180 秒传播。
+7. 迁移或滚动失败时，恢复原有 Deployment、NetworkPolicy 和完成标记；首次加入的失败模块缩为 0 副本。保留数据库迁移和数据。失败迁移 Job 在下次同 SHA 重试时重建，已完成的 Job 不重复运行。删除已有模块不等于普通发布，需另外执行明确的退役操作。
+
+后续新增模块在实现任务中同时提交以下内容，合入 dev 并通过 CI 后进入同一流程，**无需再新增 Action 或在控制器里追加服务名循环**：
+
+| 输入 | 约定 |
+| --- | --- |
+| 可执行入口 | `backend/cmd/<module>/main.go`，使用现有 Dockerfile 的 `SERVICE` 构建参数 |
+| 模块条目 | `ops/lab/services.json`：`dependencies`、明确的 `database` 布尔值、`checks`；数据库模块还需 `grants` 文件路径 |
+| 应用声明 | `ops/lab/<module>.yaml`：模块自己的 ServiceAccount、Deployment、NetworkPolicy，按需 Service/PDB；两个副本，启动/存活/就绪探针，镜像占位符 `human-worth/<module>:local` |
+| 数据库 | `migrate` 子命令读取 `<MODULE>_DATABASE_URL_FILE`；迁移可重复且兼容回退，授权 SQL只授予本模块运行账号需要的权限 |
+| 服务联通 | 依赖目标环境变量、调用方/被调用方 NetworkPolicy 与真实接口集成测试一起维护 |
+| 部署验证 | `checks` 只包含无凭据 GET 路径、预期状态和可选错误 code；worker 可为空，但仍必须通过就绪检查并出现在完成模块集合中 |
+
+允许的模块名对应既有七业务服务、gateway 与 challenge-worker。新增特殊外部凭据、存储或超过 lab 容量的工作负载需先完成实际资源配置；清单不能凭空生成外部账号或资源。当前 CPU limit 配额从 4 调到 6，为 Content 双副本、滚动副本和迁移留出空间；未改变已有 Pod 的资源请求或数据库存储量。
+
+#### 一次性升级已安装的控制器
+
+在本次变更经人类明确命令开 PR、合入 dev、该 SHA 的 push CI 成功后，从对应 checkout 执行。先暂停 timer 并等待正在进行的发布结束，避免覆盖运行中的 Python 文件：
+
+```sh
+sudo systemctl stop human-worth-identity-deploy.timer
+while systemctl is-active --quiet human-worth-identity-deploy.service; do sleep 5; done
+sudo install -m 0644 ops/deploy.py ops/deployment_health.py /usr/local/lib/human-worth/
+sudo install -m 0644 ops/lab/app.py ops/lab/release.py ops/lab/services.py ops/lab/infra.py ops/lab/postgres.yaml ops/lab/namespace.yaml ops/lab/egress.yaml ops/lab/versions.json /usr/local/lib/human-worth/lab/
+sudo install -m 0644 ops/systemd/human-worth-identity-deploy.service ops/systemd/human-worth-identity-deploy.timer /etc/systemd/system/
+kubectl --kubeconfig ~/.config/human-worth/lab.kubeconfig --context kind-lab apply --server-side -f ops/lab/namespace.yaml
+sudo systemctl daemon-reload
+sudo systemctl start human-worth-identity-deploy.service
+sudo systemctl enable --now human-worth-identity-deploy.timer
+```
+
+服务名与已有私有目录保持兼容。只有这次通用控制器及基础设施升级需要安装；后续符合契约的模块声明、授权 SQL和应用代码随已过 CI 的 SHA 发布。部署 Action 最多等待 30 分钟，超时会失败并提示查看本机 journal；不能把 Action 超时当成数据库事务未执行。
+
+#### 本地验收入口
+
+`python3 ops/lab/validate_modules.py` 在现有 kind lab 内创建临时 `human-worth-verify-*` 命名空间，使用真实模块声明与独立 PostgreSQL，gateway 改为 ClusterIP 并通过本机临时转发验证；不接入公网、不会复用产品数据。测试源码先复制为固定快照，结束删除临时命名空间和状态文件。它覆盖真实草稿 HTTP/mTLS/数据库链路、Content 重启后读取、网络允许与拒绝路径、完成标记传播、错误镜像回退、失败迁移同 SHA 重试及重复发布。临时数据库只有一个实例，不把此结果当作生产主备切换验收。
+
+其他检查为 `npm run ci`、Go 的 Buf / vet / race 集成检查，以及 `go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/ci.yml .github/workflows/deploy.yml`。公网实际启用还需对应 dev SHA 的真实 Deploy 运行和公网接口证据。
+
+本轮本地执行记录（2026-09-21）：
+
+| 命令 / 检查 | 实际结果 |
+| --- | --- |
+| `npm ci --ignore-scripts`；`npm run ci` | 退出 0；文档/分支检查、Swagger 构建、5 个 Node HTTP 测试及 18 个 Python 测试通过 |
+| backend 下 `buf lint`、`buf generate`、`git diff --exit-code -- gen`、`go vet ./...`、`go test -race -tags=integration ./... -count=1 -timeout=120s`、`go build ./cmd/...` | 均退出 0；使用单独的临时 PostgreSQL Docker 容器，完成后删除容器及 DSN 文件；另通过 Go 格式及 account.js 语法检查 |
+| 上述 `actionlint@v1.7.12` 命令 | 退出 0，CI / Deploy 两个 workflow 校验通过 |
+| `python3 ops/lab/validate_modules.py` | 最终退出 0；`human-worth-verify-1dec2f8f` 内全部链路、22 项网络判据、完成标记、回退、迁移重试和重复部署通过，命名空间已删除；原始日志 `/tmp/human-worth-module-validation-verified.log` |
+| `python3 ops/verify_deployment.py 5b9de6c6f43299495c78d54aed1fa9a3a0b3cb0e --timeout=0` | 按预期退出 1：当前公网只有 Identity，不能把原健康接口的 200 当成模块全部上线 |
+| 公网 `/api/health`、临时资源清理 | 公网仍是原版本 `5b9de6c` 且健康；没有遗留验证命名空间 |
+
+初次网络探针发生一次数据库连接失败；原探针未记录具体错误，因此不把原因确定为 DNS 或策略故障。探针已补上错误诊断、最长 12 秒初始化等待，并要求 DNS 失败不能算网络拒绝，最终所有允许与拒绝路径通过。更早一次运行与编辑中的声明混用，之后将测试应用与声明复制为固定快照再运行。这些未完成运行不计为 PASS。**真实 GitHub Deploy 触发、已安装控制器升级和公网 Content 启用仍未执行。**
 
 <details>
 <summary>首次安装与入口切换的操作参考</summary>
@@ -219,7 +283,7 @@ Nginx 已启用经 CA 验证的私有 HTTPS 上游，其他站点配置摘要保
 
 ```sh
 sudo install -d -m 0755 /usr/local/lib/human-worth/lab
-sudo install -m 0644 ops/deploy.py /usr/local/lib/human-worth/deploy.py
+sudo install -m 0644 ops/deploy.py ops/deployment_health.py /usr/local/lib/human-worth/
 sudo install -m 0644 ops/lab/*.py ops/lab/*.yaml ops/lab/*.json ops/lab/*.sql ops/lab/*.go /usr/local/lib/human-worth/lab/
 mkdir -p ~/.local/share/human-worth-identity
 sudo install -m 0644 ops/systemd/human-worth-identity-deploy.service ops/systemd/human-worth-identity-deploy.timer /etc/systemd/system/

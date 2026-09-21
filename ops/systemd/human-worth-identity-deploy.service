@@ -1,5 +1,5 @@
 [Unit]
-Description=Deploy CI-approved Human Worth Identity into the existing kind lab
+Description=Deploy CI-approved Human Worth application modules into the existing kind lab
 Wants=network-online.target
 After=network-online.target docker.service
 

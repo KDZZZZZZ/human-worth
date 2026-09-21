@@ -15,7 +15,8 @@ spec:
   hard:
     requests.cpu: "2"
     requests.memory: 2Gi
-    limits.cpu: "4"
+    # Allow Content's two replicas, one rolling replica and migration Jobs.
+    limits.cpu: "6"
     limits.memory: 4Gi
     requests.storage: 8Gi
     pods: "24"

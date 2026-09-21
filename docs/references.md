@@ -197,3 +197,15 @@ dfbfdb2577647883b6818002b0d5a7590e1df988b4a7f3dced440c48ead5f358  setting_oauth.
 | [gRPC Retry](https://grpc.io/docs/guides/retry/)；grpc-go 版本见 [go.mod](../backend/go.mod) | 关闭应用层自动重试，不将网络超时当作未执行；创建靠持久幂等键，编辑靠版本及显式读取核对 | 服务重启后同键仍找回；旧版本 PUT 重试409；不盲目用新版本重放旧内容 |
 
 以上官方文档于 2026-09-20 核对。数据聚合、文件暂拒绝、32件/12000字节限额与本地进程测试均是阶段实现选择，不修改 PRD 的可信场景。完整方案及后续边界见 [Content 草稿](backend-content.md)。本地验收 PostgreSQL 为临时编译的官方 18.0，源码 SHA-256 为 `0d5b903b1e5fe361bca7aa9507519933773eb34266b1357c4e7780fdee6d6078`；这不是生产数据库版本升级建议，仓库 CI 与 lab 镜像未改变。
+
+## CI 后的通用模块部署（2026-09-21）
+
+人类要求当前及后续模块在 CI 通过后自动部署。复用本机拉取控制器、统一模块清单和以下适配均为 Agent Self-Claimed：
+
+| 官方来源 / 版本 | 采用与取舍 | 验收判据 |
+| --- | --- | --- |
+| [GitHub workflow_run](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run)，2026-09-21 核对 | 使用独立 Deploy workflow，在默认分支 dev 上只接受本仓库成功的 push CI；不用同一个 CI workflow 的等待 job，避免控制器等待 workflow 成功的循环 | PR / main / fork / 失败 CI 排除；再次检查实际当前 dev 和最新 CI 尝试；固定 checkout 为事件 SHA |
+| [CloudNativePG v1.30.0 角色管理源码文档](https://github.com/cloudnative-pg/cloudnative-pg/blob/v1.30.0/docs/src/declarative_role_management.md) | 延续既有 managed.roles，按登记模块生成 owner/runtime，等角色出现再迁移；不为扩展 Content 更换数据库操作器 | 独立数据库真实创建角色、迁移和权限；失败凭据拒绝，恢复后同 SHA 迁移可重试 |
+| [Kubernetes Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)、[ConfigMap 更新](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#mounted-configmaps-are-updated-automatically)，lab Kubernetes 版本继续固定在既有配置 | 依赖顺序滚动，gateway 最后；控制器完成后写 ConfigMap，目录挂载动态读取，不用无法动态更新的 subPath | 错误镜像恢复原模板与策略；完成标记传播前 Action 不成功，缺少 worker 的模块集合拒绝 |
+
+模块清单是声明数据，经过命名空间、资源类型、镜像和凭据引用校验；外部脚本仍不在宿主机执行，数据库授权 SQL仅在对应 owner 权限下执行。控制器与基础设施模板仍由运维安装。此方案不承诺未实现模块或新外部基础设施自动出现；具体入口与验收边界见[部署说明](deployment.md#module-deployment)。

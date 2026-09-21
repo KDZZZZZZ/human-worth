@@ -1,5 +1,5 @@
 [Unit]
-Description=Check for a CI-approved Human Worth Identity release
+Description=Check for a CI-approved Human Worth application release
 
 [Timer]
 OnBootSec=90s

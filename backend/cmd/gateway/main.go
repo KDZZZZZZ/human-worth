@@ -99,7 +99,7 @@ func run() error {
 		}
 		return nil
 	}
-	handler, err := gateway.New(pb.NewIdentityServiceClient(conn), gateway.Options{Content: contentClient, Origin: origin, LogoPath: platform.Value("SITE_LOGO_FILE", "../public/brand/logo.png"), TrustedProxies: proxies, Logger: runtime.Log, Registry: runtime.Registry, Ready: ready})
+	handler, err := gateway.New(pb.NewIdentityServiceClient(conn), gateway.Options{Content: contentClient, DeploymentStatusFile: os.Getenv("DEPLOYMENT_STATUS_FILE"), Origin: origin, LogoPath: platform.Value("SITE_LOGO_FILE", "../public/brand/logo.png"), TrustedProxies: proxies, Logger: runtime.Log, Registry: runtime.Registry, Ready: ready})
 	if err != nil {
 		return err
 	}

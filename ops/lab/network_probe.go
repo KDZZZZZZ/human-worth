@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -28,16 +29,35 @@ func main() {
 		name, address string
 		allow         bool
 	}{
-		{"identity-rpc", "identity:8443", source == "gateway"},
-		{"database", "database-rw:5432", source == "identity"},
+		{"identity-rpc", "identity:8443", source == "gateway" || source == "content"},
+		{"content-rpc", "content:8443", source == "gateway"},
+		{"database", "database-rw:5432", source == "identity" || source == "content"},
 		{"google-proxy", "google-egress:3128", source == "identity"},
 		{"direct-internet", "www.googleapis.com:443", false},
 	} {
-		connection, err := net.DialTimeout("tcp", target.address, 2*time.Second)
-		if connection != nil {
-			connection.Close()
+		// A fresh probe Pod can precede CNI/DNS convergence. A negative result
+		// must be a TCP refusal/timeout, never a name-resolution failure.
+		deadline := time.Now().Add(12 * time.Second)
+		var err error
+		var dnsError *net.DNSError
+		for {
+			var connection net.Conn
+			connection, err = net.DialTimeout("tcp", target.address, 2*time.Second)
+			if connection != nil {
+				connection.Close()
+			}
+			dnsError = nil
+			dnsFailed := errors.As(err, &dnsError)
+			if err == nil || (!target.allow && !dnsFailed) || time.Now().After(deadline) {
+				break
+			}
+			time.Sleep(250 * time.Millisecond)
 		}
-		check(target.name, (err == nil) == target.allow)
+		pass := dnsError == nil && (err == nil) == target.allow
+		check(target.name, pass)
+		if !pass {
+			fmt.Printf("%s %s connection error: %v\n", source, target.name, err)
+		}
 	}
 	if source == "identity" {
 		proxy, _ := url.Parse("http://google-egress:3128")

@@ -1,0 +1,19 @@
+{
+  "identity": {
+    "dependencies": [],
+    "database": true,
+    "grants": "ops/lab/identity-grants.sql",
+    "checks": [{"path": "/api/me", "status": 401, "code": "unauthenticated"}]
+  },
+  "content": {
+    "dependencies": ["identity"],
+    "database": true,
+    "grants": "ops/content/grants.sql",
+    "checks": [{"path": "/api/me/tasks/tsk_00000000000000000000000000000000", "status": 401, "code": "unauthenticated"}]
+  },
+  "gateway": {
+    "dependencies": ["identity", "content"],
+    "database": false,
+    "checks": []
+  }
+}
