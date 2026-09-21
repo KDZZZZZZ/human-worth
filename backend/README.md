@@ -1,6 +1,6 @@
 # Go 后端
 
-当前实现 `gateway`、`IdentityService`、`ContentService` 首批作者私有草稿接口和受限账号运维命令。设计见 [Identity](../docs/backend-identity.md)，集群运行命令见[部署文档](../docs/deployment.md#identity-lab)。Content 本地实现与使用见 [Content 草稿设计](../docs/backend-content.md)，尚未接入公开部署；其余五个业务模块尚未实现。
+当前实现 `gateway`、`IdentityService`、`ContentService` 首批作者私有草稿接口和受限账号运维命令。设计见 [Identity](../docs/backend-identity.md)，集群运行命令见[部署文档](../docs/deployment.md#identity-lab)。Content 接口与使用见 [Content 草稿设计](../docs/backend-content.md)，三个本人草稿操作已于 2026-09-21 在公网启用；其余五个业务模块尚未实现。
 
 ## 开发与检查
 
@@ -69,6 +69,6 @@ docker build --provenance=false --sbom=false -f backend/Dockerfile \
 
 Content 集成测试复用 Identity 测试供应方与登录流程，启动 **两个实际 Content OS 进程**、两个 HTTPS gateway、mTLS RPC 及受限 PostgreSQL 账号；停止并重启一个 Content 后再次读取。入口是 `internal/identity/content_integration_test.go`（放在 Identity 测试包仅为复用现有真实 OIDC/证书/数据库 fixture，生产 Content 不导入 Identity 实现）。既有 `go test -race -tags=integration ./...` 自动包含此检查。
 
-首阶段的实现没有自动启用 Content。后续 [模块自动部署](../docs/deployment.md#module-deployment)任务已补齐通用发布链路及 Content 清单；合入并升级已安装控制器后，数据库角色、证书、网络规则、迁移、双副本及部署检查进入同一 CI 后流程。任务分支验证不代表公网启用。
+Content 已接入 [模块自动部署](../docs/deployment.md#module-deployment)：数据库角色、证书、网络规则、迁移、双副本及部署检查进入同一 CI 后流程。2026-09-21 首次发布 `cbca132` 的 Deploy Action 与公网草稿创建、读取、更新和权限验收均通过；完整记录见部署文档。
 
 后续模块实现时同时登记 [services.json](../ops/lab/services.json) 和自己的应用 YAML，声明依赖、数据库与只读部署检查；不为每个模块另写 Action。`/api/health` 的可选 `deploymentRevision` 与 `deployedServices` 由控制器在全部模块成功后写入，普通 `revision` 只表示当前 gateway 版本。

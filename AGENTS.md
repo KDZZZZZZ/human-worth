@@ -29,13 +29,13 @@
 
 - **已确认治理**：GitHub public 仓库 `KDZZZZZZ/human-worth`；默认 / 日常基线 `dev`；`dev` 和 `main` 只允许 PR，同行审批人数为 0；合入 dev 前通过 CI，合入后自动部署本机，经阿里云 CLI 中已有服务器 IP 提供前端 / API 公网入口。
 - **API 环境路由（人类明确要求）**：前端开发调用公网 API，部署后走内部调用。前端统一使用相对 `/api/*`；`npm run dev:frontend` 的本地代理连接公网，部署入口由 Nginx 通过内部隧道转发，不在前端组件中硬编码公网地址。
-- **模块自动部署（2026-09-21 人类修订）**：CI 通过后自动部署，后续实现的模块也纳入同一流程。具体模块清单、依赖排序、迁移与完成标记属于技术方案，见[模块自动部署](docs/deployment.md#module-deployment)。新模块交付应同时维护代码、部署配置和验收；不提前启动未实现模块。本轮任务分支补齐通用控制器和 Content 配置，安装与公网启用仍以实际发布证据为准。
+- **模块自动部署（2026-09-21 人类修订）**：CI 通过后自动部署，后续实现的模块也纳入同一流程。具体模块清单、依赖排序、迁移与完成标记属于技术方案，见[模块自动部署](docs/deployment.md#module-deployment)。新模块交付应同时维护代码、部署配置和验收；不提前启动未实现模块。通用控制器已安装，Identity、Content 与 gateway 已通过真实 Deploy Action 和公网验收。
 - **前后端分工（2026-09-19 人类修订）**：后续后端任务默认只实现和验证接口、维护契约及后端文档；页面、组件和交互由前端同学负责。除非用户明确要求前端改动，不因实现或验收后端功能自行修改前端。
-- **后端目标（人类明确要求）**：分布式 Go 架构，以学习分布式微服务为目标。当前具体设计采用七个业务服务、gateway 与 challenge-worker，见[架构划分](docs/backend-architecture.md)与[部署及实验计划](docs/deployment.md)；服务边界和实验配置属于技术方案。模块设计从 [Identity](docs/backend-identity.md) 开始，Identity Proto、Go 实现及双副本 kind lab 已完成首批落地，其余六服务契约待逐项编写；旧综合后端草稿已按用户要求删除。公网已发布 Identity，不能把身份模块上线描述成全站产品已完成。
+- **后端目标（人类明确要求）**：分布式 Go 架构，以学习分布式微服务为目标。当前具体设计采用七个业务服务、gateway 与 challenge-worker，见[架构划分](docs/backend-architecture.md)与[部署及实验计划](docs/deployment.md)；服务边界和实验配置属于技术方案。模块设计从 [Identity](docs/backend-identity.md) 开始，Identity 与 Content 首批 Proto、Go 实现及双副本 kind lab 已落地，其余模块继续逐项推进；旧综合后端草稿已按用户要求删除。公网已发布 Identity 与 Content 的本人草稿接口，不能把这些模块上线描述成全站产品已完成。
 - **作品与投票（2026-09-18 人类修订）**：作品通过审核即允许展示，不设置独立公开/私有状态或公开授权开关；投票时一次展示该任务全部过审作品，用户从中单选一件最认可的作品。见 [PRD H1](docs/prd.md#human-revisions)。
 - **额度展示（2026-09-18 人类修订）**：管理员概览和运行展示不显示额度余额、已用额度或消耗数值，见 [PRD H2](docs/prd.md#hide-quota)；本次修改不取消既有后台预算控制。
 - **Google 登录（2026-09-18 人类修订）**：支持 Google 登录，见 [PRD H3](docs/prd.md#google-login)。OpenAPI 与 Go 已实现登录、回调、会话、退出和 MCP 凭据生命周期；真实 Google 用户登录已于 2026-09-19 经用户确认通过；登录与换凭据不改变稳定账号和原有投票资格。具体 OAuth、Cookie 与建号规则属于技术方案。
-- **实现范围**：当前基座使用 Node.js 24 标准库、Python 3 控制器、systemd 与 ECS Nginx / SSH；Node 基座作为旧 IP 入口和回退链路保留；worth.oopsbox.cn 已经由私有 TLS 隧道连接本机 kind lab 的 Go Identity 与 gateway，Go 工程及检查见 [backend/README.md](backend/README.md)；其余产品业务待实现。以上方案为 agent 在用户授权内选定，不是人类指定技术栈。
+- **实现范围**：当前基座使用 Node.js 24 标准库、Python 3 控制器、systemd 与 ECS Nginx / SSH；Node 基座作为旧 IP 入口和回退链路保留；worth.oopsbox.cn 已经由私有 TLS 隧道连接本机 kind lab 的 Go Identity、Content 与 gateway，Go 工程及检查见 [backend/README.md](backend/README.md)；其余产品业务待实现。以上方案为 agent 在用户授权内选定，不是人类指定技术栈。
 - **产品参数**：可信场景没有定值的推荐、热度、文件限制、投票阈值等，按下文成熟参考流程自主研究并提出可验证的实现选择；不要伪装为用户已确认，也不要仅因缺少细节就停止工作。
 
 历史授权涵盖创建与配置公开仓库、保护规则、CI、本机部署和公网入口，以及当时完成这些工作的必要推送、PR 与合并验证。**这些历史授权不构成后续任务自动开 PR 的许可；创建 PR 必须有覆盖当前任务的明确人类命令。** 具体规则见 [PR 创建授权](#pr-authorization)。

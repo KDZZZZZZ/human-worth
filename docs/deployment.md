@@ -1,21 +1,21 @@
 # 部署与实验计划
 
-**公网已连接本机 kind lab 的 gateway、Identity 双副本及 PostgreSQL 一主两备。** 用户已确认真人 Google 登录成功。Node.js 基座保留作旧 IP 入口和回退链路；其余业务模块仍是计划。
+**公网已连接本机 kind lab 的 gateway、Identity、Content 双副本及 PostgreSQL 一主两备。** 用户已确认真人 Google 登录成功，Content 的三个本人草稿接口已通过公网验收。Node.js 基座保留作旧 IP 入口和回退链路；其余业务模块仍是计划。
 
 | 要了解什么 | 阅读位置 | 状态 |
 | --- | --- | --- |
-| 线上入口、开发代理、自动部署和回退 | [当前运行环境](#current-deployment) | Identity 已发布 |
+| 线上入口、开发代理、自动部署和回退 | [当前运行环境](#current-deployment) | Identity 与 Content 草稿已发布 |
 | Identity 安装、私有配置与验证 | [当前 lab](#identity-lab) | 首批服务已运行 |
-| CI 后发布 Content 与后续模块 | [模块自动部署](#module-deployment) | 任务分支实现；待合入与控制器升级 |
+| CI 后发布 Content 与后续模块 | [模块自动部署](#module-deployment) | 控制器已升级，真实 Deploy Action 通过 |
 | 宿主机到进程、完整副本分布与实施顺序 | [单机 kind 实验计划](#lab-plan) | 逐模块落地 |
 | 工具参数、资源预算和 14 项实验 | [实施参数与实验清单](#implementation-details) | 实施时查阅 |
 
-服务职责见[架构划分](backend-architecture.md)，身份与公共基座见 [Identity 设计](backend-identity.md)。版本：v2.2 · 2026-09-19。
+服务职责见[架构划分](backend-architecture.md)，身份与公共基座见 [Identity 设计](backend-identity.md)。版本：v2.3 · 2026-09-21。
 
 <a id="current-deployment"></a>
 ## 1. 当前运行环境
 
-已发布 Google 登录、会话、退出和 MCP 凭据管理。它不代表 PRD 中的投稿、真人投票、审核或云端 agent 已实现；MCP 内容工具也仍待后续模块实现。
+已发布 Google 登录、会话、退出、MCP 凭据管理，以及本人任务草稿的创建、读取和整体替换。草稿仍属作者私有；送审、公开投稿、真人投票、审核、云端 agent 和 MCP 内容工具仍待后续模块实现。
 
 ### 实际拓扑
 
@@ -54,6 +54,8 @@
 6. 成功记录到 `/opt/human-worth/state.json` 与 journal。应用 `/api/health` 返回当前 revision，公网验收以该值为准。
 
 本机通常在 CI 成功后 1～3 分钟部署。机器关机或离线时不部署，重新联网后继续调和最新 dev；ECS 入口此时可能返回 502。进程重启可能产生短暂连接中断，当前不承诺零停机。main 合并不触发本机版本切换。
+
+本机网络环境下，旧 IP 控制器通过 `/etc/systemd/system/human-worth-deploy.service.d/network.conf` 的 `EnvironmentFile=-/home/oops/.config/human-worth/deploy.env` 复用 Go 控制器已有的私有代理设置。2026-09-21 检查发现未配置代理时拉取 GitHub 偶发超过 90 秒；相同受限用户及 `ProtectHome` 下复用该配置，`git ls-remote` 验证退出 0。私有代理值不写入仓库，CI 门槛与服务权限保持原规则。
 
 ### 文件与权限
 
@@ -127,12 +129,12 @@ HTTPS 已于 2026-09-19 建立；[worth.oopsbox.cn.conf](../ops/nginx/worth.oops
 | 节点 | kind 0.33.0、Kubernetes 1.36.4；1 控制平面 + 3 工作节点 |
 | 资源 | 每节点容器 1 CPU / 2GiB，共 4 CPU / 8GiB；kubelet 同步限制可分配量 |
 | 网络/数据库管理 | Calico 3.32.2、CloudNativePG 1.30.0；镜像和下载清单均固定摘要 |
-| 应用 | gateway × 2、identity × 2，按主机名分散；维护命令为一次性 Job |
+| 应用 | gateway × 2、identity × 2、content × 2，按主机名分散；维护命令为一次性 Job |
 | 数据库 | PostgreSQL 18.4 × 3，每节点独立 2GiB PVC；同步确认一份备库，启用 failover quorum；smart shutdown 20 秒、总停机窗口 90 秒 |
-| 数据权限 | `identity_owner` 仅拥有本模块 schema；`identity_runtime` 受限 DML；`identity_operator` 只能更新账号状态/角色/版本并追加审计 |
+| 数据权限 | Identity、Content 各自的 owner 仅拥有本模块 schema，runtime 受限 DML；`identity_operator` 只能更新账号状态/角色/版本并追加审计 |
 | Google 出口 | Squid × 1，只允许 CONNECT 到 Google token/JWKS 的两个域名；不缓存、不记访问 URL；不是高可用出口 |
 | 入口 | Kubernetes API `127.0.0.1:16443`；gateway TLS `127.0.0.1:18443`；端口不直接暴露公网，域名经专用隧道访问 gateway |
-| 尚未部署 | 其他六个业务模块、worker、对象存储、Prometheus/Grafana/Tempo、pprof |
+| 尚未部署 | 其他五个业务模块、worker、对象存储、Prometheus/Grafana/Tempo、pprof |
 
 ### 安装和检查
 
@@ -216,7 +218,7 @@ Nginx 已启用经 CA 验证的私有 HTTPS 上游，其他站点配置摘要保
 <a id="module-deployment"></a>
 ### CI 后的统一模块部署（2026-09-21）
 
-人类要求“补 action 让通过 CI 之后自动部署”，并补充后续模块也要自动部署。以下是本轮技术实现，**尚未安装到公网控制器，不能仅因本地检查通过就标记线上启用**。
+人类要求“补 action 让通过 CI 之后自动部署”，并补充后续模块也要自动部署，随后明确要求合入 dev 生效。通用控制器已安装，**2026-09-21 首次发布已通过真实 GitHub Deploy 与公网接口验收**，记录见本节下方。
 
 1. `dev` 的 push `CI` 完整成功后，[Deploy workflow](../.github/workflows/deploy.yml) 通过 `workflow_run` 启动；PR、main、fork、失败或未完成的 CI 不进入部署检查。Deploy 与 CI 分开，避免本机等待 CI 完成而 CI 又等待部署。
 2. 本机既有 timer 每分钟拉取最新 dev，重复核对本仓库、分支、事件、不可变 SHA 与最新 CI 尝试。**实际发布继续由本机拉取控制器驱动**；Action 等待结果并使失败可见，不需要托管 runner 登录宿主机，也不新增云端密钥。
@@ -274,7 +276,19 @@ sudo systemctl enable --now human-worth-identity-deploy.timer
 | `python3 ops/verify_deployment.py 5b9de6c6f43299495c78d54aed1fa9a3a0b3cb0e --timeout=0` | 按预期退出 1：当前公网只有 Identity，不能把原健康接口的 200 当成模块全部上线 |
 | 公网 `/api/health`、临时资源清理 | 公网仍是原版本 `5b9de6c` 且健康；没有遗留验证命名空间 |
 
-初次网络探针发生一次数据库连接失败；原探针未记录具体错误，因此不把原因确定为 DNS 或策略故障。探针已补上错误诊断、最长 12 秒初始化等待，并要求 DNS 失败不能算网络拒绝，最终所有允许与拒绝路径通过。更早一次运行与编辑中的声明混用，之后将测试应用与声明复制为固定快照再运行。这些未完成运行不计为 PASS。**真实 GitHub Deploy 触发、已安装控制器升级和公网 Content 启用仍未执行。**
+初次网络探针发生一次数据库连接失败；原探针未记录具体错误，因此不把原因确定为 DNS 或策略故障。探针已补上错误诊断、最长 12 秒初始化等待，并要求 DNS 失败不能算网络拒绝，最终所有允许与拒绝路径通过。更早一次运行与编辑中的声明混用，之后将测试应用与声明复制为固定快照再运行。这些未完成运行不计为 PASS；上表是合并前的本地记录，公网发布记录如下。
+
+#### 首次公网发布记录（2026-09-21）
+
+[PR #21](https://github.com/KDZZZZZZ/human-worth/pull/21) 在 PR CI 通过后 squash 合入 dev，首次发布提交为 `cbca132e93e7a9d2e52ed1b128b2fba7f2785ef5`。该提交的 [push CI](https://github.com/KDZZZZZZ/human-worth/actions/runs/35566673284) 与自动触发的 [Deploy](https://github.com/KDZZZZZZ/human-worth/actions/runs/35566745552) 均成功。
+
+- 从该提交升级仓库外的控制器、基础设施模板与 systemd 单元，核对 12 个已安装文件与源码一致且由 root 持有；原控制器备份在 `/var/backups/human-worth/controller-20260921T055952Z`。定时器已恢复自动运行。
+- Content、Identity 迁移 Job 均成功；Identity、Content、gateway 各 2/2 就绪，PostgreSQL 三实例健康。控制器于北京时间 14:06:56 完成发布，日志保存在 `/tmp/human-worth-module-first-public-release.log`。
+- 公网 `/api/health` 同时返回上述 `revision`、`deploymentRevision`，以及 `deployedServices: [identity, content, gateway]`。`stage: identity` 是保留的历史字段，完整模块状态以完成标记为准。
+- 真实公网 HTTPS 使用两个临时合成账号验证：创建 201、同键重试找回同一草稿、本人读取 200、整体更新 200、新版本持久可读、旧版本冲突 409、跨账号读取/更新 404、无会话 401、缺少 CSRF 403、退出后会话失效。合成账号、凭据、草稿及其测试审计记录均已清理；未读取既有用户凭据或作品。
+- `python3 ops/verify_deployment.py <首次发布 SHA> --timeout=240` 与 `/tmp/human-worth-public-smoke <首次发布 SHA>` 均退出 0；原始输出为 `/tmp/human-worth-public-deployment-verification.log`、`/tmp/human-worth-public-content-smoke.log`，临时验收程序为 `/tmp/human-worth-public-smoke.go`。
+
+这次公网验收没有重复执行真人 Google 授权或数据库主备切换；前者沿用用户此前确认的结果，后者沿用 Identity lab 既有实验记录，不扩大本次证据范围。
 
 <details>
 <summary>首次安装与入口切换的操作参考</summary>

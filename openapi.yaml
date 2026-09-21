@@ -6,7 +6,7 @@ info:
   description: |
     行为依据为 docs/prd.md 中的可信场景 S1～S6、2026-09-18 人类修订 H1～H3，以及 AGENTS.md 的发帖、评论、投票目标。
     健康检查与 Identity 的登录、会话和 MCP 凭据管理已在 worth.oopsbox.cn 上线；真人 Google 登录已由用户确认，部署状态见 x-deployment-status。
-    Content 的三个本人草稿操作已有本地实现，尚未公开部署；仅支持文本与外链作品草稿，文件材料仍待 Asset 接入。
+    Content 的三个本人草稿操作已在 worth.oopsbox.cn 上线；仅支持文本与外链作品草稿，文件材料仍待 Asset 接入。
     其他业务 operation 仍为 planned；implemented 不等于已部署，具体运行状态见 docs/deployment.md。
     路径、字段、状态枚举、认证载体和分页等具体选择属于 Agent Self-Claimed，详见 docs/references.md。
 
@@ -397,6 +397,7 @@ paths:
           schema: {type: string, pattern: '^[A-Za-z0-9_-]{16,128}$', minLength: 16, maxLength: 128}
       x-scenarios: [S2]
       x-implementation-status: implemented
+      x-deployment-status: published
       requestBody:
         required: true
         content:
@@ -502,6 +503,7 @@ paths:
       description: 首阶段仅存在作者私有 draft；MCP、其他账号（含管理员）均不能读取。
       x-scenarios: [S2]
       x-implementation-status: implemented
+      x-deployment-status: published
       security: [{WebSession: []}]
       responses:
         '200':
@@ -522,6 +524,7 @@ paths:
         与创建共用文件拒绝、内容/作品数量上限，写入成功不公开、不送审。
       x-scenarios: [S2]
       x-implementation-status: implemented
+      x-deployment-status: published
       requestBody:
         required: true
         content:
