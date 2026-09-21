@@ -97,7 +97,9 @@ HTTPS 已于 2026-09-19 建立；[worth.oopsbox.cn.conf](../ops/nginx/worth.oops
 
 2026-09-17，用户明确要求生成 Swagger 文档并部署。该授权用于独立静态文档发布，不自动授权创建 PR，也不改变应用从受保护 dev 和成功 CI 部署的规则。源码集成仍须遵循明确的人类 PR 命令、分支保护与 CI 门槛。
 
-源文件为根目录 [openapi.yaml](../openapi.yaml) 和 [docs/swagger](swagger)。`npm ci --ignore-scripts && npm run build:docs` 生成 `dist/docs/`，包含固定版本 Swagger UI、许可证及逐文件 SHA-256 清单。浏览器只请求同源资源，关闭在线校验器和 Try it out，不执行 API 请求。线上 0.5.0-draft 共 44 个操作：健康检查 2 个、Identity 7 个已上线，其余 35 个为 planned。Identity 标记 `published`。
+源文件为根目录 [openapi.yaml](../openapi.yaml) 和 [docs/swagger](swagger)。`npm ci --ignore-scripts && npm run build:docs` 生成 `dist/docs/`，包含固定版本 Swagger UI、许可证及逐文件 SHA-256 清单。浏览器只请求同源资源，关闭在线校验器和 Try it out，不执行 API 请求。当前契约 0.6.0-draft 共 44 个操作：健康检查 2 个、Identity 7 个、Content 本人草稿 3 个已有实现，其余 32 个为 planned；Identity 与 Content 标记 `published`。页头解释状态标记，不另外维护一份模块名称列表。
+
+Swagger 位于 ECS 的独立静态目录，当前模块自动部署不会更新它。OpenAPI 或 Swagger 页面变更合入后，还需执行下述静态发布流程，并确认公网 YAML 和构建清单的摘要一致；仓库已更新不能作为公网 Swagger 已更新的证据。
 
 已配置 HTTPS 域名和用户提供的 Google Web 凭据，固定回调为 `https://worth.oopsbox.cn/api/auth/google/callback`。当前本地 HTTP 前端代理也尚未实现登录联调所需的回调与会话配置，具体要求见[后端身份设计](backend-identity.md)。
 
