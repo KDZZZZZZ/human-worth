@@ -1381,6 +1381,11 @@ components:
         service: {type: string, const: human-worth}
         stage: {type: string, enum: [foundation, identity]}
         revision: {type: string, description: 发布版本为 Git SHA；实验镜像为 local-源码摘要，开发可为 development}
+        deploymentRevision: {type: string, pattern: '^[a-f0-9]{40}$', description: 可选；部署控制器在全部登记模块滚动和检查通过后写入的完成版本，可能暂时落后于当前 gateway revision}
+        deployedServices:
+          type: array
+          items: {type: string}
+          description: 可选；deploymentRevision 对应的已完成部署模块清单，不表示其他业务模块已实现
     Problem:
       type: object
       required: [type, title, status, code, detail]

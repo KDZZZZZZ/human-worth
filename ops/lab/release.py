@@ -16,8 +16,10 @@ import time
 
 sys.path.insert(0,str(Path(__file__).resolve().parent.parent))
 from deploy import REPO, ci_passed, command, extract_release, fetch_revision, read_json
+from deployment_health import healthy
 import app
 from infra import STATE, kube
+from services import NAMES, load_services
 
 BASE=Path.home()/'.local/share/human-worth-identity'
 
@@ -30,33 +32,38 @@ def require_approved(sha):
     if not ci_passed(runs.get('workflow_runs',[]),sha):raise RuntimeError('Waiting for successful matching dev push CI')
 
 
-def health(revision):
-    try:
-        data=command(['curl','--fail','--silent','--show-error','--noproxy','*','--max-time','5','--cacert',str(STATE/'ca.crt'),'--connect-to','worth.oopsbox.cn:443:127.0.0.1:18443','https://worth.oopsbox.cn/api/health'],text=True)
-        result=json.loads(data)
-        return result.get('revision')==revision and result.get('status')=='ok' and result.get('stage')=='identity'
-    except (subprocess.SubprocessError,ValueError):return False
+def health(revision, checks=(), services=()):
+    return healthy(revision, checks, ['--cacert',str(STATE/'ca.crt'),'--connect-to','worth.oopsbox.cn:443:127.0.0.1:18443'], services)
 
 
-def wait_health(revision,timeout=45):
+def wait_health(revision,timeout=45,checks=(),services=()):
     # Pod readiness can precede headless DNS/gRPC and NodePort convergence.
     deadline=time.monotonic()+timeout
     while True:
-        if health(revision):return True
+        if health(revision,checks,services):return True
         if time.monotonic()>=deadline:return False
         time.sleep(1)
 
 
 def snapshot():
-    items=json.loads(kube('-n','human-worth','get','deployments','identity','gateway','--ignore-not-found','-o','json',capture=True).stdout)['items']
-    return [{'apiVersion':'apps/v1','kind':'Deployment','metadata':{'name':p['metadata']['name'],'namespace':'human-worth'},'spec':p['spec']} for p in items]
+    items=json.loads(kube('-n','human-worth','get','deployments,networkpolicies,configmaps','-o','json',capture=True).stdout)['items']
+    return [{'apiVersion':p['apiVersion'],'kind':p['kind'],'metadata':{'name':p['metadata']['name'],'namespace':'human-worth','generation':p['metadata'].get('generation')},**({'data':p.get('data',{})} if p['kind']=='ConfigMap' else {'spec':p['spec']}),'status':p.get('status',{})} for p in items if (p['kind']=='ConfigMap' and p['metadata']['name']=='release-status') or (p['kind']!='ConfigMap' and p['metadata']['name'] in NAMES)]
+
+
+def publish_status(sha, services):
+    marker={'apiVersion':'v1','kind':'ConfigMap','metadata':{'name':'release-status','namespace':'human-worth'},
+            'data':{'status.json':json.dumps({'revision':sha,'services':list(services)})}}
+    kube('apply','--server-side','--field-manager=human-worth-release','-f','-',input=json.dumps(marker))
 
 
 def restore(deployments,previous_build):
     # Restore former pod templates and Secret references; do not undo SQL migrations.
     for deployment in deployments:
-        kube('-n','human-worth','patch','deployment',deployment['metadata']['name'],'--field-manager=human-worth-release','--type=json','-p',json.dumps([{'op':'replace','path':'/spec','value':deployment['spec']}]))
-        kube('-n','human-worth','rollout','status','deployment/'+deployment['metadata']['name'],'--timeout=180s')
+        field='data' if deployment.get('kind')=='ConfigMap' else 'spec'
+        kube('-n','human-worth','patch',deployment.get('kind','Deployment').lower(),deployment['metadata']['name'],'--field-manager=human-worth-release','--type=json','-p',json.dumps([{'op':'replace','path':'/'+field,'value':deployment[field]}]))
+    for deployment in deployments:
+        if deployment.get('kind','Deployment')=='Deployment':
+            kube('-n','human-worth','rollout','status','deployment/'+deployment['metadata']['name'],'--timeout=180s')
     if previous_build is not None:(STATE/'build.json').write_text(previous_build)
 
 
@@ -74,35 +81,53 @@ def reconcile(check_only=False):
         staging.rename(release)
     if not (release/'backend/cmd/identity/main.go').is_file():
         raise RuntimeError('Approved dev revision does not contain Identity yet; no activation')
+    services=load_services(release)
+    checks=[check for spec in services.values() for check in spec['checks']]
     if check_only:
-        print('Eligible immutable Identity release: '+sha);return
+        print('Eligible immutable application release: '+sha+' ('+', '.join(services)+')');return
     state_path=BASE/'state.json'
     state=json.loads(state_path.read_text()) if state_path.exists() else {}
     if state.get('failed_sha')==sha and time.time()<state.get('retry_after',0):return
-    certs_current=all(subprocess.run(['openssl','x509','-noout','-checkend','86400','-in',str(STATE/(service+'.crt'))],capture_output=True).returncode==0 for service in ['identity','gateway'])
-    if state.get('deployed_sha')==sha and certs_current and health(sha):
+    certs_current=all(subprocess.run(['openssl','x509','-noout','-checkend','86400','-in',str(STATE/(service+'.crt'))],capture_output=True).returncode==0 for service in services)
+    current=snapshot()
+    deployments={p['metadata']['name']:p for p in current if p['kind']=='Deployment'}
+    if deployments.keys()-services.keys():raise RuntimeError('Module removal needs an explicit retirement operation')
+    ready=all(name in deployments
+              and deployments[name]['spec']['template']['spec']['containers'][0]['image']=='human-worth/'+name+':'+sha
+              and deployments[name]['status'].get('observedGeneration')==deployments[name]['metadata'].get('generation')
+              and deployments[name]['status'].get('availableReplicas',0)==deployments[name]['spec']['replicas']
+              and deployments[name]['status'].get('updatedReplicas',0)==deployments[name]['spec']['replicas']
+              and deployments[name]['spec']['replicas']>=2 for name in services)
+    if state.get('deployed_sha')==sha and certs_current and ready and health(sha,checks,services):
         print('Already deployed '+sha);return
-    previous=snapshot()
+    previous=current
     previous_build=(STATE/'build.json').read_text() if (STATE/'build.json').exists() else None
     app.REPO=release
     try:
         app.main(revision=sha,before_activation=lambda:require_approved(sha))
-        if not wait_health(sha):raise RuntimeError('Activated Identity health revision mismatch')
+        if not wait_health(sha,checks=checks):raise RuntimeError('Activated module health or revision mismatch')
+        require_approved(sha)
+        publish_status(sha,services)
+        if not wait_health(sha,timeout=180,checks=checks,services=services):raise RuntimeError('Deployment completion marker did not reach the gateway')
     except Exception:
+        # A first activation of a new module must not leave its failed workload running.
+        current_names={p['metadata']['name'] for p in snapshot() if p['kind']=='Deployment'}
+        for name in current_names-deployments.keys():
+            kube('-n','human-worth','scale','deployment/'+name,'--replicas=0',capture=True)
+        if not any(p['kind']=='ConfigMap' for p in previous):
+            kube('-n','human-worth','delete','configmap','release-status','--ignore-not-found',capture=True)
         if previous:
             restore(previous,previous_build)
-            old_revision=previous[0]['spec']['template']['spec']['containers'][0]['image'].rsplit(':',1)[1]
-            if not wait_health(old_revision):raise RuntimeError('Release failed and previous revision is not healthy') from None
-        else:
-            # No previously healthy deployment: keep a partial first release out of service.
-            kube('-n','human-worth','scale','deployment/identity','deployment/gateway','--replicas=0',capture=True)
+            if 'gateway' in deployments:
+                old_revision=deployments['gateway']['spec']['template']['spec']['containers'][0]['image'].rsplit(':',1)[1]
+                if not wait_health(old_revision):raise RuntimeError('Release failed and previous revision is not healthy') from None
         state.update(failed_sha=sha,retry_after=time.time()+180)
         state_path.write_text(json.dumps(state,indent=2)+'\n')
-        raise RuntimeError('Identity release failed; former application templates restored, database migrations retained') from None
-    state.update(deployed_sha=sha,failed_sha=None,retry_after=0,deployed_at=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()))
+        raise RuntimeError('Application release failed; former application templates restored, database migrations retained') from None
+    state.update(deployed_sha=sha,services=list(services),failed_sha=None,retry_after=0,deployed_at=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()))
     tmp=state_path.with_suffix('.tmp');tmp.write_text(json.dumps(state,indent=2)+'\n');tmp.replace(state_path)
     (STATE/'release-revision').write_text(sha+'\n')
-    print('Deployed Identity '+sha+'; HTTPS health passed',flush=True)
+    print('Deployed '+', '.join(services)+' at '+sha+'; HTTPS health passed',flush=True)
 
 
 if __name__=='__main__':

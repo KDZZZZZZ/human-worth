@@ -45,7 +45,7 @@ class IdentityReleaseTest(unittest.TestCase):
 
     def test_old_foundation_or_check_only_cannot_activate(self):
         sha='a'*40
-        with tempfile.TemporaryDirectory() as tmp,patch.object(release,'BASE',Path(tmp)),patch.object(release,'fetch_revision',return_value=sha),patch.object(release,'require_approved'),patch.object(release.app,'main') as activate:
+        with tempfile.TemporaryDirectory() as tmp,patch.object(release,'BASE',Path(tmp)),patch.object(release,'fetch_revision',return_value=sha),patch.object(release,'require_approved'),patch.object(release,'load_services',return_value={'identity':{'checks':[]},'gateway':{'checks':[]}}),patch.object(release.app,'main') as activate:
             path=Path(tmp)/'releases'/sha
             path.mkdir(parents=True)
             with self.assertRaisesRegex(RuntimeError,'does not contain Identity'):release.reconcile()
@@ -56,15 +56,17 @@ class IdentityReleaseTest(unittest.TestCase):
 
     def test_failed_activation_restores_the_previous_application(self):
         sha='a'*40
-        previous=[{'metadata':{'name':name},'spec':{'template':{'spec':{'containers':[{'image':'human-worth/'+name+':previous'}]}}}} for name in ['identity','gateway']]
+        previous=[{'kind':'Deployment','metadata':{'name':name},'spec':{'template':{'spec':{'containers':[{'image':'human-worth/'+name+':previous'}]}}}} for name in ['identity','gateway']]
         with tempfile.TemporaryDirectory() as tmp:
             base=Path(tmp);state=base/'private';state.mkdir();(state/'build.json').write_text('{"previous":true}')
             path=base/'releases'/sha/'backend/cmd/identity';path.mkdir(parents=True);(path/'main.go').write_text('package main')
-            with patch.object(release,'BASE',base),patch.object(release,'STATE',state),patch.object(release,'fetch_revision',return_value=sha),patch.object(release,'require_approved'),patch.object(release.subprocess,'run',return_value=subprocess.CompletedProcess([],0)),patch.object(release,'snapshot',return_value=previous),patch.object(release,'restore') as restore,patch.object(release,'health',return_value=True),patch.object(release.app,'REPO',base),patch.object(release.app,'main',side_effect=RuntimeError('unhealthy')):
+            added={'kind':'Deployment','metadata':{'name':'content'}}
+            with patch.object(release,'BASE',base),patch.object(release,'STATE',state),patch.object(release,'fetch_revision',return_value=sha),patch.object(release,'require_approved'),patch.object(release,'load_services',return_value={'identity':{'checks':[]},'content':{'checks':[]},'gateway':{'checks':[]}}),patch.object(release.subprocess,'run',return_value=subprocess.CompletedProcess([],0)),patch.object(release,'snapshot',side_effect=[previous,previous+[added]]),patch.object(release,'kube') as kube,patch.object(release,'restore') as restore,patch.object(release,'health',return_value=True),patch.object(release.app,'REPO',base),patch.object(release.app,'main',side_effect=RuntimeError('unhealthy')):
                 with self.assertRaisesRegex(RuntimeError,'restored'):release.reconcile()
                 restore.assert_called_once_with(previous,'{"previous":true}')
                 self.assertFalse((state/'release-revision').exists())
                 self.assertEqual(json.loads((base/'state.json').read_text())['failed_sha'],sha)
+                self.assertTrue(any(call.args==('-n','human-worth','scale','deployment/content','--replicas=0') for call in kube.call_args_list))
 
     def test_public_lab_refuses_unapproved_working_tree_activation(self):
         with tempfile.TemporaryDirectory() as tmp,patch.object(release.app,'STATE',Path(tmp)),patch.object(release.app,'database_secrets') as secrets:

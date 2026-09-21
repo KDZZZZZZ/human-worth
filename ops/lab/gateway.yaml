@@ -44,6 +44,8 @@ spec:
           env:
             - {name: PUBLIC_ORIGIN, value: "https://worth.oopsbox.cn"}
             - {name: IDENTITY_TARGET, value: "dns:///identity.human-worth.svc.cluster.local:8443"}
+            - {name: CONTENT_TARGET, value: "dns:///content.human-worth.svc.cluster.local:8443"}
+            - {name: DEPLOYMENT_STATUS_FILE, value: /deployment/status.json}
             - {name: SERVICE_CERT_FILE, value: /tls/tls.crt}
             - {name: SERVICE_KEY_FILE, value: /tls/tls.key}
             - {name: SERVICE_CA_FILE, value: /tls/ca.crt}
@@ -55,8 +57,14 @@ spec:
           startupProbe: {httpGet: {path: /livez, port: health}, periodSeconds: 2, failureThreshold: 30}
           livenessProbe: {httpGet: {path: /livez, port: health}, periodSeconds: 10}
           readinessProbe: {httpGet: {path: /readyz, port: health}, periodSeconds: 3, timeoutSeconds: 3, failureThreshold: 2}
-          volumeMounts: [{name: tls, mountPath: /tls, readOnly: true}]
-      volumes: [{name: tls, secret: {secretName: gateway-tls, defaultMode: 0440}}]
+          volumeMounts:
+            - {name: tls, mountPath: /tls, readOnly: true}
+            - {name: deployment-status, mountPath: /deployment, readOnly: true}
+      # A directory mount receives updates after the controller finishes all modules.
+      # optional supports the first release, before the completion marker exists.
+      volumes:
+        - {name: tls, secret: {secretName: gateway-tls, defaultMode: 0440}}
+        - {name: deployment-status, configMap: {name: release-status, optional: true}}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -76,4 +84,6 @@ spec:
     - ports: [{protocol: TCP, port: 8080}]
   egress:
     - to: [{podSelector: {matchLabels: {app: identity}}}]
+      ports: [{protocol: TCP, port: 8443}]
+    - to: [{podSelector: {matchLabels: {app: content}}}]
       ports: [{protocol: TCP, port: 8443}]
