@@ -4,7 +4,10 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/KDZZZZZZ/human-worth/backend/internal/identity"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/adapter/security"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/application"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/application/dto"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/repo/postgres"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/platform"
 	"log/slog"
 	"os"
@@ -35,9 +38,9 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
-	service := &identity.Server{DB: db}
-	if err = service.ChangeAccount(ctx, actor, *account, *role, *state, *version); err != nil {
-		slog.Error("account change rejected", "reason", err.Error())
+	service := application.NewAdmin(postgres.New(db), security.RandomToken)
+	if err = service.ChangeAccount(ctx, actor, dto.ChangeAccountInput{AccountID: *account, Role: *role, State: *state, ExpectedVersion: *version}); err != nil {
+		slog.Error("account change rejected", "reason", application.Failure(err).Reason)
 		os.Exit(1)
 	}
 	slog.Info("account changed", "account_id", *account, "auth_version", *version+1)

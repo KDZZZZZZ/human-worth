@@ -2,6 +2,12 @@
 
 当前实现 `gateway`、`IdentityService`、`ContentService` 首批作者私有草稿接口和受限账号运维命令。设计见 [Identity](../docs/backend-identity.md)，集群运行命令见[部署文档](../docs/deployment.md#identity-lab)。Content 接口与使用见 [Content 草稿设计](../docs/backend-content.md)，三个本人草稿操作已于 2026-09-21 在公网启用；本人分页列表已本地实现，尚未发布；其余五个业务模块尚未实现。
 
+## Identity 内部分层
+
+`cmd/identity` 手工装配 `transport/grpc → application → domain`；`repo/postgres` 实现应用层仓储与事务端口，`adapter/google`、`adapter/security` 实现外部协议与加密。应用输入输出放在 `application/dto`，不引用 Proto；domain 只依赖标准库。完整目录和调用链见 [Identity 分层](../docs/backend-identity.md#layered-architecture)。
+
+数据库事务由用例通过 `WithinTx` 定义，账号、流程、凭据和审计仓储共享一条事务连接。Google 换码在事务外执行；`identity-admin` 单独装配受限账号用例。迁移 SQL 位于 [repo/postgres/migrations](internal/identity/repo/postgres/migrations)，内容和校验和保持不变。根 `internal/identity` 仅保留集成和架构检查，现有 lab 测试入口不变。
+
 ## 开发与检查
 
 使用 Go **1.27.1**、Buf **1.72.0**。依赖固定在 `go.mod/go.sum`；Buf 配置通过固定版本的本地 Go 插件生成代码，不需要另装 protoc。

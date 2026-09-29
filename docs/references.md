@@ -18,6 +18,20 @@
 
 与明确的人类要求冲突时遵从人类要求；既有授权内能用成熟惯例解决的选择直接推进。仅在成熟参考仍无法消除实质歧义，或会产生未授权的不可逆影响、显著费用时，提出一个具体问题，同时继续独立工作。
 
+<a id="identity-layering"></a>
+## Identity 模块内分层架构（2026-09-29）
+
+人类要求为 Identity 设计包含 DTO、repo、domain 等职责的分布式后端架构。待解决的缺口是当前 RPC、业务规则、事务 SQL 与身份协议库耦合，如何拆分后继续保持稳定账号、一次性登录、撤销复核与审计原子性。交付见 [Identity 第 10 节](backend-identity.md#layered-architecture)，本轮只交付设计；具体包结构、端口与迁移顺序均为 **Agent Self-Claimed**。
+
+| 一手参考 / 版本 | 采用与本项目推导 | 不照搬的部分与验收判据 |
+| --- | --- | --- |
+| [Microsoft：DDD-oriented microservice](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/ddd-oriented-microservice)，页面标注更新于 2022-04-13，2026-09-29 核实 | 领域保存业务行为，应用层组织用例，持久化留在外层；代码层与部署服务分开 | 只采用分层原则，使用 Go 包和消费方端口；不引入 .NET、EF、Mediator 或独立 CQRS 系统。以真实 import 方向和可独立测试的领域规则验收 |
+| [Go Code Review Comments：Interfaces](https://go.dev/wiki/CodeReviewComments#interfaces)，在线文档，2026-09-29 核实 | 仓储与外部能力接口定义在实际消费它们的 application；具体实现返回具体类型 | 仅为现有用例定义方法，不按每张表制造通用 CRUD 接口。应用层不 import 具体 pgx/Google/JWT 实现，domain 不依赖仓储 |
+| [pgx v5：BeginFunc / BeginTxFunc](https://pkg.go.dev/github.com/jackc/pgx/v5#BeginFunc)，在线 API 文档，2026-09-29 核实；项目版本固定于 [go.mod](../backend/go.mod) | 模块内事务端口复用已有驱动能力；回调仓储绑定同一个事务，显式传播 context | 文档说明 context 作用于事务控制语句，业务 SQL 仍需传递请求 context；提交失败不能返回成功，需保留有界清理。以真实数据库的回滚、取消和提交不确定路径验收，不升级依赖 |
+| [PostgreSQL 18：Explicit Locking](https://www.postgresql.org/docs/18/explicit-locking.html)，2026-09-29 核实 | 维持一致锁序、事务级 advisory lock、行锁和唯一约束；应用层决定事务范围，repo 执行具体锁 | 不用内存锁承担跨副本独占，也不把外部 Google 等待放入数据库事务。通过重复回调、并发首次登录、撤销竞争及迟到结果验证 |
+
+本地实现核对基线为 `d225da0739a3e9dcbf9fa36b1aa94a7afc52aafc`：读取 Identity 九个 RPC、ChangeAccount/Cleanup、SQL 约束、cmd 装配，以及现有集成测试与 CI/lab 入口。分层方案沿用现有密钥/凭据格式、同事务审计、Identity 主库读取和独立运维权限。以上来源支持设计选择；本次实现及真实数据库、临时双副本验收证据另见 [Identity 第 10 节](backend-identity.md#layered-architecture)，不以外部参考代替运行验收。
+
 <a id="openapi-contract"></a>
 ## OpenAPI 接口契约草案
 

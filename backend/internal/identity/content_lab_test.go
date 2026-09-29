@@ -50,7 +50,7 @@ func TestKindContentDeployment(t *testing.T) {
 		t.Fatal(err)
 	}
 	account, credential, session, csrf := newID("acct"), newID("cred"), randomToken(), randomToken()
-	cipher, err := ring.seal(csrf, credential+":csrf")
+	cipher, err := ring.Seal(csrf, credential+":csrf")
 	if err != nil {
 		t.Fatal(err)
 	}

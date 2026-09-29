@@ -9,6 +9,11 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/adapter/google"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/application"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/application/dto"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/repo/postgres"
+	identitygrpc "github.com/KDZZZZZZ/human-worth/backend/internal/identity/transport/grpc"
 	"io"
 	"net/http"
 	"net/url"
@@ -171,14 +176,14 @@ func TestIdentityHTTPAndCredentials(t *testing.T) {
 	}
 
 	t.Run("role changes and disable invalidate existing credentials", func(t *testing.T) {
-		admin := &Server{DB: l.db}
-		must(t, admin.ChangeAccount(t.Context(), "test-operator", me.Account.Id, "admin", "active", 1))
+		admin := application.NewAdmin(postgres.New(l.db), randomToken)
+		must(t, identitygrpc.Error(admin.ChangeAccount(t.Context(), "test-operator", dto.ChangeAccountInput{AccountID: me.Account.Id, Role: "admin", State: "active", ExpectedVersion: 1})))
 		httpStatus(t, l.request(t, 1, "GET", "/api/me", []*http.Cookie{renewed}, "", nil), 401)
 		newSession, newMe := l.login(t, "person-one", nil)
 		if newMe.Role != pb.Role_ROLE_ADMIN {
 			t.Fatal("role not loaded from authoritative account")
 		}
-		must(t, admin.ChangeAccount(t.Context(), "test-operator", me.Account.Id, "user", "disabled", 2))
+		must(t, identitygrpc.Error(admin.ChangeAccount(t.Context(), "test-operator", dto.ChangeAccountInput{AccountID: me.Account.Id, Role: "user", State: "disabled", ExpectedVersion: 2})))
 		httpStatus(t, l.request(t, 0, "GET", "/api/me", []*http.Cookie{newSession}, "", nil), 401)
 		flow, err := l.clients[0].StartGoogleLogin(t.Context(), &pb.StartGoogleLoginRequest{})
 		must(t, err)
@@ -186,13 +191,13 @@ func TestIdentityHTTPAndCredentials(t *testing.T) {
 		code := l.provider.issue(t, flow.AuthorizationUrl, "person-one", nil)
 		_, err = l.clients[1].CompleteGoogleLogin(t.Context(), &pb.CompleteGoogleLoginRequest{FlowCookie: flow.FlowCookie, State: u.Query().Get("state"), Outcome: &pb.CompleteGoogleLoginRequest_Code{Code: code}})
 		grpcCode(t, err, codes.PermissionDenied)
-		must(t, admin.ChangeAccount(t.Context(), "test-operator", me.Account.Id, "user", "active", 3))
+		must(t, identitygrpc.Error(admin.ChangeAccount(t.Context(), "test-operator", dto.ChangeAccountInput{AccountID: me.Account.Id, Role: "user", State: "active", ExpectedVersion: 3})))
 		httpStatus(t, l.request(t, 0, "GET", "/api/me", []*http.Cookie{newSession}, "", nil), 401)
 		_, restored := l.login(t, "person-one", nil)
 		if restored.Account.Id != me.Account.Id {
 			t.Fatal("re-enable replaced account")
 		}
-		grpcCode(t, admin.ChangeAccount(t.Context(), "test-operator", me.Account.Id, "admin", "active", 3), codes.Aborted)
+		grpcCode(t, identitygrpc.Error(admin.ChangeAccount(t.Context(), "test-operator", dto.ChangeAccountInput{AccountID: me.Account.Id, Role: "admin", State: "active", ExpectedVersion: 3})), codes.Aborted)
 	})
 
 	t.Run("runtime database role cannot cross boundaries", func(t *testing.T) {
@@ -203,6 +208,7 @@ func TestIdentityHTTPAndCredentials(t *testing.T) {
 		}
 	})
 }
+
 func grpcCode(t *testing.T, err error, want codes.Code) {
 	t.Helper()
 	if status.Code(err) != want {
@@ -353,7 +359,7 @@ func TestOAuthConcurrencyAndRejection(t *testing.T) {
 		if before != l.provider.exchanges.Load() {
 			t.Fatal("invalid flow reached token exchange")
 		}
-		must(t, l.servers[0].Cleanup(t.Context()))
+		must(t, l.services[0].Cleanup(t.Context()))
 		var cleared bool
 		must(t, l.db.QueryRow(t.Context(), `SELECT status='expired' AND verifier_cipher IS NULL FROM identity.login_flows WHERE cookie_hash=$1`, digest(flow.FlowCookie)).Scan(&cleared))
 		if !cleared {
@@ -444,11 +450,11 @@ func TestServiceIdentityAssertionsAndOutages(t *testing.T) {
 	unknown := l.client(t, 0, "attacker", l.pki)
 	_, err = unknown.StartGoogleLogin(t.Context(), &pb.StartGoogleLoginRequest{})
 	grpcCode(t, err, codes.Unauthenticated)
-	var claims actorClaims
-	_, _, err = jwt.NewParser().ParseUnverified(actor.ActorAssertion, &claims)
+	claims := jwt.MapClaims{}
+	_, _, err = jwt.NewParser().ParseUnverified(actor.ActorAssertion, claims)
 	must(t, err)
-	claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(-time.Second))
-	key, err := l.servers[0].Config.Signing.key("key1")
+	claims["exp"] = time.Now().Add(-time.Second).Unix()
+	key, err := base64.StdEncoding.DecodeString(l.configs[0].Signing.Keys["key1"])
 	must(t, err)
 	expired := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	expired.Header["kid"] = "key1"
@@ -458,27 +464,25 @@ func TestServiceIdentityAssertionsAndOutages(t *testing.T) {
 	grpcCode(t, err, codes.Unauthenticated)
 
 	t.Run("rolling key rotation accepts old key only during overlap", func(t *testing.T) {
-		cfg := l.servers[0].Config
+		cfg := l.configs[0]
 		oldKey := cfg.Signing.Keys["key1"]
 		cfg.Signing = KeyRing{Active: "key2", Keys: map[string]string{"key1": oldKey, "key2": base64.StdEncoding.EncodeToString([]byte(randomToken()[:32]))}}
-		rotated, err := NewServer(l.runtimeDB, cfg)
+		rotated := newTestService(t, l.runtimeDB, cfg)
+		row, err := rotated.VerifyActor(t.Context(), "content", dto.VerifyActorInput{ActorAssertion: actor.ActorAssertion, FullMethod: method})
 		must(t, err)
-		row, err := rotated.verify(t.Context(), actor.ActorAssertion, "content", method)
-		must(t, err)
-		if row.Principal.AccountId != me.Account.Id {
+		if row.Principal.AccountID != me.Account.Id {
 			t.Fatal("rotation changed principal")
 		}
 		delete(cfg.Signing.Keys, "key1")
-		_, err = rotated.verify(t.Context(), actor.ActorAssertion, "content", method)
-		grpcCode(t, err, codes.Unauthenticated)
+		_, err = rotated.VerifyActor(t.Context(), "content", dto.VerifyActorInput{ActorAssertion: actor.ActorAssertion, FullMethod: method})
+		grpcCode(t, identitygrpc.Error(err), codes.Unauthenticated)
 	})
 	t.Run("JWKS failure is unavailable", func(t *testing.T) {
 		p := l.provider.server.URL
-		fresh := newOAuth(t.Context(), "test-client", "test-secret", l.origin+"/api/auth/google/callback", "test-v1", p, p+"/auth", p+"/token", p+"/jwks")
-		cfg := l.servers[0].Config
+		fresh := google.NewWithEndpoints(t.Context(), "test-client", "test-secret", l.origin+"/api/auth/google/callback", "test-v1", p, p+"/auth", p+"/token", p+"/jwks")
+		cfg := l.configs[0]
 		cfg.OAuth = fresh
-		s, err := NewServer(l.runtimeDB, cfg)
-		must(t, err)
+		s := identitygrpc.NewServer(newTestService(t, l.runtimeDB, cfg))
 		f, err := s.StartGoogleLogin(t.Context(), &pb.StartGoogleLoginRequest{})
 		must(t, err)
 		u, _ := url.Parse(f.AuthorizationUrl)
@@ -497,7 +501,7 @@ func TestServiceIdentityAssertionsAndOutages(t *testing.T) {
 		_, err = l.db.Exec(t.Context(), `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=current_database() AND usename<>current_user`)
 		must(t, err)
 		httpStatus(t, l.request(t, 1, "GET", "/api/me", []*http.Cookie{session}, "", nil), 503)
-		if Ready(t.Context(), l.runtimeDB) == nil {
+		if postgres.Ready(t.Context(), l.runtimeDB) == nil {
 			t.Fatal("readiness remained healthy without database")
 		}
 	})

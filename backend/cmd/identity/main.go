@@ -5,7 +5,11 @@ import (
 	"errors"
 	"fmt"
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/identity/v1"
-	"github.com/KDZZZZZZ/human-worth/backend/internal/identity"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/adapter/google"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/adapter/security"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/application"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/repo/postgres"
+	identitygrpc "github.com/KDZZZZZZ/human-worth/backend/internal/identity/transport/grpc"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/platform"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -43,7 +47,7 @@ func run() error {
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
-		if identity.Migrate(ctx, db) != nil {
+		if postgres.Migrate(ctx, db) != nil {
 			return errors.New("migration failed; check database access and schema version")
 		}
 		return nil
@@ -52,15 +56,23 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	encryption, err := identity.LoadKeyRing(os.Getenv("IDENTITY_ENCRYPTION_KEYS_FILE"))
+	encryption, err := security.LoadKeyRing(os.Getenv("IDENTITY_ENCRYPTION_KEYS_FILE"))
 	if err != nil {
 		return err
 	}
-	signing, err := identity.LoadKeyRing(os.Getenv("IDENTITY_SIGNING_KEYS_FILE"))
+	signing, err := security.LoadKeyRing(os.Getenv("IDENTITY_SIGNING_KEYS_FILE"))
 	if err != nil {
 		return err
 	}
-	cfg := identity.Config{Origin: origin, Encryption: encryption, Signing: signing}
+	secrets, err := security.NewSecrets(encryption)
+	if err != nil {
+		return err
+	}
+	tokens, err := security.NewTokens(signing)
+	if err != nil {
+		return err
+	}
+	var provider application.GoogleIdentityProvider
 	if os.Getenv("GOOGLE_OAUTH_CLIENT_ID") != "" {
 		secret, err := platform.Secret("GOOGLE_OAUTH_CLIENT_SECRET_FILE")
 		if err != nil {
@@ -74,9 +86,14 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		cfg.OAuth = identity.NewGoogleOAuth(ctx, os.Getenv("GOOGLE_OAUTH_CLIENT_ID"), secret, callback, version)
+		oauth := google.New(ctx, os.Getenv("GOOGLE_OAUTH_CLIENT_ID"), secret, callback, version)
+		if err = oauth.Validate(); err != nil {
+			return err
+		}
+		provider = oauth
 	}
-	service, err := identity.NewServer(db, cfg)
+	store := postgres.New(db)
+	service, err := application.NewService(application.Config{Origin: origin}, application.Dependencies{Reader: store, Transactions: store, Maintenance: store, Secrets: secrets, Tokens: tokens, Google: provider, Targets: identitygrpc.Targets()})
 	if err != nil {
 		return err
 	}
@@ -95,12 +112,12 @@ func run() error {
 		shutdown(ctx)
 	}()
 	runtime.Registry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{Name: "human_worth_database_connections", Help: "Open connections in this replica's pool"}, func() float64 { return float64(db.Stat().TotalConns()) }))
-	server := grpc.NewServer(grpc.Creds(credentials.NewTLS(tlsConfig)), grpc.ChainUnaryInterceptor(runtime.Unary, identity.Authorization), grpc.StreamInterceptor(identity.AuthorizationStream), grpc.StatsHandler(otelgrpc.NewServerHandler()), grpc.MaxRecvMsgSize(65536), grpc.MaxSendMsgSize(131072), grpc.MaxConcurrentStreams(64))
-	pb.RegisterIdentityServiceServer(server, service)
+	server := grpc.NewServer(grpc.Creds(credentials.NewTLS(tlsConfig)), grpc.ChainUnaryInterceptor(runtime.Unary, identitygrpc.Authorization), grpc.StreamInterceptor(identitygrpc.AuthorizationStream), grpc.StatsHandler(otelgrpc.NewServerHandler()), grpc.MaxRecvMsgSize(65536), grpc.MaxSendMsgSize(131072), grpc.MaxConcurrentStreams(64))
+	pb.RegisterIdentityServiceServer(server, identitygrpc.NewServer(service))
 	healthServer := health.NewServer()
 	healthpb.RegisterHealthServer(server, healthServer)
 	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_NOT_SERVING)
-	probe := runtime.Health(platform.Value("HEALTH_LISTEN", ":8081"), func(ctx context.Context) error { return identity.Ready(ctx, db) })
+	probe := runtime.Health(platform.Value("HEALTH_LISTEN", ":8081"), func(ctx context.Context) error { return postgres.Ready(ctx, db) })
 	listener, err := net.Listen("tcp", platform.Value("GRPC_LISTEN", ":8443"))
 	if err != nil {
 		return errors.New("gRPC listener unavailable")
@@ -120,7 +137,7 @@ func run() error {
 			case <-ticker.C:
 				check, cancel := context.WithTimeout(ctx, 2*time.Second)
 				state := healthpb.HealthCheckResponse_SERVING
-				if identity.Ready(check, db) != nil {
+				if postgres.Ready(check, db) != nil {
 					state = healthpb.HealthCheckResponse_NOT_SERVING
 				}
 				cancel()
@@ -134,7 +151,7 @@ func run() error {
 			}
 		}
 	}()
-	runtime.Log.Info("started", "google_login_configured", cfg.OAuth != nil, "revision", platform.BuildVersion())
+	runtime.Log.Info("started", "google_login_configured", provider != nil, "revision", platform.BuildVersion())
 	select {
 	case <-ctx.Done():
 	case err = <-failures:

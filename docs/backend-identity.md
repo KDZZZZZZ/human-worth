@@ -2,15 +2,17 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.3 · 2026-09-19 · Identity 已发布，真人 Google 登录经用户确认 |
-| 人类要求 | 先设计再按顺序实现 Identity；Google 登录参考本机 sub2api，入口使用 worth.oopsbox.cn |
+| 版本 | v0.5 · 2026-09-29 · Identity 分层重构落地 |
+| 人类要求 | 先设计再按顺序实现 Identity；Google 登录参考本机 sub2api，入口使用 worth.oopsbox.cn；本次要求按包含 DTO、repo、domain 等职责的架构重构 Identity，并合回主工作区 |
 | 依据 | [PRD](prd.md) 的 S2～S5、[H3 Google 登录](prd.md#google-login)、[七服务架构](backend-architecture.md)、[OpenAPI](../openapi.yaml) |
 | 技术方案归属 | 本文的字段、期限、存储、RPC 补全与基座组织属于 Agent Self-Claimed |
-| 当前状态 | Go 实现、9 个 RPC、SQL 迁移和真实 PostgreSQL 测试已完成；公网经私有 TLS 隧道连接本机 kind lab 的双副本 gateway/Identity |
+| 当前状态 | Go 实现、9 个 RPC、SQL 迁移和真实 PostgreSQL 测试已完成；公网经私有 TLS 隧道连接本机 kind lab 的双副本 gateway/Identity；第 10 节分层已在本地实现；本次重构尚未发布到公网 |
 
 **Identity 回答三个问题：你是谁、你的凭据是否仍有效、你以什么身份调用哪个接口。** 是否能修改某件作品、投某个任务，仍由对应业务服务判断。
 
 阅读顺序：先看核心对象和功能流程；准备写代码时再看接口、[platform 清单](#platform)与验收。本文是身份模块设计依据，RPC 契约源为 [identity.proto](../backend/proto/humanworth/identity/v1/identity.proto)；其余服务设计见[架构划分](backend-architecture.md)，部署统一见[部署与实验计划](deployment.md)。
+
+模块内部的目标目录、DTO 转换、领域行为、仓储接口、事务边界与迁移顺序见[分层架构设计](#layered-architecture)。前九节描述业务契约及已有实现；第十节记录本次分层如何承接这些行为。
 
 ## 1. 边界：哪些归 Identity
 
@@ -267,7 +269,7 @@ Human Worth 实现时使用 `GOOGLE_OAUTH_CLIENT_ID`、`GOOGLE_OAUTH_CLIENT_SECR
 ## 9. 实现与验证入口
 
 - [Go 工程说明](../backend/README.md)：生成 Proto、检查与本地测试命令。
-- [登录与账号代码](../backend/internal/identity)、[HTTP 适配](../backend/internal/gateway)、[迁移 SQL](../backend/internal/identity/migrations/001_identity.sql)。
+- [登录与账号代码](../backend/internal/identity)、[HTTP 适配](../backend/internal/gateway)、[迁移 SQL](../backend/internal/identity/repo/postgres/migrations/001_identity.sql)。
 - [lab 安装与故障验证](deployment.md#identity-lab)：真实双副本、数据库、网络权限和运维 Job。
 
 实现固定网站会话 24 小时、MCP token 30 天、ActorAssertion 30 秒、登录流程 10 分钟。单 gateway 每分钟允许 60 次登录发起；两副本合计上限随副本数变化，不是全局或每用户配额。普通 RPC 总期限 2 秒，回调 15 秒，Google HTTP 10 秒；单进程最多 64 个在途业务请求。每 Identity 连接池最多 4 条连接，滚动期间 3 份合计最多 12 条。
@@ -277,3 +279,285 @@ Human Worth 实现时使用 `GOOGLE_OAUTH_CLIENT_ID`、`GOOGLE_OAUTH_CLIENT_SECR
 2026-09-19：`go vet ./...`、`go test -race -tags=integration ./... -count=1 -timeout=120s` 通过。测试使用隔离 PostgreSQL、两个真实 mTLS gRPC 服务器、两个 HTTPS gateway，以及测试专用 OIDC HTTP/JWKS 供应方；覆盖并发首次登录、回调占用/替换/迟到、签名与 nonce/PKCE、CSRF、撤销、权限版本、MCP 防重、受限迁移/运行账号、密钥重叠及数据库断连拒绝。生产程序没有切换到测试供应方的配置开关。
 
 用户提供的 Google 凭据已配置，接口已从受保护 dev 发布，用户于 2026-09-19 确认“登录成功，能看到账号”。当前入口固定为 `https://worth.oopsbox.cn`；本地 HTTP 开发代理可以读取公网 API，但不能声称支持该域名 Cookie 的本地登录。需要完整本地登录时再登记一套可信 HTTPS 回调与 Origin 配置。
+
+<a id="layered-architecture"></a>
+## 10. Identity 分层架构与实现（2026-09-29）
+
+### 10.1 目标、依据与交付边界
+
+**Human Design**：用户先要求设计包含 DTO、repo、domain 等职责的标准分布式后端架构，随后明确要求按该架构重构 Identity 并合回主工作区；既有 Go、分布式学习目标及产品不变量继续有效。
+
+**Agent Self-Claimed**：采用应用层编排、领域模型表达规则、仓储与外部适配器实现端口的分层方案。包名、接口位置、事务契约、迁移批次及验收方式均为本次技术选择。Go 没有强制的统一业务目录；这里给出本项目可落实、可检查的规范。
+
+基线为 `origin/dev` 的 `d225da0739a3e9dcbf9fa36b1aa94a7afc52aafc`。重构前 `Server` 同时依赖 Proto、pgx、JWT 与业务规则；本次已拆分其九个 RPC，以及运维 `ChangeAccount`、后台 `Cleanup`。实现目录与第 10.3 节一致，根包只保留验收测试，不再提供旧 Server 外观。重构保持 HTTP/Proto、数据库 schema、凭据格式、部署入口和既有权限语义兼容；新增业务另行设计。
+
+采用依据见[本次成熟参考](references.md#identity-layering)：借鉴 DDD 的业务与持久化分离、Go 的消费方接口惯例，以及 pgx/PostgreSQL 的本地事务和锁机制。框架无关的分层原则用于本项目；不引入 .NET、ORM、通用 CRUD 基类、依赖注入容器或消息总线。
+
+### 10.2 运行拓扑与代码依赖
+
+Identity 继续作为一个独立微服务部署两个副本。DTO、domain、repo 是进程内的代码职责，不单独部署，不通过网络互调。
+
+```mermaid
+flowchart LR
+    Gateway["gateway：HTTP / Cookie"] -->|"mTLS：登录与凭据 RPC"| Identity["Identity：两个副本"]
+    Business["Content 等业务服务"] -->|"mTLS：VerifyActor"| Identity
+    Identity -->|"身份主库读写"| DB[("PostgreSQL：identity schema")]
+    Identity -->|"HTTPS：换码 / JWKS"| Google["Google OIDC"]
+    Admin["identity-admin：受限运维 Job"] -->|"同一应用用例，独立数据库权限"| DB
+```
+
+下面的箭头表示 **Go import 依赖**，与运行时调用方向分开理解：
+
+```mermaid
+flowchart TD
+    Main["cmd/identity：装配"] --> Transport["transport/grpc"]
+    Main --> App["application"]
+    Main --> Repo["repo/postgres"]
+    Main --> Adapters["adapter/google / security"]
+    Transport --> App
+    Transport --> DTO["application/dto"]
+    Transport --> Proto["gen：Proto DTO"]
+    Repo -->|"实现仓储与事务端口"| App
+    Adapters -->|"实现外部能力端口"| App
+    App --> DTO
+    App --> Domain["domain"]
+    Repo --> Domain
+```
+
+`domain` 仅依赖标准库；`application` 依赖领域类型、自己的 DTO 和端口，不 import pgx、gRPC、生成代码或具体适配器。`repo/postgres` 在运行时被应用层调用，但通过应用层接口接入。`cmd` 手工调用构造函数装配依赖；运维入口只装配账号管理用例和所需仓储。
+
+配置也沿边界传递：应用层接收可信 Origin、有效期等用例参数；Google Client Secret、JWT/AEAD 密钥环只交给对应适配器。domain 不读取环境变量，application 不接收整个启动配置或原始密钥。
+
+### 10.3 目标目录与职责
+
+以下目录均已有对应实现；同一层按用例和对象拆文件，不为每个实体单独建立包。
+
+```text
+backend/
+├── cmd/identity/main.go                 # 配置、依赖装配、gRPC、探针、清理调度
+├── cmd/identity-admin/main.go           # 运维参数 → 账号管理用例
+├── proto/humanworth/identity/v1/        # 已发布 RPC 契约源
+├── gen/humanworth/identity/v1/          # 生成的协议 DTO / 服务接口
+└── internal/identity/
+    ├── transport/grpc/
+    │   ├── server.go                   # 九个 RPC → 用例；响应映射
+    │   ├── mapper.go                   # Proto ↔ 应用 DTO
+    │   ├── authorization.go            # mTLS 调用方与 unary/stream 白名单
+    │   ├── targets.go                  # 完整 RPC 名 ↔ 受众、业务操作
+    │   └── errors.go                   # 内部错误 → 现有 gRPC code/reason
+    ├── application/
+    │   ├── service.go                  # 依赖、用例配置、构造函数
+    │   ├── login.go                    # 发起、占用、外部换码、本地完成
+    │   ├── auth.go                     # 解析主体、签发/复核断言
+    │   ├── session.go                  # 当前会话、退出
+    │   ├── mcp.go                      # 创建、列表、撤销
+    │   ├── account.go                  # 受限账号管理用例
+    │   ├── maintenance.go              # 清理批次编排
+    │   ├── repo.go                     # 消费方仓储接口、事务接口、查询结果
+    │   ├── ports.go                    # Google、秘密保护、断言签验接口
+    │   ├── errors.go                   # 用例失败分类与稳定原因
+    │   └── dto/                        # login/session/actor/mcp/account 输入输出
+    ├── domain/
+    │   ├── account.go                  # 账号、外部关联、角色/状态/版本规则
+    │   ├── credential.go               # 会话/MCP 凭据的有效性与撤销规则
+    │   ├── login.go                    # 登录流程族、流程及状态转换
+    │   ├── principal.go                # 可信用户主体、凭据用途
+    │   ├── policy.go                   # 业务操作的匿名/MCP/管理员/写入规则
+    │   ├── audit.go                    # 审计事实的数据结构
+    │   └── errors.go                   # 与协议无关的业务拒绝原因
+    ├── repo/postgres/
+    │   ├── store.go                    # Reader、WithinTx 与事务内仓储装配
+    │   ├── account.go                  # accounts / external_identities SQL
+    │   ├── credential.go               # 凭据 SQL、联合快照、列表查询
+    │   ├── login.go                    # family / flow SQL、锁与条件更新
+    │   ├── audit.go                    # 同事务审计追加
+    │   ├── maintenance.go              # 有界清理 SQL
+    │   ├── mapper.go                   # 私有数据库行 → 领域对象/查询结果
+    │   ├── migrate.go                  # 已有迁移器与就绪检查
+    │   └── migrations/                # 原 SQL 原样迁移，保留文件名和校验和
+    └── adapter/
+        ├── google/oauth.go            # 已有 OAuth2/OIDC 库与固定 Google 端点
+        └── security/                  # JWT、AEAD、摘要、随机秘密、密钥环
+```
+
+| 职责 | 应当承担 | 边界 |
+| --- | --- | --- |
+| transport | 消息形状校验、提取可信服务身份、映射 DTO/错误、调用用例 | 不写 SQL，不作账号状态转换；HTTP Cookie/跳转继续由 gateway 处理 |
+| application | 完成一个用例、校验调用用途、选择事务边界、组织领域规则和 I/O | 不实现 SQL、JWT 或 Google 协议；不直接修改实体私有状态 |
+| domain | 表达对象行为与不变量，给出允许/拒绝及状态变化 | 不接收 Proto、HTTP Request、pgx.Tx、JWT 对象；不直接访问时钟或网络 |
+| repo | 加载与保存状态、执行锁/唯一约束/条件更新、将 SQL 错误归一化 | 不签发凭据、不决定管理员策略；所有事务内方法复用同一连接 |
+| adapter | 使用成熟库完成 Google 交互、签验、加解密及安全随机生成 | 验签成功不能代替数据库中的当前凭据复核 |
+| cmd / platform | 依赖装配、Secret 加载、通信、日志、deadline、生命周期 | platform 不拥有 Identity 的业务模型或仓储接口 |
+
+### 10.4 DTO、领域对象和数据库行分别建模
+
+**协议 DTO** 继续使用生成的 `pb.*Request/Response`，gateway 的 HTTP JSON 契约继续独立映射。**应用 DTO** 使用普通 Go 类型描述用例输入/输出，放在 `application/dto`，不带 Proto、pgx、ORM 或 JSON 框架依赖。**领域对象** 有自己的类型和行为。**数据库行结构** 仅在 `repo/postgres` 内部使用，需要时定义，不为每张表机械复制全部字段。
+
+| 现有入口 | 应用 DTO 示例 | 领域/仓储交互 |
+| --- | --- | --- |
+| `StartGoogleLogin` | `StartLoginInput` / `StartLoginResult` | 流程族、取消旧流程、新建 LoginFlow |
+| `CompleteGoogleLogin` | `CompleteLoginInput` / `CompleteLoginResult` | LoginFlow、ExternalIdentity、Account、Web Credential |
+| `ResolvePrincipal` | `ResolvePrincipalInput` / `ResolvePrincipalResult` | 凭据快照、Principal、操作策略、断言签发 |
+| `VerifyActor` | `VerifyActorInput` / `PrincipalResult` | 断言签验、凭据快照、操作策略复核 |
+| `GetCurrentSession` | `CurrentSessionInput` / `CurrentSessionResult` | 当前账号资料与该会话的 CSRF |
+| `LogoutCurrentSession` | `LogoutInput` / 空结果 | 当前 web 凭据撤销与审计 |
+| `CreateMcpToken` | `CreateMCPTokenInput` / `CreatedMCPToken` | 账号、web 凭据、创建请求 ID、新 MCP 凭据 |
+| `ListMyMcpTokens` | `ListMCPTokensInput` / `MCPTokenPage` | 本人元数据查询与游标 |
+| `RevokeMcpToken` | `RevokeMCPTokenInput` / 空结果 | 本人目标 MCP 凭据与审计 |
+| `ChangeAccount`，仅 CLI | `ChangeAccountInput` / 空结果 | expected version、账号状态/角色变更与审计 |
+| `Cleanup`，后台 | 配置中的批次限制 / 执行结果 | 过期流程、流程族与旧 web 凭据清理 |
+
+转换只放在实际边界：`Proto → 应用 DTO → 领域行为`，数据库查询结果经仓储转换后进入应用层；返回时由应用层选择输出字段，再映射为 Proto。列表查询可以直接返回应用层定义的只读元数据投影，无需为每行创建完整聚合。
+
+应用 DTO 保留现有 `oneof` 的互斥语义和字段存在性；显式凭据为空不能解释为匿名。账号 ID、角色不能由普通请求自报；唯一接受目标账号和新角色的输入属于独立运维用例。可信服务名由 transport 从 mTLS 上下文取得，操作人由受控 CLI 配置取得，均与客户端可编辑输入分开传递。
+
+创建 MCP 的结果类型单独承载一次明文 token；列表结果类型没有该字段。原始会话、流程 Cookie、授权码和断言仅在必要的临时 DTO/端口参数内存在，不打印 DTO、不放进审计、不自动序列化为 HTTP。摘要和 CSRF/PKCE 密文经专门仓储参数持久化；领域对象不负责加密。
+
+### 10.5 Domain 中的行为与一致性边界
+
+| 领域对象/规则 | 已实现行为 | 必须保持的不变量 |
+| --- | --- | --- |
+| Account | `ChangeAccess(expectedVersion, role, state)` | 稳定 ID；普通用户初始角色；按预期版本修改并递增 auth_version，当前同值变更也保持既有递增行为 |
+| ExternalKey | 以经过验证的 issuer/subject 定位 Account | 同一 issuer/subject 只能绑定一个账号；邮箱变化只更新资料，不自动合并 |
+| Credential | `Validate(account, expectedKind, now)`、`Revoke(now)` | 未过期/未撤销、账号 active、版本相同、用途匹配；撤销后不能恢复 |
+| LoginFlow | `Claim(attempt, now)`、`Cancel()`、`Complete(attempt, now)`、`Fail(attempt)` | 领取只允许 pending；完成只允许匹配 attempt 的 exchanging；过期/取消后的迟到结果不能完成 |
+| LoginFamily | 表达同一浏览器发起替换的范围 | 取消该族所有 pending/exchanging 后再创建新流程，跨副本也遵循同一顺序 |
+| Policy | `PolicyFor(operation)`、`Authorize(principal)` | 未知操作默认拒绝；管理员的 MCP 凭据仍受 MCP 白名单约束；写意图决定网站 Origin/CSRF 检查 |
+| AuditEvent | 记录已发生的账号/凭据变化 | 仅持久化脱敏事实；与对应变更同事务提交 |
+
+状态字段通过构造、仓储恢复函数和行为方法访问；恢复已有记录也检查结构合法性。`Account`、`Credential`、`LoginFlow` 分开加载，账号对象不内嵌全部历史会话/流程。跨对象的一致性通过 Identity 自有库的一个本地事务维护，不为追求“一个聚合一事务”而把旧会话撤销、新会话创建、流程完成及审计拆开。
+
+领域行为接收 `now` 参数，测试可以传固定时间。生产中流程/凭据有效期以主库 `clock_timestamp()` 为准：正常认证一次联合查询取得账号、凭据与数据库时间；写操作在加锁后重新取当前数据库时间并校验，避免用事务开始前的时间放行已过期凭据。JWT 的时间校验继续交给现有库，使用受控进程时钟；两者不互相替代。
+
+业务操作在 domain 使用语义标识，如 `CreateMCPToken`、`ReadOwnSubmission`；完整 RPC 路径和生成常量集中在 `transport/grpc/targets.go` 映射。映射同时给出 operation、audience、完整 method，签发与复核使用同一份映射并拒绝不匹配；不得用前缀匹配、通配符或客户端自报 operation 扩权。保留已存在的 Content 四个方法及未来方法的策略，未来策略不代表服务已经实现。
+
+### 10.6 Repo 端口与事务控制
+
+仓储接口定义在消费它们的 `application/repo.go`；具体实现放在 `repo/postgres`。domain 的纯规则不访问仓储，因此不用为了目录对称把仓储接口塞进 domain。接口按当前用例需要定义，没有 `BaseRepository[T]` 或通用 `Save(any)`。
+
+核心端口如下；完整接口见 [application/repo.go](../backend/internal/identity/application/repo.go)：
+
+```go
+// application/repo.go
+type Transactor interface {
+    WithinTx(ctx context.Context, run func(TxRepos) error) error
+}
+
+type TxRepos struct {
+    Accounts    AccountRepository
+    LoginFlows  LoginRepository
+    Credentials CredentialRepository
+    Audit       AuditRepository
+    Now         func(context.Context) (time.Time, error)
+}
+
+type IdentityReader interface {
+    // 一条主库查询返回 Account、Credential 和该次查询的 DBNow。
+    ReadCredential(ctx context.Context, key CredentialKey) (AuthSnapshot, error)
+    ListMCP(ctx context.Context, q MCPQuery) ([]dto.MCPToken, error)
+}
+```
+
+这些接口和查询结构只承载领域值或普通 Go 值，不能暴露 `pgx.Tx`、`pgx.Rows`。`TxRepos` 中四个仓储必须绑定同一个真实事务；回调结束后不能保存仓储引用继续使用。独立读取使用 `IdentityReader`，写用例的锁定读取和写入全部经回调中的仓储执行，禁止中途回到 pool 查询。
+
+| 端口 | 当前需要的能力示例 | PostgreSQL 实现义务 |
+| --- | --- | --- |
+| AccountRepository | 按外部标识找账号、`LockExternalIdentity`、按 ID 顺序 `LockAccounts`、创建关联、保存账号访问状态 | issuer/subject 事务 advisory lock；唯一键；账号行锁与 expected version 条件 |
+| LoginRepository | 找流程族、`LockFamily`、`LockFlow`、创建流程、取消旧流程、保存状态转换 | family → flow 锁序；更新绑定旧状态与 attempt；保持十分钟期限 |
+| CredentialRepository | `LockCredential`、按请求 ID 查重、插入凭据、撤销指定凭据 | owner/kind 范围限制；摘要及请求 ID 唯一约束；运行账号最小列权限 |
+| AuditRepository | `Append` | 使用当前事务，审计失败必须使对应业务变更回滚 |
+| IdentityReader | 联合认证快照、本人 MCP 元数据分页 | 主库读取；单语句快照；不返回原始秘密，不引入副本延迟或允许缓存 |
+
+用例决定哪些操作放在同一事务，PostgreSQL 适配器负责实际 Begin/Commit/Rollback，可复用 pgx 的事务辅助能力。回调失败必须回滚，panic 路径也释放事务；请求取消时仍以有界清理上下文尝试释放资源，不启动无限后台重试。回调无错误但 Commit 失败仍不能返回成功；连接中断导致的提交结果未知不能被标成“肯定回滚”。
+
+数据库约束违例按**具体约束**映射，例如创建请求 ID 冲突与版本冲突；其余存储错误归一化为不可用。应用层把领域/仓储错误转为稳定用例错误，transport 再沿用现有 `gRPC code + reason`，gateway 保留现有 HTTP 映射。不能把所有失败统一为 500，也不能把 SQL 文本、密文或凭据放进错误。
+
+### 10.7 两条关键调用链
+
+**Google 登录采用“事务 A → 外部调用 → 事务 B”。**
+
+1. transport 校验 Proto 互斥字段并传入应用 DTO。应用层在事务 A 中找流程、锁 family/flow、验证 Cookie/state/配置/期限，调用 `LoginFlow.Claim`，保存 exchanging 与 attempt 后提交。合法提供方取消/拒绝也在该事务中保存相应终态。
+2. 应用层通过 `GoogleIdentityProvider` 在事务外换码；适配器完成签名、issuer/audience/nonce/PKCE/azp 检查，返回已验证的外部身份。重构继续使用当前 OAuth2/OIDC 库与固定生产端点。
+3. 事务 B 重锁 family/flow 并调用 `Complete` 的前置校验，确认当前 attempt 仍有效；锁 issuer/subject、找回或创建账号，按 ID 排序锁涉及的新旧账号，再锁相关凭据。
+4. 应用层执行账号有效性规则，保存资料更新、旧会话撤销、新会话及 CSRF、流程 succeeded 和审计，一起提交。提交成功后才把新会话明文交给 gateway。
+5. 外部失败后，有界清理仅标记仍属于本 attempt 的 exchanging 为 failed；不能覆盖 succeeded/cancelled。进程崩溃留下的流程由到期清理处理，重新发起登录；不重放外部授权码。
+
+事务 A 通过已领取流程、取消标志和提交后的用例错误，区分已领取、用户取消和提供方拒绝。取消/拒绝终态保存成功后，事务回调返回 nil 并提交，再由用例生成取消跳转或认证失败；不能在写入终态后直接从回调返回业务错误，否则 `WithinTx` 会把需要保留的 cancelled/failed 一起回滚。非法流程绑定或存储失败仍回滚。
+
+**创建 MCP 凭据采用“复核身份 → 一个本地事务 → 返回一次秘密”。**
+
+1. `transport/grpc.Server.CreateMcpToken` 映射 DTO，调用应用用例。应用层验证断言、web 用途、名称与请求 ID；原始请求的 Origin/CSRF 已在签发该方法断言时校验。
+2. `WithinTx` 中按账号 → 当前 web 凭据的顺序加锁，再以最新版本、状态和数据库时间执行 `Credential.Validate`，保留现有 `lockActor` 的二次校验语义。
+3. 在当前账号范围查 `create_request_id`；重复返回既有冲突。生成随机秘密，仅将摘要和元数据写入 Credentials，同时追加审计；任一步失败整体回滚。
+4. Commit 成功才返回一次明文。响应丢失后按请求 ID 查回元数据并撤销，再创建新凭据；列表和重试都不能恢复原秘密。
+
+`ResolvePrincipal` 与 `VerifyActor` 则使用 Reader 的联合快照：前者按原始凭据摘要查，后者在验签后按 credential ID 查。JWT 适配器只证明签名和绑定有效；应用层仍调用领域规则比较当前账号、角色、版本和凭据状态。`VerifyActor` 的 audience 来自 mTLS 服务身份，完整 method 必须与目标映射及断言一致。不能在分层时改为业务服务本地验签后直接放行。
+
+断言中的 jti 继续用于标识，不引入一次消费记录；凭据复核不能代替业务写入的幂等约束。目标方法、受众及调用者身份转换必须有否定路径测试，不能因增加 DTO 映射而丢失限制。
+
+### 10.8 分布式约束与运行保障
+
+| 情况 | 设计要求与可观察行为 |
+| --- | --- |
+| 两个副本同时登录/重试 | PostgreSQL 共享状态、唯一约束和行锁协调；流程最多领取一次，同外部身份只有一份稳定账号，不靠进程内 mutex |
+| 统一锁序 | 需要时按 family → flow → 外部身份事务锁 → 排序后的 accounts → credentials；审计最后追加。没有相关对象的路径可跳过，不能倒序；清理批次也需核对锁竞争 |
+| 退出/撤销/停用与写入并发 | Identity 写事务重新锁定并验证账号与会话，与账号管理串行化；不能只相信事务外解析出的 Principal |
+| 跨服务撤销边界 | 撤销提交后新认证和新 VerifyActor 拒绝旧凭据；已经通过验证的 Content 在途事务仍可能提交，不承诺跨库瞬时撤销 |
+| deadline 与重试 | 继续传递 context，复用容量、消息和超时限制；不自动重试 OAuth 换码或写 RPC，不将超时等同未提交 |
+| 主库/Identity 故障 | 身份检查明确失败；无效凭据不降级匿名，不从异步副本或“允许”缓存恢复权限 |
+| Google 故障 | 只影响新登录；已有本地凭据认证与数据库就绪判断可继续工作 |
+| 审计 / Outbox | 保留本地同事务写入；本次不增加投递器。未来按事件 ID 去重、至少一次投递到 Moderation，认证正确性不依赖异步事件 |
+| Secret 与滚动发布 | 原摘要、AEAD purpose、kid、JWT claims/算法保持兼容；旧新副本共享兼容密钥配置和数据库；不把签名密钥交给其他服务 |
+| 服务隔离 | Identity 独占自己的表；业务服务经 RPC 验证身份；schema owner、runtime、operator 权限继续分开，健康 Watch 也执行服务白名单 |
+| 部署与观测 | 保留 kind 双副本、现有镜像入口/服务清单/探针/日志和指标；迁移仍为独立 Job。重构后按原 CI 与模块部署验收，目录变动不作为新增部署模块 |
+
+### 10.9 已完成的迁移对应
+
+| 重构前实现 | 当前归属 |
+| --- | --- |
+| `server.go` 的 Server、Authorization、错误助手 | transport；构造和资源加载移到 cmd，业务依赖注入 application |
+| `server.go` 的 audit、Cleanup；`migrate.go` 与 SQL | domain 审计值 / application 清理编排 / repo SQL、迁移与 Ready |
+| `login.go` 的 Start、claim、Complete、finishLogin | application 登录用例；状态转换进 domain；锁、查询和写入进 repo |
+| `auth.go` 的 credential、lockActor | application 恢复主体/事务内复核；domain 有效性规则；repo 联合查询和锁 |
+| `auth.go` 的 policies、ResolvePrincipal、verify | domain 操作策略；application 认证用例；transport 方法绑定；security JWT 适配 |
+| `auth.go` 的 GetCurrentSession、Logout、ChangeAccount | application 会话/运维用例；domain 状态变化；repo 持久化 |
+| `mcp.go` | application MCP 用例和输出 DTO；domain 凭据规则；repo 元数据查询/写入 |
+| `oauth.go`、`crypto.go` | adapter/google、adapter/security；继续使用已有成熟库 |
+
+领域规则、仓储端口、应用用例、gRPC 适配和两个 cmd 装配均已迁移。旧根目录生产文件已删除；原有 HTTP/mTLS/PostgreSQL 测试保留断言，仅按包边界更新装配。`-tags=lab ./internal/identity` 入口继续保留，部署控制器无需修改模块清单或镜像入口。主工作区已有的中文阅读注释随实现迁移，并修正职责与路径说明。
+
+分层重构本身不要求 schema 迁移、Proto 变更或运行依赖升级。涉及测试供应方构造的可注入能力只供测试装配，生产 cmd 继续固定 Google，不增加通过环境变量改成任意 OIDC 地址的开关。
+
+### 10.10 验收矩阵与本次状态
+
+| 目标 | 验证方式 | 必须观察到的结果 |
+| --- | --- | --- |
+| 分层依赖真实成立 | `TestLayerDependencies` 使用 Go parser 检查生产 import | domain 仅标准库；application/dto 无框架；application 不依赖 Proto/pgx/transport/具体适配器；没有循环依赖 |
+| 领域规则可独立判断 | domain 单元测试，固定时间与非法状态/版本/用途输入 | 流程终态不重开、旧版本凭据失效、MCP 不扩权；无需启动数据库才能测试这些规则 |
+| 事务没有因分层被拆散 | 专用 PostgreSQL；在同事务审计或后续写入处注入失败 | 登录/退出/MCP/账号变更整体回滚；无孤立账号或只有一半成功的会话轮换 |
+| 真实并发与恢复 | 既有双副本 OIDC/HTTP/mTLS 集成及 lab 测试 | 重复回调只一次换码、迟到结果拒绝、并发首次登录同账号；进程重启后状态保留 |
+| 拒绝结果也正确持久化 | 合法取消/提供方拒绝后查询流程，再重复回调 | cancelled/failed 已提交；客户端失败不意外回滚流程，使它重新可用 |
+| 撤销竞态与时间边界 | 账号变更/撤销与 MCP 创建并发；锁等待跨越凭据到期 | 事务内二次校验拒绝失效主体；旧断言重新复核失败 |
+| 契约与敏感字段 | 现有 gateway 与 RPC 测试；Proto 生成差异检查 | 九个 RPC 和 HTTP 结果/错误兼容，oneof 无歧义、MCP 明文只返回一次、日志无秘密 |
+| 相邻业务不回归 | 现有 Content 创建/详情/列表/替换集成测试 | 四种方法的 audience、当前凭据和本人隔离继续成立 |
+| 运维与存储边界 | runtime/owner/operator 角色测试、CLI 版本冲突、SQL checksum | runtime 不能管理角色或跨服务读表；迁移内容不变；停用/恢复不复活旧 token |
+| 线上运行兼容 | 有效发布授权下沿原 CI/Deploy 流程检查双副本、健康 revision、公网业务链 | 旧凭据与滚动版本兼容；部署控制器仍能构建和验收 Identity/Content |
+
+本次验收命令包括：根目录 `npm run ci`；backend 下 `buf lint`、`buf generate` 并核对生成代码无差异、`go vet ./...`、使用专用 PostgreSQL 的 `go test -race -tags=integration ./... -count=1 -timeout=120s`、`go build ./cmd/...`，以及适用的既有 lab 验收。不能用内存仓储替代事务/并发证据。
+
+本次新增验收覆盖领域状态/权限规则、分层 import、Proto oneof 存在性、旧 JWT claims 格式、取消/拒绝落库、登录/退出/MCP/账号变更的审计失败回滚、事务共享及错误/panic/取消后的连接释放，以及等待期间的会话撤销、账号版本变化和自然过期。事务证据来自专用真实 PostgreSQL；运维入口使用独立受限数据库角色执行真实 CLI。
+
+迁移 SQL 原样搬迁，SHA-256 仍为 `cb5968f029f04c9b3eb6c1aa377d9905145b784681fa843ebc2aceb857c13fc6`；Proto、OpenAPI 和依赖版本不因本次重构变化。已合回主工作区 `/home/oops/repo/value`，当前任务分支为 `backend/refactor-identity-layers`；原有未提交修改已保留，涉及迁移的中文注释已放入对应新包。本地重构交付时，公网仍运行原已发布版本；以下本地与临时命名空间证据不代替后续 PR、CI 和公网部署验收。
+
+本次实际验收（2026-09-29，Go 1.27.1，专用 PostgreSQL 18）：
+
+| 命令 / 检查 | 退出码 | 结果与范围 |
+| --- | --- | --- |
+| `npm ci --ignore-scripts`、`npm run ci` | 0 | 依赖安装、文档/可信场景、Node 与部署控制器检查通过；CI 在合回主工作区后再次通过 |
+| backend 下 `buf lint`、`buf generate`、`git diff --exit-code -- gen` | 0 | Proto lint 与生成一致；公开协议无变化 |
+| backend 下 `go vet ./...`、`go build ./cmd/...` | 0 | 主工作区所有 Go 包检查及四个程序入口构建通过 |
+| backend 下 `IDENTITY_TEST_DATABASE_URL_FILE=/tmp/hw-identity-refactor-dsn go test -race -tags=integration ./... -count=1 -timeout=120s` | 0 | 主工作区全量通过；Identity 套件 51.471 秒，含双实例、真实 HTTP/OIDC/mTLS/PostgreSQL、受限运维 CLI、回滚与锁等待竞态；Content 两个 OS 进程回归也通过 |
+| `python3 ops/lab/validate_modules.py` | 0 | 临时命名空间 `human-worth-verify-df83140b`：实际镜像、Identity/Content/gateway 双副本、HTTPS 业务链、Content 重启持久化、撤销、网络权限、失败 rollout 恢复、同 revision 迁移重试与重复部署通过；命名空间已清理 |
+| `git diff --check`、迁移字节比较、主工作区合并核对 | 0 | 无差异格式错误；SQL 字节不变；原有前端文件逐字节保留，其他 Go 注释合并经 token 比对确认未改变已验证逻辑 |
+
+lab 使用冻结源码快照构建；后续主工作区合并只迁入既有注释及测试，生产 Go 语句未改变。最终源码在主工作区完成上述完整 race 集成测试。这组本地验收没有执行公网版本切换或真实 Google 用户交互复测。后续合入还须验证原 OpenAPI 的 13 个已实现操作，包括升级前建立的会话与 MCP 凭据；`planned` 操作不在本次重构的实现范围内。

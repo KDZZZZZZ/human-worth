@@ -30,6 +30,11 @@ import (
 
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/identity/v1"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/gateway"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/adapter/google"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/adapter/security"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/application"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/repo/postgres"
+	identitygrpc "github.com/KDZZZZZZ/human-worth/backend/internal/identity/transport/grpc"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/platform"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
@@ -51,6 +56,7 @@ type oidcCode struct {
 	release chan struct{}
 	status  int
 }
+
 type oidcTestProvider struct {
 	server          *httptest.Server
 	key             *rsa.PrivateKey
@@ -69,6 +75,7 @@ func newTestProvider(t *testing.T) *oidcTestProvider {
 	t.Cleanup(p.server.Close)
 	return p
 }
+
 func (p *oidcTestProvider) issue(t *testing.T, authURL, subject string, change func(*oidcCode)) string {
 	t.Helper()
 	u, err := url.Parse(authURL)
@@ -87,6 +94,7 @@ func (p *oidcTestProvider) issue(t *testing.T, authURL, subject string, change f
 	p.mu.Unlock()
 	return code
 }
+
 func (p *oidcTestProvider) serve(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.URL.Path == "/jwks" {
@@ -160,6 +168,7 @@ func newTestPKI(t *testing.T) *testPKI {
 	must(t, os.WriteFile(filepath.Join(p.dir, "ca.pem"), pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0600))
 	return p
 }
+
 func (p *testPKI) cert(t *testing.T, name string) (string, string, string) {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -184,7 +193,9 @@ type identityLab struct {
 	admin         *pgxpool.Pool
 	provider      *oidcTestProvider
 	pki           *testPKI
-	servers       [2]*Server
+	servers       [2]*identitygrpc.Server
+	services      [2]*application.Service
+	configs       [2]testConfig
 	grpc          [2]*grpc.Server
 	addresses     [2]string
 	clients       [2]pb.IdentityServiceClient
@@ -234,8 +245,8 @@ func newIdentityLab(t *testing.T) *identityLab {
 	must(t, err)
 	t.Cleanup(ownerDB.Close)
 	// The migration role owns only its schema, not the database or other schemas.
-	must(t, Migrate(ctx, ownerDB))
-	must(t, Migrate(ctx, ownerDB))
+	must(t, postgres.Migrate(ctx, ownerDB))
+	must(t, postgres.Migrate(ctx, ownerDB))
 	if _, err = ownerDB.Exec(ctx, "CREATE SCHEMA must_be_denied"); err == nil {
 		t.Fatal("migration role unexpectedly owns database-wide CREATE permission")
 	}
@@ -266,13 +277,14 @@ GRANT INSERT ON identity.audit_events TO `+roleID+`;`)
 	ring := KeyRing{Active: "key1", Keys: map[string]string{"key1": base64.StdEncoding.EncodeToString([]byte(randomToken()[:32]))}}
 	for i := range lab.servers {
 		p := lab.provider.server.URL
-		oauth := newOAuth(ctx, "test-client", "test-secret", lab.origin+"/api/auth/google/callback", "test-v1", p, p+"/auth", p+"/token", p+"/jwks")
-		lab.servers[i], err = NewServer(runtimeDB, Config{Origin: lab.origin, Encryption: ring, Signing: ring, OAuth: oauth})
-		must(t, err)
+		oauth := google.NewWithEndpoints(ctx, "test-client", "test-secret", lab.origin+"/api/auth/google/callback", "test-v1", p, p+"/auth", p+"/token", p+"/jwks")
+		lab.configs[i] = testConfig{Origin: lab.origin, Encryption: ring, Signing: ring, OAuth: oauth}
+		lab.services[i] = newTestService(t, runtimeDB, lab.configs[i])
+		lab.servers[i] = identitygrpc.NewServer(lab.services[i])
 		cert, key, ca := lab.pki.cert(t, "identity")
 		tlsConfig, err := platform.TLS(cert, key, ca, "")
 		must(t, err)
-		lab.grpc[i] = grpc.NewServer(grpc.Creds(credentials.NewTLS(tlsConfig)), grpc.UnaryInterceptor(Authorization), grpc.StreamInterceptor(AuthorizationStream))
+		lab.grpc[i] = grpc.NewServer(grpc.Creds(credentials.NewTLS(tlsConfig)), grpc.UnaryInterceptor(identitygrpc.Authorization), grpc.StreamInterceptor(identitygrpc.AuthorizationStream))
 		pb.RegisterIdentityServiceServer(lab.grpc[i], lab.servers[i])
 		healthpb.RegisterHealthServer(lab.grpc[i], health.NewServer())
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -289,9 +301,11 @@ GRANT INSERT ON identity.audit_events TO `+roleID+`;`)
 	}
 	return lab
 }
+
 func (l *identityLab) client(t *testing.T, replica int, service string, pki *testPKI) pb.IdentityServiceClient {
 	return pb.NewIdentityServiceClient(l.connection(t, replica, service, pki))
 }
+
 func (l *identityLab) connection(t *testing.T, replica int, service string, pki *testPKI) *grpc.ClientConn {
 	t.Helper()
 	cert, key, ca := pki.cert(t, service)
@@ -302,12 +316,14 @@ func (l *identityLab) connection(t *testing.T, replica int, service string, pki 
 	t.Cleanup(func() { conn.Close() })
 	return conn
 }
+
 func must(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {
 		t.Fatal(err)
 	}
 }
+
 func (l *identityLab) request(t *testing.T, replica int, method, path string, cookies []*http.Cookie, body string, headers map[string]string) *http.Response {
 	t.Helper()
 	req, err := http.NewRequestWithContext(t.Context(), method, l.web[replica].URL+path, strings.NewReader(body))
@@ -325,6 +341,7 @@ func (l *identityLab) request(t *testing.T, replica int, method, path string, co
 	t.Cleanup(func() { response.Body.Close() })
 	return response
 }
+
 func httpStatus(t *testing.T, r *http.Response, expected int) {
 	t.Helper()
 	if r.StatusCode != expected {
@@ -332,11 +349,13 @@ func httpStatus(t *testing.T, r *http.Response, expected int) {
 		t.Fatalf("HTTP status=%d want=%d response=%s", r.StatusCode, expected, b)
 	}
 }
+
 func readJSON(t *testing.T, r *http.Response, v any) {
 	t.Helper()
 	must(t, json.NewDecoder(r.Body).Decode(v))
 	r.Body.Close()
 }
+
 func findCookie(t *testing.T, r *http.Response, name string) *http.Cookie {
 	t.Helper()
 	for _, c := range r.Cookies() {
@@ -350,6 +369,7 @@ func findCookie(t *testing.T, r *http.Response, name string) *http.Cookie {
 	t.Fatal("cookie not set: " + name)
 	return nil
 }
+
 func (l *identityLab) login(t *testing.T, subject string, old *http.Cookie) (*http.Cookie, *pb.GetCurrentSessionResponse) {
 	t.Helper()
 	start := l.request(t, 0, "GET", "/api/auth/google", nil, "", nil)
@@ -376,4 +396,28 @@ func (l *identityLab) login(t *testing.T, subject string, old *http.Cookie) (*ht
 	}
 	readJSON(t, me, &value)
 	return session, &pb.GetCurrentSessionResponse{Account: &pb.Account{Id: value.Account.ID, DisplayName: value.Account.Name}, Role: role(value.Role), CsrfToken: value.CSRF}
+}
+
+// Composition belongs to the fixture, not to the production transport.
+type testConfig struct {
+	Origin              string
+	Encryption, Signing KeyRing
+	OAuth               *google.GoogleOAuth
+}
+
+func newTestService(t *testing.T, db *pgxpool.Pool, cfg testConfig) *application.Service {
+	t.Helper()
+	secrets, err := security.NewSecrets(cfg.Encryption)
+	must(t, err)
+	tokens, err := security.NewTokens(cfg.Signing)
+	must(t, err)
+	var provider application.GoogleIdentityProvider
+	if cfg.OAuth != nil {
+		must(t, cfg.OAuth.Validate())
+		provider = cfg.OAuth
+	}
+	store := postgres.New(db)
+	service, err := application.NewService(application.Config{Origin: cfg.Origin}, application.Dependencies{Reader: store, Transactions: store, Maintenance: store, Secrets: secrets, Tokens: tokens, Google: provider, Targets: identitygrpc.Targets()})
+	must(t, err)
+	return service
 }
