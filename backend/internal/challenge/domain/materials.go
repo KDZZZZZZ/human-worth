@@ -11,7 +11,7 @@ const MaxMaterialBytes int64 = 16 << 20
 const MaxInputBytes = 1 << 20
 
 // InputPolicyVersion 随角色投影、系统指令或工具语义变更递增，旧拟合记录不能跨策略复用。
-const InputPolicyVersion = "materials-v1"
+const InputPolicyVersion = "structured-criteria-v2"
 
 func InputPolicyHash(version string, modelCalls, toolCalls int32) string {
 	return Hash([]byte(fmt.Sprintf("%s/%d/%d/%d", version, modelCalls, toolCalls, MaxInputBytes)))

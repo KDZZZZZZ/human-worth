@@ -501,6 +501,21 @@ func (l *lab) complete(a *pb.Assignment, result *pb.CompleteWorkRequest) {
 	must(l.t, err)
 }
 
+// submitCriteria 在边界测试中提交标准，随后取得另一副本创建的独立判断工作项。
+func (l *lab) submitCriteria(a *pb.Assignment) *pb.Assignment {
+	l.t.Helper()
+	if a.Kind != pb.WorkKind_WORK_KIND_REFINE_RANKER {
+		l.t.Fatalf("expected criteria generation, got %v", a.Kind)
+	}
+	l.complete(a, &pb.CompleteWorkRequest{Result: &pb.CompleteWorkRequest_Prompt{Prompt: &pb.PromptResult{Prompt: "根据作品准确性与任务符合程度判断。"}}})
+	must(l.t, l.services[1].Reconcile(l.t.Context()))
+	next := l.claim(0)
+	if next == nil || next.Kind != pb.WorkKind_WORK_KIND_VALIDATE_RANKER {
+		l.t.Fatal("criteria did not schedule independent judgment")
+	}
+	return next
+}
+
 // fixtureExecutor 只用于模块测试，绝不声称提供了真实执行器或沙箱隔离。
 type fixtureExecutor struct{ d *dependencies }
 
@@ -515,8 +530,9 @@ func (e fixtureExecutor) execute(_ context.Context, a *pb.Assignment, _ string) 
 	return &pb.GeneratedWork{Work: &content.Work{Id: "work_" + a.Attempt.AttemptId, Artifacts: []*content.Artifact{{Value: &content.Artifact_Text{Text: "独立完成的作品"}}}}, Report: "关键决策：按初始要求完成；最终结果：文字作品。"}, nil
 }
 
-func (l *lab) modelProvider() *completion.Provider {
+func (l *lab) modelProvider(criteria ...string) *completion.Provider {
 	l.t.Helper()
+	criteriaIndex := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/chat/completions" || r.Header.Get("Authorization") != "Bearer fixture-secret" {
 			http.Error(w, "bad request", 400)
@@ -545,8 +561,15 @@ func (l *lab) modelProvider() *completion.Provider {
 		raw := strings.Split(request.Messages[1].Content, "\n文件清单：")[0]
 		var result proto.Message
 		switch {
-		case strings.Contains(system, "改进后的通用排序规则"):
-			result = &pb.PromptResult{Prompt: "按准确性排序，不受作品位置影响。"}
+		case strings.Contains(system, "本轮用于判断的完整标准"):
+			prompt := "按准确性排序，不受作品位置影响。"
+			l.deps.mu.Lock()
+			if criteriaIndex < len(criteria) {
+				prompt = criteria[criteriaIndex]
+			}
+			criteriaIndex++
+			l.deps.mu.Unlock()
+			result = &pb.PromptResult{Prompt: prompt}
 		case strings.Contains(system, "改进后的执行提示"):
 			if strings.Contains(raw, privateComment) || strings.Contains(raw, "humanCounts") {
 				l.t.Error("P received forbidden material")
@@ -713,7 +736,7 @@ func TestChallengeFencingAndCancellation(t *testing.T) {
 	if l.get(run.Id).Status != "cancelling" {
 		t.Fatal("cancelled before close acknowledgement")
 	}
-	result := &pb.CompleteWorkRequest{Attempt: a.Attempt, Result: &pb.CompleteWorkRequest_Rankings{Rankings: rankings(a.GetRank(), false)}}
+	result := &pb.CompleteWorkRequest{Attempt: a.Attempt, Result: &pb.CompleteWorkRequest_Prompt{Prompt: &pb.PromptResult{Prompt: "迟到的判断标准"}}}
 	result.ResultDigest = protobuf.ResultDigest(result)
 	_, err = l.workers[winner].CompleteWork(t.Context(), result)
 	code(t, err, codes.FailedPrecondition)
@@ -773,10 +796,17 @@ func TestChallengeBudgetAndRoleBoundaries(t *testing.T) {
 	code(t, err, codes.FailedPrecondition)
 	_, err = l.workers[0].SettleModelCall(t.Context(), &pb.SettleModelCallRequest{Attempt: a.Attempt, ReservationId: reservation.ReservationId, Outcome: "succeeded"})
 	must(t, err)
-	result := &pb.CompleteWorkRequest{Result: &pb.CompleteWorkRequest_Rankings{Rankings: rankings(a.GetRank(), false)}}
+	call.RequestId = "second_model_call"
+	_, err = l.workers[0].ReserveModelCall(t.Context(), call)
+	code(t, err, codes.ResourceExhausted)
+	result := &pb.CompleteWorkRequest{Result: &pb.CompleteWorkRequest_Prompt{Prompt: &pb.PromptResult{Prompt: "根据作品准确性判断。"}}}
 	l.complete(a, result)
 	_, err = l.workers[0].CompleteWork(t.Context(), result)
 	must(t, err)
+	must(t, l.services[1].Reconcile(t.Context()))
+	judgment := l.claim(0)
+	l.activate(judgment)
+	l.complete(judgment, &pb.CompleteWorkRequest{Result: &pb.CompleteWorkRequest_Rankings{Rankings: rankings(judgment.GetRank(), false)}})
 	packer := l.claim(0)
 	if packer.Kind != pb.WorkKind_WORK_KIND_PACK_TASK {
 		t.Fatal(packer.Kind)

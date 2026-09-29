@@ -65,6 +65,9 @@ func (Fingerprints) Result(v *dto.CompleteWorkRequest) string {
 	return ResultDigest(ToCompleteWorkRequest(v))
 }
 func (Fingerprints) SampleSize(v *domain.RankingSample) int { return proto.Size(ToRankingSample(v)) }
+func (Fingerprints) RefineSize(v *domain.RefineRankerInput) int {
+	return proto.Size(ToRefineRankerInput(v))
+}
 func (Fingerprints) PreferenceSize(v *domain.HumanPreference) int {
 	return proto.Size(ToHumanPreference(v))
 }

@@ -226,11 +226,11 @@ dfbfdb2577647883b6818002b0d5a7590e1df988b4a7f3dced440c48ead5f358  setting_oauth.
 <a id="challenge-design"></a>
 ## Challenge：管理员初始包、三角色优化与执行隔离
 
-2026-09-19，用户明确打包 P、执行 E、排序 R 三个角色，以及管理员手工准备初始包。2026-09-20 的 [H10](prd.md#ranker-before-packer) 进一步要求 P 不看任何评论，先只迭代 R，拟合度过阈值后固定 R，再只迭代 P／运行 E；R 给出评判依据和拟合度。[H11](prd.md#challenge-react-tools) 允许 P/R 按需使用 ReAct，工具按实际步骤精简设计；只有 E 使用工作区与 harness。输入结构、评分公式、阈值配置、数据划分、反馈调用及具体工具设计为 Agent Self-Claimed，交付见 [Challenge 设计](backend-challenge.md)。
+2026-09-19，用户明确打包 P、执行 E、排序 R 三个角色，以及管理员手工准备初始包。2026-09-20 的 [H10](prd.md#ranker-before-packer) 进一步要求 P 不看任何评论，先只迭代 R，拟合度过阈值后固定 R，再只迭代 P／运行 E；R 给出评判依据和拟合度。[H11](prd.md#challenge-react-tools) 曾允许 P/R 使用 ReAct，现由 [H12](prd.md#structured-ranker-criteria) 改为单次结构化调用，R 每轮先生成标准再判断；只有 E 使用工作区与 harness。输入结构、评分公式、阈值配置、数据划分、反馈调用及具体工具设计为 Agent Self-Claimed，交付见 [Challenge 设计](backend-challenge.md)。
 
 | 官方来源 / 版本 | 采用与差异 | 实施时的验收判据 |
 | --- | --- | --- |
-| [ReAct: Synergizing Reasoning and Acting in Language Models](https://arxiv.org/abs/2210.03629v3)，v3 · 2023-03-10，2026-09-20 核实 | 借鉴按需调用工具获取证据的循环；本项目 P/R 先共用一个受限材料读取工具，输入充分时直接返回；不引入论文任务的其他工具或框架，不要求披露隐藏推理 | 直接调用与工具往返均可完成；读取遵守角色与用途，循环有界；工具策略纳入 R 拟合证据，外层仍先 R 后 P |
+| [ReAct: Synergizing Reasoning and Acting in Language Models](https://arxiv.org/abs/2210.03629v3)，v3 · 2023-03-10，2026-09-20 核实 | 历史参考：P/R 工具循环已由 H12 明确删除，不再采用 | P/R 请求没有工具和会话续调，每工作项一次调用，返回结构化结果 |
 | [ProTeGi，EMNLP 2023，论文 494](https://aclanthology.org/2023.emnlp-main.494/)，DOI `10.18653/v1/2023.emnlp-main.494` | 只借鉴文字反馈改写提示；不引入候选搜索、择优或回退框架 | 每次生成一份新提示，校验后覆盖；拟合结果另按真人样本验证 |
 | [Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena](https://arxiv.org/abs/2306.05685)，2023，2026-09-20 核实 | 借鉴对照真人判断检验评审能力；论文中的对齐表现不能直接作为本项目阈值；本项目仍排序全部作品 | 用独立真人数据重算拟合度，检查顺序偏差与评判依据；不信任 R 自报高分 |
 | [scikit-learn 交叉验证说明](https://scikit-learn.org/stable/modules/cross_validation.html)，1.9.1 文档，2026-09-20 核实 | 采用训练与验证分离、避免反复调参污染评测的原则；无需引入库。准入批次尚未用于提示改写，已用于反馈的批次不再充当新的独立证据 | 数据来源与批次使用可追溯；样本不足、标签泄漏、反复复用验证批次不能放行 P/E |
@@ -246,7 +246,7 @@ Agent Self-Claimed 的评分提案为可比作品对的顺序一致率；阈值�
 
 P 完全不看评论与其他作品，R 又需为 P 提供依据，因此采用同一固定 R 的独立解释调用，只输入原始任务要求、选定附件及自身作品；不把含评论的全量排序理由摘录给 P。该调用是权限边界的实现选择，不增加第四个 agent；验收须覆盖评论、他人作品与训练标签通过提示、共享历史或反馈泄漏的反例。
 
-ReAct 的实际缺口是按需查阅已获准的附件和作品文件，现有材料清单与 `ReadMaterial` 足以支撑，因此只增加模型侧 `read_material`，不增加作品搜索、评论查询、投票查询或调用 E 的工具。工具和循环限制由服务端固定，复用角色及用途授权，不新增公开配置或 RPC；给 P 的解释调用使用独立的窄授权。具体格式适配及模型兼容仍需实施验证。
+2026-09-29 按 H12 复用现有材料流和 Completion 客户端：程序预先读取并校验全部获准材料，P/R 单次调用只返回结构化 JSON，删除模型侧材料工具与游标循环。R 首次用完整授权业务内容生成标准；判断未达标时将该批次结果与标签转为下一轮生成反馈，再取新的独立验证批次。以上数据投影、轮数计法与复用协议属于技术实现；不增设工具、搜索框架或业务服务。
 
 取消协议沿用[本地事务与 outbox 参考](#backend-design)，明确为“冻结 Run → Content 封闭登记 → Run 终态”。本地 OpenAPI 0.7.0 草案补充管理员初始包、三角色配置、任务附件与文字作品输入，删除普通用户进度入口，并保留 `cancelling / finalizing` 和取消 202；登记采用 Content 待审作品＋审核请求 outbox，不声称跨服务原子创建审核案件。2026-09-20 已补齐最小 Proto、Challenge 核心与 worker，并用真实 PostgreSQL 和有状态 fake 验证模块流程；未做优化效果实验、部署真实沙箱或发布新版 Swagger。
 

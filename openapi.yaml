@@ -18,7 +18,7 @@ info:
     所有挑战统一追求成为最佳作品或对齐最佳效果，不按人类／agent 谁领先分流。
     先只迭代排序角色 R，真人偏好拟合度超过阈值后固定 R，再只迭代打包角色 P 并运行执行角色 E。
     R 提供评判依据，拟合度由可信评分器计算；P 不接收任何用户评论，只依据自身作品和合格 R 的反馈改进执行提示。初始包与 E 配置固定，P/E 不能读取其他作品。
-    打包和排序采用受控模型调用，可按需用受限材料读取工具完成 ReAct；只有执行角色使用工作区和 harness，角色及用途的可见范围由内部权限保证。
+    打包和排序每个工作项只调用一次模型，返回结构化结果，不使用 ReAct；只有执行角色使用工作区和 harness，角色及用途的可见范围由内部权限保证。
     普通 GET 不改变投票资格，不返回或预取单题得票、得票占比；投票响应也不附带统计。
     只有显式 POST statistics-access 可以读取具体统计，且必须先持久化账号 × 任务的永久禁投记录。
     网站、MCP 和管理员查看单题具体统计均经过此入口；管理角色不能绕过资格变化。
@@ -1086,14 +1086,14 @@ paths:
         管理员必须提交 initialTaskPackage：选定该任务描述的附件、手写执行说明和作品要求。校验任务版本、附件归属和授权，不允许使用其他作品附件；运行开始后固定不变。
         三角色配置分别为 packer、executor、ranker：P 读取初始包、自身作品、报告、名次及合格 R 的自身作品评判依据和拟合度，任何用户评论均不可见；E 只读本次任务包并交作品与报告。P/E 不能读取其他作品；R 内部排序读取原任务、获准评论和全部作品，不读取任务包或执行报告。
         面向 P 的评判依据由同一固定 R 在独立无历史调用中产生，仅输入原始任务要求、选定任务附件及自身作品，不携带评论、其他作品或全量排序理由；拟合度来自可信验证记录，不能由模型自报。
-        作品的文字与文件可直接作为模型输入；P/R 需要按需查阅时可用服务端限定的 read_material 完成 ReAct，仅能读取当前角色及用途获准的材料，不接受客户端自定义工具。无法读取的作品明确报错，不用文件名或摘要冒充内容；不共享工作区或提供完整执行轨迹。
-        第一阶段只修改 R 提示，未达标不允许 P 调用或 E Job；达标后冻结 R，仅 P 改进执行提示，E 配置全程固定。打包与排序不使用工作区或 harness，具体验证方案见 docs/backend-challenge.md。
+        程序预先读齐并校验文字与文件，再一次性提供给 P/R；每个工作项只调用一次模型，只接受结构化结果，不提供工具或 ReAct。无法读取的作品明确报错，不用文件名或摘要冒充内容；不共享工作区或提供完整执行轨迹。
+        第一阶段每轮先由 LLM 读取完整授权内容生成判断标准，包括初始包、原任务、作品、评论、真人训练偏好与已有判断反馈，再独立调用 LLM 按标准判断；首轮也先生成标准。未达标不允许 P 调用或 E Job；达标后冻结 R，仅 P 改进执行提示，E 配置全程固定。打包与排序不使用工作区或 harness，具体验证方案见 docs/backend-challenge.md。
         rankerFitThreshold、rankerMinComparablePairs、rankerRoundLimit 与 roundLimit 均须显式提交。仅有效拟合度严格超过阈值才放行，等于阈值仍不达标；两阶段共享预算和期限。
-        工具及循环限制属于固定输入策略，纳入 R 拟合证据；ReAct 不改变两阶段顺序，也不能绕过拟合门槛或取得隐藏验证标签。
+        P/R 固定为每个工作项一次模型调用、零工具调用，纳入 R 输入策略；新标准落库后才获取独立验证样本，验证标签留在服务端评分器。
         只保存当前提示，校验后按阶段覆盖，不保留历史优化版本或退化回滚。R 阶段超限、样本不足、材料／拟合记录失效时不推进 P/E；启动前能确认则拒绝，运行后发现则失败收尾。运行完成不代表作品已达到最佳效果。
         排序返回内部完整顺序，不改变网站全部作品单选语义；真人训练标签不通过运行记录或普通内容响应返回。
         普通用户、任务作者及 MCP token 均不能启动。
-      x-scenarios: [S4, H4, H5, H7, H8, H9, H10, H11]
+      x-scenarios: [S4, H4, H5, H7, H8, H9, H10, H12]
       x-implementation-status: implemented
       x-deployment-status: not_published
       security: [{WebSession: [admin], CsrfToken: []}]
@@ -1891,12 +1891,12 @@ components:
       required: [model]
       properties:
         model: {type: string, minLength: 1, description: 服务端已配置的模型标识，不接受任意 API 地址}
-        prompt: {type: string, description: 初始打包指令或排序规则；不得包含密钥、任务包旁路材料或隐藏验证标签}
+        prompt: {type: string, description: 初始打包指令或生成 R 判断标准的种子指令；不得包含密钥或隐藏验证标签}
         parameters:
           type: object
           additionalProperties: true
-          description: 首版只接受 temperature（0～2）和 top_p（大于 0 且不大于 1）；拒绝客户端注入 tools、harness、skills、文件路径、会话历史及供应商端点等能力配置；受限材料工具由服务端按角色与用途提供
-      description: 打包与排序的模型调用配置，默认直接返回，按需通过服务端固定的 read_material 工具完成 ReAct；工具范围与循环限制不由客户端配置，不创建工作区或任务 Pod；未提供 prompt 时使用服务端基础指令，其版本纳入输入策略绑定
+          description: 首版只接受 temperature（0～2）和 top_p（大于 0 且不大于 1）；拒绝客户端注入 tools、harness、skills、文件路径、会话历史及供应商端点等能力配置；材料由程序按角色与用途预先准备，P/R 无工具
+      description: 打包与排序每个工作项单次调用并返回结构化 JSON，不使用工具或 ReAct，不创建工作区或任务 Pod；prompt 为初始打包指令或生成判断标准的种子指令，R 首轮仍需由 LLM 生成标准；输入策略纳入拟合记录绑定
     InitialTaskPackage:
       type: object
       additionalProperties: false
@@ -1910,7 +1910,7 @@ components:
           description: 从该版本任务描述附件中选定的 asset ID；可为空，不接受其他作品附件或任意上传文件
         description: {type: string, minLength: 1, description: 管理员手写的执行任务说明，不转交用户评论、其他作品或投票结果}
         workRequirements: {type: string, minLength: 1, description: 管理员手写的作品交付要求，包括文字或文件、文件格式及内容要求}
-      description: 管理员准备的初始包；启动后冻结，P 只增加执行提示，不能改动本对象；E 只接收本对象加执行提示，R 不接收本对象。修改需新运行；字段与来源校验不替代管理员核对说明是否忠实于原任务
+      description: 管理员准备的初始包；启动后冻结，P 只增加执行提示，不能改动本对象；E 只接收本对象加执行提示；R 标准生成可读取本对象，正式判断不接收。修改需新运行；字段与来源校验不替代管理员核对说明是否忠实于原任务
     RunConfiguration:
       type: object
       additionalProperties: false
@@ -1933,7 +1933,7 @@ components:
           type: integer
           minimum: 1
           maximum: 100
-          description: 第一阶段 R 提示最多改写次数，初始验证不计改写轮次；用尽仍未达标则失败，不能跳过门槛
+          description: 第一阶段 R 的标准生成与独立判断轮数上限，首轮也计数；用尽仍未达标则失败，不能跳过门槛
         roundLimit: {type: integer, minimum: 1, maximum: 100, description: 第二阶段 P/E 作品轮次上限；第一阶段不运行 P/E}
         budget:
           type: object
@@ -1998,7 +1998,7 @@ components:
         administratorId: {$ref: '#/components/schemas/Id'}
         status: {$ref: '#/components/schemas/RunStatus'}
         stage: {$ref: '#/components/schemas/RunStage'}
-        rankerRound: {type: integer, minimum: 0, description: R 已完成的提示改写次数；初始验证时为 0}
+        rankerRound: {type: integer, minimum: 0, description: R 已完成的判断标准生成次数；尚未生成时为 0，首轮判断时为 1}
         round: {type: integer, minimum: 0, description: P/E 作品轮次；R 达标前为 0}
         rankerFit: {$ref: '#/components/schemas/RankerFit'}
         configuration: {$ref: '#/components/schemas/RunConfiguration'}

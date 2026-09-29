@@ -671,6 +671,8 @@ func FromRefineRankerInput(v *challenge.RefineRankerInput) *domain.RefineRankerI
 		return nil
 	}
 	out := &domain.RefineRankerInput{}
+	out.Target = FromRankingSample(v.Target)
+	out.Initial = FromInitialTaskPackage(v.Initial)
 	for _, x := range v.Samples {
 		out.Samples = append(out.Samples, FromTrainingSample(x))
 	}
@@ -682,6 +684,8 @@ func ToRefineRankerInput(v *domain.RefineRankerInput) *challenge.RefineRankerInp
 		return nil
 	}
 	out := &challenge.RefineRankerInput{}
+	out.Target = ToRankingSample(v.Target)
+	out.Initial = ToInitialTaskPackage(v.Initial)
 	for _, x := range v.Samples {
 		out.Samples = append(out.Samples, ToTrainingSample(x))
 	}

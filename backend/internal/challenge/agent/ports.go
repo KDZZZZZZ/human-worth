@@ -1,4 +1,4 @@
-// Package agent 集中维护 P/R 推理循环与 E 工具循环。
+// Package agent 集中维护 P/R 结构化生成与 E 工具循环。
 // 基础设施提供能力；核心不直接连接网络、启动进程、挂载工作区或读取供应商凭据。
 package agent
 

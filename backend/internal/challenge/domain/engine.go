@@ -16,9 +16,16 @@ func (e Engine) PolicyHash() string {
 	return InputPolicyHash(e.Config.InputPolicy, e.Config.ModelCallLimit, e.Config.ToolCallLimit)
 }
 
+func (e Engine) WorkPolicyHash(kind WorkKind) string {
+	if kind != WorkKind_WORK_KIND_EXECUTE_PACKAGE {
+		return InputPolicyHash(e.Config.InputPolicy, 1, 0)
+	}
+	return e.PolicyHash()
+}
+
 // assignment 每个工作项从白名单字段重新投影，绝不把整个运行状态交给模型。
 func (e Engine) assignment(st *State, kind WorkKind) *Assignment {
-	a := &Assignment{WorkItemId: NewID("work_"), Kind: kind, Role: "R", Model: CloneModelConfiguration(st.Run.Configuration.Ranker), ModelCallLimit: e.Config.ModelCallLimit, ToolCallLimit: e.Config.ToolCallLimit, InputPolicyHash: e.PolicyHash()}
+	a := &Assignment{WorkItemId: NewID("work_"), Kind: kind, Role: "R", Model: CloneModelConfiguration(st.Run.Configuration.Ranker), ModelCallLimit: 1, InputPolicyHash: e.WorkPolicyHash(kind)}
 	a.Model.Prompt = st.RankerPrompt
 	switch kind {
 	case WorkKind_WORK_KIND_PACK_TASK:
@@ -26,6 +33,8 @@ func (e Engine) assignment(st *State, kind WorkKind) *Assignment {
 		a.Model = CloneModelConfiguration(st.Run.Configuration.Packer)
 	case WorkKind_WORK_KIND_EXECUTE_PACKAGE:
 		a.Role = "E"
+		a.ModelCallLimit = e.Config.ModelCallLimit
+		a.ToolCallLimit = e.Config.ToolCallLimit
 		a.Model = nil
 		a.Executor = CloneExecutorConfiguration(st.Run.Configuration.Executor)
 	}
@@ -36,10 +45,28 @@ func (e Engine) SetValidation(st *State, batch *PreferenceBatch, inputs []*Ranki
 	st.Assignment = e.rankingAssignment(st, WorkKind_WORK_KIND_VALIDATE_RANKER, inputs)
 }
 
+// SetTraining 把可用业务内容一次投影给标准生成调用，不复用之后判断时的会话。
 func (e Engine) SetTraining(st *State, batch *PreferenceBatch, inputs []*RankingSample) {
 	st.Training = batch
 	st.TrainingInputs = inputs
-	st.Assignment = e.rankingAssignment(st, WorkKind_WORK_KIND_TRAIN_RANKER, inputs)
+	input := &RefineRankerInput{
+		PreviousFit: st.Run.RankerFit.GetScore(),
+		Target:      &RankingSample{Task: st.Task, Works: st.Works, Comments: st.Comments},
+		Initial:     st.Run.Configuration.InitialTaskPackage,
+	}
+	byTask := map[string]*Ranking{}
+	if st.TrainingRankings != nil {
+		for _, ranking := range st.TrainingRankings.Items {
+			byTask[ranking.TaskId] = ranking
+		}
+	}
+	for i, sample := range inputs {
+		input.Samples = append(input.Samples, &TrainingSample{Sample: sample, Ranking: byTask[sample.Task.TaskId], HumanCounts: batch.Samples[i].CountsByWork})
+	}
+	a := e.assignment(st, WorkKind_WORK_KIND_REFINE_RANKER)
+	a.Input = &Assignment_Refine{Refine: input}
+	a.Materials = append(RankMaterials(inputs), RankMaterials([]*RankingSample{input.Target})...)
+	st.Assignment = a
 }
 
 func (e Engine) rankingAssignment(st *State, kind WorkKind, inputs []*RankingSample) *Assignment {
@@ -93,6 +120,9 @@ func (e Engine) ApplyResult(st *State, result Result, attemptID, fitBinding stri
 	a := st.Assignment
 	switch a.Kind {
 	case WorkKind_WORK_KIND_VALIDATE_RANKER:
+		if st.Run.Stage != "optimizing_ranker" || st.Run.RankerRound < 1 || !Bounded(st.RankerPrompt, 16384) {
+			return Conflict("criteria_required")
+		}
 		score, err := FitScore(a.GetRank().Samples, st.Validation.Samples, result.Rankings, st.Run.Configuration.RankerMinComparablePairs)
 		if err != nil {
 			return err
@@ -110,30 +140,17 @@ func (e Engine) ApplyResult(st *State, result Result, attemptID, fitBinding stri
 		} else if st.Run.RankerRound >= st.Run.Configuration.RankerRoundLimit {
 			Finish(st, "failed", "ranker_fit_not_met")
 		} else {
-			st.Pending = "training"
+			// 本次判断完成后才开放标签给下一轮标准生成；该批次不再作为独立验证集。
+			st.TrainingRankings = result.Rankings
+			e.SetTraining(st, st.Validation, a.GetRank().Samples)
+			st.Validation = nil
 		}
-	case WorkKind_WORK_KIND_TRAIN_RANKER:
-		if err := ValidateRankings(a.GetRank().Samples, result.Rankings); err != nil {
-			return err
-		}
-		input := &RefineRankerInput{PreviousFit: st.Run.RankerFit.GetScore()}
-		byTask := map[string]*Ranking{}
-		for _, v := range result.Rankings.Items {
-			byTask[v.TaskId] = v
-		}
-		for i, sample := range st.TrainingInputs {
-			input.Samples = append(input.Samples, &TrainingSample{Sample: sample, Ranking: byTask[sample.Task.TaskId], HumanCounts: st.Training.Samples[i].CountsByWork})
-		}
-		next := e.assignment(st, WorkKind_WORK_KIND_REFINE_RANKER)
-		next.Input = &Assignment_Refine{Refine: input}
-		next.Materials = RankMaterials(st.TrainingInputs)
-		st.Assignment = next
 	case WorkKind_WORK_KIND_REFINE_RANKER:
-		if st.Run.Stage != "optimizing_ranker" || !Bounded(result.Prompt.GetPrompt(), 16384) {
+		if st.Run.Stage != "optimizing_ranker" || st.Run.RankerRound >= st.Run.Configuration.RankerRoundLimit || !Bounded(result.Prompt.GetPrompt(), 16384) {
 			return Invalid("invalid_ranker_prompt")
 		}
 		// 排序提示只保留通用规则，不允许把训练评论原文带入面向 P 的独立解释。
-		for _, sample := range st.TrainingInputs {
+		for _, sample := range append([]*RankingSample{a.GetRefine().Target}, st.TrainingInputs...) {
 			for _, c := range sample.Comments {
 				if len(c.Body) >= 16 && strings.Contains(result.Prompt.Prompt, c.Body) {
 					return Invalid("training_material_in_prompt")

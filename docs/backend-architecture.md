@@ -5,7 +5,7 @@
 | 版本 | v1.6 · 2026-09-29 · Identity 与 Content 已发布，Challenge 本地实现待完整依赖与沙箱验收 |
 | 本轮人类要求 | 以学习分布式微服务为目标，依据讨论重新编写架构划分、单机多节点部署计划和可模拟场景；先只使用一套实验配置 |
 | 方案归属 | 七个业务服务、进程边界、数据归属、协作协议与实施顺序为 Agent Self-Claimed 的具体设计 |
-| 产品依据 | [PRD](prd.md) 的 S1～S6、H1～H11；过审展示、完整候选单选、查看统计后永久禁投、隐藏额度、Google 登录、管理员初始包、统一目标、先 R 后 P 及按需 ReAct |
+| 产品依据 | [PRD](prd.md) 的 S1～S6、H1～H12；过审展示、完整候选单选、查看统计后永久禁投、隐藏额度、Google 登录、管理员初始包、统一目标、先 R 后 P、先生成判断标准及 P/R 单次结构化调用 |
 | 配套文档 | [部署与实验计划](deployment.md)、[Identity 设计](backend-identity.md)、[Challenge 设计](backend-challenge.md)、[成熟参考](references.md#microservices-lab) |
 | 当前实际状态 | 公网域名已连接 Go gateway、Identity 与 Content；本机 kind lab 运行双副本应用与 PostgreSQL 三实例；Node 基座保留作入口回退 |
 
@@ -35,8 +35,8 @@
 - Asset 独立承担文件传输；Moderation 独立承担管理员工作流，二者从原 Content 拆出。
 - Discovery 独立处理推荐、热度和公开汇总。公开看板与具体计票的权限、副作用不同，不把二者合为普通统计入口。
 - `Execution` 首版是 Challenge 的内部工作项/租约模块，沿用同一个运行所有者；worker 仍为独立进程。需要跨多个业务复用执行系统时再评估独立服务。
-- P 打包、E 执行、R 排序是三个逻辑角色，不新增业务服务。先只迭代 R，可信拟合度超过阈值后固定 R，再只迭代 P 并运行固定 E。P 不看任何用户评论；R 面向 P 的评判依据使用独立无评论调用，并与自身作品／报告、名次和拟合度一起反馈。P/R 默认直接模型调用，按需用一个 `read_material` 工具完成 ReAct，权限随本次用途收窄；三角色统一使用 Completion；只有 E 使用隔离 Job/Pod 与命令工具。初始包固定，提示按阶段覆盖，无历史版本或回滚。详见 [Challenge 设计](backend-challenge.md)。
-- Challenge 内部已按 `transport → application → domain` 分层，DTO 不引用 Proto，数据库与外部协议由 repo／adapter 实现。R→P→E 的输入投影和结果推进集中在 `domain.Engine`，单次 Attempt 的模型／工具循环集中在同一个 `agent` 包；目录与调用链见 [Challenge 分层](backend-challenge.md#layered-architecture)。
+- P 打包、E 执行、R 排序是三个逻辑角色，不新增业务服务。先只迭代 R，可信拟合度超过阈值后固定 R，再只迭代 P 并运行固定 E。P 不看任何用户评论；R 面向 P 的评判依据使用独立无评论调用，并与自身作品／报告、名次和拟合度一起反馈。R 校准每轮先由 LLM 读取完整授权业务内容生成标准，再独立判断，达标后固定标准。P/R 每个工作项只做一次模型调用，程序预先准备材料，模型只返回结构化结果、不使用工具；三角色统一使用 Completion；只有 E 使用隔离 Job/Pod 与命令工具。初始包固定，提示按阶段覆盖，无历史版本或回滚。详见 [Challenge 设计](backend-challenge.md)。
+- Challenge 内部已按 `transport → application → domain` 分层，DTO 不引用 Proto，数据库与外部协议由 repo／adapter 实现。R→P→E 的输入投影和结果推进集中在 `domain.Engine`，单次 Attempt 的 P/R 结构化生成和 E 工具循环集中在同一个 `agent` 包；目录与调用链见 [Challenge 分层](backend-challenge.md#layered-architecture)。
 - `platform` 只表示可复用的技术代码，例如配置、日志、服务启停、数据库连接与遥测初始化；没有一个聚合所有业务的 `platform` 进程。基础代码不包含审核、投票或挑战规则。
 
 上述边界按业务能力与数据归属选择，参考 [Microsoft 服务边界分析](https://learn.microsoft.com/en-us/azure/architecture/microservices/model/domain-analysis)。服务拆分增加的超时、一致性和恢复工作是本项目的学习内容，不能改变 PRD 规则。

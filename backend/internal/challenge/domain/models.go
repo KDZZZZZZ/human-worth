@@ -197,6 +197,8 @@ type TrainingSample struct {
 type RefineRankerInput struct {
 	Samples     []*TrainingSample
 	PreviousFit float64
+	Target      *RankingSample
+	Initial     *InitialTaskPackage
 }
 
 func (v *RefineRankerInput) GetSamples() []*TrainingSample {

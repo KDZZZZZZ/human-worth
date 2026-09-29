@@ -5,7 +5,6 @@ package execution
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"os"
 	"strings"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/completion"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/protobuf"
+	challengerpc "github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/rpc"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/agent"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/domain"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -36,43 +36,24 @@ func TestLiveProvider(t *testing.T) {
 	}
 }
 
-// TestLiveProviderTools 用随机测试文本验证供应商原生工具调用和 tool 消息回传，不评估排名质量。
-func TestLiveProviderTools(t *testing.T) {
+// TestLiveStructuredResult 用合成输入验证 P/R 的单次结构化结果，不调用材料工具。
+func TestLiveStructuredResult(t *testing.T) {
 	path := os.Getenv("CHALLENGE_MODEL_CONFIG_FILE")
 	if path == "" {
 		t.Skip("set private model configuration to opt in")
 	}
-	p, err := completion.LoadProvider(path)
+	provider, err := completion.LoadProvider(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
 	defer cancel()
-	request := agent.CompletionRequest{Model: p.Model(), MaxTokens: 128, Messages: []agent.Message{{Role: "user", Content: "Call read_material with materialRef probe_material exactly once. After receiving its result, return only the exact text it contains."}}, Tools: []any{map[string]any{"type": "function", "function": map[string]any{"name": "read_material", "description": "Read the selected test material.", "parameters": map[string]any{"type": "object", "properties": map[string]any{"materialRef": map[string]string{"type": "string"}}, "required": []string{"materialRef"}, "additionalProperties": false}}}}}
-	body, _ := json.Marshal(request)
-	first, _, err := p.Complete(ctx, body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	answer := first.Choices[0].Message
-	if len(answer.ToolCalls) != 1 || answer.ToolCalls[0].Function.Name != "read_material" {
-		t.Fatal("provider did not return the required native tool call")
-	}
-	call := answer.ToolCalls[0]
-	var args map[string]string
-	if json.Unmarshal([]byte(call.Function.Arguments), &args) != nil || args["materialRef"] != "probe_material" {
-		t.Fatal("invalid provider tool arguments")
-	}
-	value := "challenge-tool-" + domain.NewID("")
-	request.Messages = append(request.Messages, agent.Message{Role: "assistant", Content: answer.Content, ToolCalls: answer.ToolCalls}, agent.Message{Role: "tool", ToolCallID: call.ID, Content: value})
-	request.Tools = nil
-	body, _ = json.Marshal(request)
-	last, _, err := p.Complete(ctx, body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.TrimSpace(last.Choices[0].Message.Content) != value {
-		t.Fatal("provider did not consume the tool result")
+	rpc := &workerRPC{}
+	worker := &agent.Worker{Client: challengerpc.WorkerClient{Client: clientFor(t, rpc)}, Provider: provider, Codec: protobuf.AgentPayloads{}}
+	a := &domain.Assignment{Role: "R", Kind: domain.WorkKind_WORK_KIND_REFINE_RANKER, Attempt: &domain.AttemptRef{AttemptId: "probe"}, Model: &domain.ModelConfiguration{Model: provider.Model(), Prompt: "为计算 1+1 的作品生成准确性判断标准。"}, ModelCallLimit: 1, InputPolicyHash: domain.InputPolicyHash(domain.InputPolicyVersion, 1, 0), Input: &domain.Assignment_Refine{Refine: &domain.RefineRankerInput{}}}
+	result, err := worker.Generate(ctx, a, "probe-grant")
+	if err != nil || strings.TrimSpace(result.GetPrompt().GetPrompt()) == "" {
+		t.Fatalf("structured result required: %v", err)
 	}
 }
 

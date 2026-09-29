@@ -176,6 +176,8 @@ func CloneRefineRankerInput(v *RefineRankerInput) *RefineRankerInput {
 		return nil
 	}
 	out := *v
+	out.Target = CloneRankingSample(v.Target)
+	out.Initial = CloneInitialTaskPackage(v.Initial)
 	out.Samples = slices.Clone(v.Samples)
 	for i, x := range v.Samples {
 		out.Samples[i] = CloneTrainingSample(x)

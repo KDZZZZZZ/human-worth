@@ -12,7 +12,7 @@
 
 Challenge 同样由 `cmd/challenge` 装配 `transport/grpc → application → domain`，`application/dto` 使用纯 Go 类型，`repo/postgres` 统一实现 SQL 和事务。完整目录与阅读顺序见 [Challenge 分层](../docs/backend-challenge.md#layered-architecture)。
 
-核心逻辑集中在两个包：`domain.Engine` 管理 R→P→E 的角色输入、结果校验与迭代推进；`agent` 管理一次 Attempt 的领取、续租、P/R 材料读取和 E 命令工具循环。`adapter/rpc`、`adapter/completion`、`adapter/execution` 分别连接外部 RPC、模型 HTTP、Kubernetes 与隔离工作区，核心不直接访问网络、文件或启动进程。数据库格式、Proto 和 OpenAPI 契约沿用现有版本。
+核心逻辑集中在两个包：`domain.Engine` 管理 R→P→E 的角色输入、结果校验与迭代推进；`agent` 管理一次 Attempt 的领取、续租、P/R 单次结构化调用和 E 命令工具循环。`adapter/rpc`、`adapter/completion`、`adapter/execution` 分别连接外部 RPC、模型 HTTP、Kubernetes 与隔离工作区，核心不直接访问网络、文件或启动进程。数据库格式与 HTTP 字段保持兼容；R 标准生成输入在 Proto 增加可选的完整任务上下文和初始包。
 
 ## 开发与检查
 
@@ -80,7 +80,7 @@ gateway 配置 `CHALLENGE_TARGET` 后启用六个管理员 HTTP 操作；仍通�
 
 ```sh
 CHALLENGE_MODEL_CONFIG_FILE=/path/to/private/model.json \
-  go test -tags=live ./internal/challenge/adapter/execution -run 'TestLiveProvider|TestLiveExecutorCompletion' -count=1 -timeout=100s
+  go test -tags=live ./internal/challenge/adapter/execution -run 'TestLiveProvider|TestLiveStructuredResult|TestLiveExecutorCompletion' -count=1 -timeout=100s
 ```
 
 2026-09-20，用户提供的 `gemini-3.8-flash` 基础 Completion、read_material 工具往返，以及 E 经中继的 run_command 工具往返、最终文本作品和预算结算均通过。E 协议测试返回固定工具观察，没有在宿主机执行模型命令；多模态、真实排名质量和真实隔离执行需各自验证。测试密钥留在仓库外。
@@ -91,9 +91,9 @@ CHALLENGE_MODEL_CONFIG_FILE=/path/to/private/model.json \
 
 每个 E Attempt 固定 Job 名，禁止自动重试；独立卷、非 root、只读根文件系统、无 ServiceAccount token，限 1 CPU/2 GiB 内存/1 GiB 临时存储。成功回传后先删除 Job 再提交工作；清理失败会失败收尾，同实例重启按标签清理旧 Job，Job TTL 及 Secret ownerReference 提供额外回收。重启时的 `WORKER_INSTANCE_ID` 应保持稳定，多个活跃实例不能复用。
 
-首版不提供额外 skills 装载；默认 harness 为 `completion-shell`，E 只使用 `run_command` 读写文件和验证作品。命令最多 30 秒、输出最多 64 KiB 并标明截断；超时／取消结束进程组。E 当前只传文本消息，附件下载到隔离目录，原生多模态观察尚未实现。轮数均限制 1～100，预算单位固定 `model_calls`、整数 1～100000；一次 Attempt 最多 8 次模型调用及 16 次工具调用，总期限 2 小时。P/R 支持 UTF-8 文本、JSON 和 PNG/JPEG/WebP；未知格式明确失败，单文件上限 16 MiB、图片 8 MiB；P/R 读取前还限制整批原始材料不超过 16 MiB，编码后的模型请求也不超过 16 MiB。工具按 64 KiB 分页并核对完整摘要。超过完整材料或上下文容量时不截断评测。
+首版不提供额外 skills 装载；默认 harness 为 `completion-shell`，E 只使用 `run_command` 读写文件和验证作品。命令最多 30 秒、输出最多 64 KiB 并标明截断；超时／取消结束进程组。E 当前只传文本消息，附件下载到隔离目录，原生多模态观察尚未实现。轮数均限制 1～100，预算单位固定 `model_calls`、整数 1～100000；P/R 每个 Attempt 只允许 1 次模型调用、0 次工具调用；E 最多 8 次模型调用及 16 次工具调用，总期限 2 小时。P/R 支持 UTF-8 文本、JSON 和 PNG/JPEG/WebP；未知格式明确失败，单文件上限 16 MiB、图片 8 MiB；P/R 读取前还限制整批原始材料不超过 16 MiB，编码后的模型请求也不超过 16 MiB。程序按 64 KiB 流式读齐文件并核对完整摘要，再一次性提供给 P/R；模型不调用读取工具。超过完整材料或上下文容量时不截断评测。
 
-服务端只保存当前优化提示和当前完整反馈，不创建提示历史树。每次调用均预留一个调用单位，未知结果保留预留且不能重发；管理员响应不包含余额或已用数值。模型调用、登记和完成回执用于恢复，长期部署前需按业务保留期补充这些回执的归档策略。
+R 校准每轮为 LLM 生成标准 → 独立 LLM 判断；达标后固定标准。标准生成可读完整授权业务内容，包括初始包、评论、作品和真人训练偏好；判断使用独立样本，P/E 的材料边界保持不变。服务端只保存当前优化提示和当前完整反馈，不创建提示历史树。每次调用均预留一个调用单位，未知结果保留预留且不能重发；管理员响应不包含余额或已用数值。模型调用、登记和完成回执用于恢复，长期部署前需按业务保留期补充这些回执的归档策略。
 
 ## 可观测性
 

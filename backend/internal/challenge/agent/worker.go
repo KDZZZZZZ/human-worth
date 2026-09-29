@@ -101,7 +101,7 @@ func (w *Worker) RunOnce(ctx context.Context) (bool, error) {
 			result.Result = &dto.CompleteWorkRequest_Generated{Generated: g}
 		}
 	} else {
-		result, err = w.Reason(ctx, a, activation.Grant)
+		result, err = w.Generate(ctx, a, activation.Grant)
 	}
 	if err != nil {
 		reason := "invalid_model_result"

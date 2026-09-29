@@ -156,6 +156,7 @@ message RegisterCandidateResponse {
 enum WorkKind {
   WORK_KIND_UNSPECIFIED = 0;
   WORK_KIND_VALIDATE_RANKER = 1;
+  // 保留旧编号；新流程不再先做训练排名，而是先生成标准、再独立判断。
   WORK_KIND_TRAIN_RANKER = 2;
   WORK_KIND_REFINE_RANKER = 3;
   WORK_KIND_PACK_TASK = 4;
@@ -198,9 +199,12 @@ message TrainingSample {
   Ranking ranking = 2;
   map<string, int64> human_counts = 3;
 }
+// 每轮先由 LLM 生成判断标准；可读完整授权材料，验证集在标准落库后另取。
 message RefineRankerInput {
   repeated TrainingSample samples = 1;
   double previous_fit = 2;
+  RankingSample target = 3;
+  InitialTaskPackage initial = 4;
 }
 message OwnFeedback {
   humanworth.content.v1.Work work = 1;

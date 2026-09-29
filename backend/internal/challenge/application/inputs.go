@@ -80,7 +80,14 @@ func (s *Service) prepare(ctx context.Context, st *domain.State) error {
 			return domain.Invalid("attachment_not_in_task")
 		}
 	}
-	return s.validationBatch(ctx, st)
+	// 标准生成已能读取目标任务，独立验证不能再使用它或任何已暴露的训练任务。
+	st.SeenTaskIds = append(st.SeenTaskIds, st.Run.TaskId)
+	batch, inputs, err := s.batch(ctx, st, "training")
+	if err != nil {
+		return err
+	}
+	s.engine.SetTraining(st, batch, inputs)
+	return s.checkInputs(ctx, st, st.Assignment)
 }
 
 // batch 向 Voting 取标签，只有无标签的 RankingSample 会进入 R 的验证输入。
@@ -144,7 +151,7 @@ func (s *Service) fitBinding(st *domain.State) string {
 
 // checkInputs 每次发放材料或接收结果都重新核实当前授权；验证标签从不进入此请求。
 func (s *Service) checkInputs(ctx context.Context, st *domain.State, a *domain.Assignment) error {
-	if a == nil || a.InputPolicyHash != s.engine.PolicyHash() {
+	if a == nil || a.InputPolicyHash != s.engine.WorkPolicyHash(a.Kind) {
 		return domain.Conflict("input_policy_changed")
 	}
 	if st.Run.Stage == "optimizing_packer" || st.Run.Stage == "registering" {
@@ -152,11 +159,18 @@ func (s *Service) checkInputs(ctx context.Context, st *domain.State, a *domain.A
 			return domain.Conflict("ranker_fit_invalidated")
 		}
 	}
-	if st.Validation != nil {
-		if st.Validation.ValidUntil == nil || !st.Validation.ValidUntil.UTC().After(time.Now()) {
+	batches := []*domain.PreferenceBatch{st.Validation}
+	if a.Kind == domain.WorkKind_WORK_KIND_REFINE_RANKER {
+		batches = append(batches, st.Training)
+	}
+	for _, batch := range batches {
+		if batch == nil {
+			continue
+		}
+		if batch.ValidUntil == nil || !batch.ValidUntil.UTC().After(time.Now()) {
 			return domain.Conflict("ranker_fit_invalidated")
 		}
-		v, err := s.voting.CheckHumanPreferenceSnapshot(ctx, &dto.CheckHumanPreferenceSnapshotRequest{SnapshotId: st.Validation.SnapshotId, PolicyVersion: st.Validation.PolicyVersion})
+		v, err := s.voting.CheckHumanPreferenceSnapshot(ctx, &dto.CheckHumanPreferenceSnapshotRequest{SnapshotId: batch.SnapshotId, PolicyVersion: batch.PolicyVersion})
 		if err != nil {
 			return domain.UnavailableError()
 		}
@@ -191,6 +205,15 @@ func (s *Service) checkInputs(ctx context.Context, st *domain.State, a *domain.A
 		}
 	}
 	if refine := a.GetRefine(); refine != nil {
+		if refine.Target == nil {
+			return domain.Invalid("criteria_context_required")
+		}
+		if s.fingerprints.RefineSize(refine) > domain.MaxInputBytes {
+			return domain.Reject(domain.ResourceExhausted, "materials_too_large")
+		}
+		for _, w := range refine.Target.Works {
+			works[st.Run.TaskId] = append(works[st.Run.TaskId], w.Id)
+		}
 		for _, t := range refine.Samples {
 			refs[t.Sample.Task.TaskId] = snapshotFor(t.Sample.Task.TaskId, t.Sample.Task.Revision)
 			for _, w := range t.Sample.Works {

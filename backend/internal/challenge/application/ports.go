@@ -98,6 +98,7 @@ type Fingerprints interface {
 	Claim(*dto.ClaimWorkRequest) string
 	Result(*dto.CompleteWorkRequest) string
 	SampleSize(*domain.RankingSample) int
+	RefineSize(*domain.RefineRankerInput) int
 	PreferenceSize(*domain.HumanPreference) int
 }
 type MaterialStream interface {

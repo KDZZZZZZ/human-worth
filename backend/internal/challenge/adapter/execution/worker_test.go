@@ -14,7 +14,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"unicode/utf8"
 
 	asset "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/asset/v1"
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1"
@@ -84,95 +83,93 @@ func clientFor(t *testing.T, s *workerRPC) pb.ChallengeServiceClient {
 	return pb.NewChallengeServiceClient(conn)
 }
 
-func TestMaterialToolProtocol(t *testing.T) {
-	for _, scenario := range []string{"chinese_pages", "corrupt_digest", "unknown_reference", "invalid_cursor", "tool_limit", "unknown_tool", "incomplete_coverage", "aggregate_limit"} {
-		t.Run(scenario, func(t *testing.T) {
-			data := []byte(strings.Repeat("中文材料", 9000))
-			rpc := &workerRPC{data: data, digest: digest(data)}
-			if scenario == "corrupt_digest" {
-				rpc.digest = strings.Repeat("0", 64)
-			}
-			client := clientFor(t, rpc)
-			var received strings.Builder
-			calls := 0
-			model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				var request agent.CompletionRequest
-				if json.NewDecoder(r.Body).Decode(&request) != nil {
-					t.Error("bad request")
-					http.Error(w, "bad request", 400)
-					return
+func TestStructuredModelCall(t *testing.T) {
+	for _, role := range []string{"P", "R"} {
+		for _, scenario := range []string{"complete", "corrupt_digest", "truncated_material", "aggregate_limit", "tool_call", "invalid_json", "extra_field", "unknown_response"} {
+			t.Run(role+"/"+scenario, func(t *testing.T) {
+				data := []byte(strings.Repeat("中文材料", 9000))
+				rpc := &workerRPC{data: data, digest: digest(data)}
+				if scenario == "corrupt_digest" {
+					rpc.digest = strings.Repeat("0", 64)
 				}
-				calls++
-				cursor := ""
-				done := false
-				last := request.Messages[len(request.Messages)-1]
-				if last.Role == "tool" {
-					var chunk struct {
-						Content    string `json:"content"`
-						NextCursor string `json:"nextCursor"`
-					}
-					if json.Unmarshal([]byte(last.Content.(string)), &chunk) != nil {
-						t.Error("bad tool result")
-					}
-					if !utf8.ValidString(chunk.Content) {
-						t.Error("split UTF-8 character")
-					}
-					received.WriteString(chunk.Content)
-					cursor = chunk.NextCursor
-					done = cursor == ""
+				if scenario == "truncated_material" {
+					rpc.data = data[:len(data)-1]
 				}
-				message := map[string]any{"role": "assistant"}
-				reason := "tool_calls"
-				if done || scenario == "incomplete_coverage" {
-					message["content"] = `{"prompt":"按要求执行"}`
-					reason = "stop"
-				} else {
-					ref := "material"
-					name := "read_material"
-					if scenario == "unknown_reference" {
-						ref = "comment_1"
+				client := clientFor(t, rpc)
+				calls := 0
+				model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					calls++
+					var request agent.CompletionRequest
+					if json.NewDecoder(r.Body).Decode(&request) != nil {
+						t.Error("bad model request")
+						return
 					}
-					if scenario == "unknown_tool" {
-						name = "read_labels"
+					if len(request.Tools) != 0 || len(request.Messages) != 3 {
+						t.Error("P/R must receive a fresh context without tools")
 					}
-					if scenario == "invalid_cursor" && calls > 1 {
-						cursor = "foreign_cursor"
+					for _, message := range request.Messages {
+						if message.Role == "tool" || message.Role == "assistant" {
+							t.Error("P/R received conversation history")
+						}
 					}
-					args, _ := json.Marshal(map[string]string{"materialRef": ref, "cursor": cursor})
-					message["tool_calls"] = []any{map[string]any{"id": "call", "type": "function", "function": map[string]string{"name": name, "arguments": string(args)}}}
-				}
-				json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": message, "finish_reason": reason}}})
-			}))
-			defer model.Close()
-			provider, err := completion.NewProvider(completion.ProviderConfig{BaseURL: model.URL, Protocol: "completion", Model: "test-model", APIKey: "fixture"}, model.Client())
-			if err != nil {
-				t.Fatal(err)
-			}
-			a := &pb.Assignment{Role: "R", Kind: pb.WorkKind_WORK_KIND_REFINE_RANKER, Attempt: &pb.AttemptRef{AttemptId: "attempt_test"}, Model: &pb.ModelConfiguration{Model: "test-model"}, ModelCallLimit: 6, ToolCallLimit: 8, Input: &pb.Assignment_Refine{Refine: &pb.RefineRankerInput{}}, Materials: []*pb.Material{{Id: "material", Asset: &asset.Asset{Id: "asset", Filename: "材料.txt", MediaType: "text/plain", Bytes: int64(len(data)), Sha256: rpc.digest}}}}
-			if scenario == "tool_limit" {
-				a.ToolCallLimit = 1
-			}
-			a.InputPolicyHash = domain.InputPolicyHash(domain.InputPolicyVersion, a.ModelCallLimit, a.ToolCallLimit)
-			if scenario == "aggregate_limit" {
-				a.Materials[0].Asset.Bytes = 16 << 20
-				a.Materials = append(a.Materials, a.Materials[0])
-			}
-			worker := &agent.Worker{Client: challengerpc.WorkerClient{Client: client}, Provider: provider, Codec: protobuf.AgentPayloads{}}
-			_, err = worker.Reason(t.Context(), protobuf.FromAssignment(a), "grant")
-			if scenario == "aggregate_limit" && calls != 0 {
-				t.Fatal("oversized batch dispatched before size validation")
-			}
-			if scenario == "chinese_pages" {
+					if request.Messages[len(request.Messages)-1].Content != "文件 material：\n"+string(data) {
+						t.Error("model did not receive exact complete UTF-8 material")
+					}
+					if scenario == "unknown_response" {
+						io.WriteString(w, `{"choices":[`)
+						return
+					}
+					message := map[string]any{"role": "assistant", "content": `{"prompt":"根据任务要求和准确性判断。"}`}
+					reason := "stop"
+					switch scenario {
+					case "tool_call":
+						reason = "tool_calls"
+						message["tool_calls"] = []any{map[string]any{"id": "call", "type": "function", "function": map[string]string{"name": "read_material", "arguments": `{}`}}}
+					case "invalid_json":
+						message["content"] = "plain text is not a structured result"
+					case "extra_field":
+						message["content"] = `{"prompt":"标准","unapproved":true}`
+					}
+					json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": message, "finish_reason": reason}}})
+				}))
+				defer model.Close()
+				provider, err := completion.NewProvider(completion.ProviderConfig{BaseURL: model.URL, Protocol: "completion", Model: "test-model", APIKey: "fixture"}, model.Client())
 				if err != nil {
 					t.Fatal(err)
 				}
-				if received.String() != string(data) {
-					t.Fatal("tool did not return exact full material")
+				a := &pb.Assignment{Role: role, Kind: pb.WorkKind_WORK_KIND_REFINE_RANKER, Attempt: &pb.AttemptRef{AttemptId: "attempt_test"}, Model: &pb.ModelConfiguration{Model: "test-model"}, ModelCallLimit: 1, Input: &pb.Assignment_Refine{Refine: &pb.RefineRankerInput{}}, Materials: []*pb.Material{{Id: "material", Asset: &asset.Asset{Id: "asset", Filename: "材料.txt", MediaType: "text/plain", Bytes: int64(len(data)), Sha256: rpc.digest}}}}
+				if role == "P" {
+					a.Kind = pb.WorkKind_WORK_KIND_PACK_TASK
+					a.Input = &pb.Assignment_Pack{Pack: &pb.PackInput{}}
 				}
-			} else if err == nil {
-				t.Fatal("invalid tool/material accepted")
-			}
-		})
+				a.InputPolicyHash = domain.InputPolicyHash(domain.InputPolicyVersion, 1, 0)
+				if scenario == "aggregate_limit" {
+					a.Materials[0].Asset.Bytes = 16 << 20
+					a.Materials = append(a.Materials, a.Materials[0])
+				}
+				worker := &agent.Worker{Client: challengerpc.WorkerClient{Client: client}, Provider: provider, Codec: protobuf.AgentPayloads{}}
+				result, err := worker.Generate(t.Context(), protobuf.FromAssignment(a), "grant")
+				if scenario == "complete" {
+					if err != nil || result.GetPrompt().GetPrompt() != "根据任务要求和准确性判断。" {
+						t.Fatalf("structured result: %v, %v", result, err)
+					}
+				} else if err == nil {
+					t.Fatal("invalid material or model result accepted")
+				}
+				wantCalls := 1
+				if scenario == "corrupt_digest" || scenario == "truncated_material" || scenario == "aggregate_limit" {
+					wantCalls = 0
+				}
+				rpc.mu.Lock()
+				defer rpc.mu.Unlock()
+				if calls != wantCalls || len(rpc.reservations) != wantCalls || len(rpc.outcomes) != wantCalls {
+					t.Fatalf("unexpected calls/settlements: %d %d %v", calls, len(rpc.reservations), rpc.outcomes)
+				}
+				if scenario == "unknown_response" && rpc.outcomes[0] != "unknown" {
+					t.Fatal("unknown model result lost its reservation")
+				}
+			})
+		}
 	}
 }
 

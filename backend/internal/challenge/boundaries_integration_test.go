@@ -37,6 +37,8 @@ func TestChallengeStrictThresholdAndInvalidRankings(t *testing.T) {
 			must(t, l.services[0].Reconcile(t.Context()))
 			a := l.claim(0)
 			l.activate(a)
+			a = l.submitCriteria(a)
+			l.activate(a)
 			good := rankings(a.GetRank(), false)
 			for _, mutate := range []func(*pb.Rankings){func(r *pb.Rankings) { r.Items[0].OrderedWorkIds[1] = "left" }, func(r *pb.Rankings) { r.Items[0].Judgments[0].EvidenceRefs = []string{"comment_1"} }, func(r *pb.Rankings) { r.Items[0].Judgments = r.Items[0].Judgments[:1] }} {
 				bad := proto.Clone(good).(*pb.Rankings)
@@ -54,7 +56,7 @@ func TestChallengeStrictThresholdAndInvalidRankings(t *testing.T) {
 			must(t, l.services[1].Reconcile(t.Context()))
 			next := l.claim(0)
 			if threshold == 2.0/3.0 {
-				if next.Kind != pb.WorkKind_WORK_KIND_TRAIN_RANKER || current.Stage != "optimizing_ranker" {
+				if next.Kind != pb.WorkKind_WORK_KIND_REFINE_RANKER || current.Stage != "optimizing_ranker" {
 					t.Fatal("equal threshold unlocked P")
 				}
 			} else if next.Kind != pb.WorkKind_WORK_KIND_PACK_TASK {
@@ -113,8 +115,8 @@ func TestChallengeLeaseRecoveryAndFreshRestart(t *testing.T) {
 		t.Fatal("restart inherited optimization state")
 	}
 	must(t, l.services[1].Reconcile(t.Context()))
-	if l.claim(0).Kind != pb.WorkKind_WORK_KIND_VALIDATE_RANKER {
-		t.Fatal("restart skipped R validation")
+	if l.claim(0).Kind != pb.WorkKind_WORK_KIND_REFINE_RANKER {
+		t.Fatal("restart skipped R criteria generation")
 	}
 	queued := l.start(config())
 	_, err = l.admins[0].CancelRun(t.Context(), &pb.CancelRunRequest{ActorAssertion: "admin", RunId: queued.Id, Reason: "测试启动前取消"})
@@ -139,7 +141,7 @@ func TestChallengeMaterialAndUploadBoundaries(t *testing.T) {
 	must(t, err)
 	chunk, err := stream.Recv()
 	must(t, err)
-	if string(chunk.Chunk) != "任务附件" || l.deps.lastReadTask != "validation_0" {
+	if string(chunk.Chunk) != "任务附件" || l.deps.lastReadTask != "training_0" {
 		t.Fatal("R attachment used target task authorization")
 	}
 	upload := func(a *pb.Assignment, name, checksum string) (*pb.UploadArtifactResponse, error) {
@@ -155,6 +157,8 @@ func TestChallengeMaterialAndUploadBoundaries(t *testing.T) {
 	}
 	_, err = upload(a, "work.txt", digest([]byte("作品")))
 	code(t, err, codes.PermissionDenied)
+	a = l.submitCriteria(a)
+	l.activate(a)
 	l.complete(a, &pb.CompleteWorkRequest{Result: &pb.CompleteWorkRequest_Rankings{Rankings: rankings(a.GetRank(), false)}})
 	p := l.claim(0)
 	l.activate(p)
