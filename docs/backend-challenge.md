@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.10 · 2026-09-20 · 三角色统一 Completion，未发布 |
+| 版本 | v0.11 · 2026-09-29 · 分层实现与内聚 agent 核心，未发布 |
 | Human Design | 统一追求成为最佳或对齐最佳效果；P 不接收任何用户评论；先只迭代 R，拟合度超过阈值后固定 R、只迭代 P 并运行 E；R 提供评判依据与真人偏好拟合度；P/R 可按需使用 ReAct，工具按实际需要设计；管理员准备初始包；角色隔离；先定 Proto 再 mock；测试服务统一使用 Completion |
 | 当前方案 | P/R 默认普通模型调用，需要按需读材料时使用一个共享读取工具完成 ReAct；只有 E 使用工作区与 harness；只维护当前提示，按先 R 后 P 的阶段覆盖；不保留历史版本或回滚 |
 | 产品依据 | [PRD S4、H1、H2、H4～H11](prd.md)：管理员启动、统一目标、先 R 后 P、按需使用 ReAct、产物审核、终态拒绝迟到结果、隐藏额度及角色边界 |
@@ -17,7 +17,7 @@
 
 DTO 是模块之间传递的数据结构。这里按“数据从哪里来、字段是什么意思、在哪个功能使用”阅读；`[]` 表示列表，`?` 表示可空，ID 与摘要均为字符串。字段使用 camelCase 展示，不写 Proto 字段编号或序列化语法。
 
-Identity 的字段来自已实现的 `Principal`；其余 DTO 是原有依赖契约的字段整理，尚待对应模块实现。DTO 名称用于说明业务数据，不要求新增一层转换框架。
+Identity 的字段来自已实现的 `Principal`；其余 DTO 是原有依赖契约的字段整理，尚待对应模块实现。字段表说明业务数据；实现中的应用 DTO、领域对象和协议映射见 [6.4 节](#layered-architecture)。
 
 ### 1.1 文件与作品：Asset、Content
 
@@ -497,7 +497,7 @@ fake 直接实现生成的 gRPC server，使用受控时钟与故障点；正常
 <a id="implementation"></a>
 ## 6.3 本地实现与证据边界
 
-落地入口为 [challenge](../backend/cmd/challenge/main.go)、[challenge-worker](../backend/cmd/challenge-worker/main.go) 与隔离镜像中的 [challenge-executor](../backend/cmd/challenge-executor/main.go)。[Proto](../backend/proto/humanworth/challenge/v1/challenge.proto)定义 18 个 RPC，依赖契约位于同级 `content / asset / voting` 包；本节说明实际实现，前文 DTO 字段表用于概念映射，不要求另建转换框架。
+落地入口为 [challenge](../backend/cmd/challenge/main.go)、[challenge-worker](../backend/cmd/challenge-worker/main.go) 与隔离镜像中的 [challenge-executor](../backend/cmd/challenge-executor/main.go)。[Proto](../backend/proto/humanworth/challenge/v1/challenge.proto)定义 18 个 RPC，依赖契约位于同级 `content / asset / voting` 包；应用 DTO 与领域对象不引用生成的协议类型，边界使用显式类型映射。
 
 2026-09-29 本地主工作区整合以 `dev` 的 `80724c5` 为基线，接入 `backend/feat-challenge` 的 `8151c42`。Challenge 的管理员策略迁入 Identity 的 domain，完整 RPC 映射由 transport 维护，gateway 显式使用 `challenge` audience。[跨模块鉴权回归](../backend/internal/identity/challenge_integration_test.go)通过真实 Identity 与数据库验证这些边界。原有 13 个已实现 HTTP 操作保持契约；Content 的四个本人草稿 RPC 与 Challenge 所需协作 Proto 同时保留，后者仍待真实服务实现。文中的新作品材料／任务附件设计不改变当前草稿 HTTP 输入，当前可调用格式以 OpenAPI 已实现接口为准。
 
@@ -509,7 +509,7 @@ fake 直接实现生成的 gRPC server，使用受控时钟与故障点；正常
 - **执行与登记**：E 输出只有明确选中的作品和不超过 16 KiB 的报告；报告通过内部反馈字符串传输，同时在隔离目录写 `report.md`，不作为作品上传。已知结果按同一摘要重试提交；未知模型结果不再次发送。只有最后一轮候选进入 Content 幂等登记，前轮丢弃；关闭通道回执在终态前完成。
 - **实现参数**：服务默认每 Run 2 小时、租约 60 秒、全局最多 2 个有效租约、每 worker 1 个；每 Attempt 最多 8 次模型调用、16 次工具调用。首版预算只接受整数 `model_calls`。每批文字与标签输入上限 1 MiB，完整作品最多 100 件、验证批次最多 20 个任务；超限失败，不截断。P/R 支持 UTF-8 文本／JSON 和 PNG/JPEG/WebP，其他格式明确失败。
 
-[模块集成测试](../backend/internal/challenge/integration_test.go)使用真实 PostgreSQL 18、受限 owner/runtime 账号、双副本 mTLS gRPC、真实 gateway HTTP 和有状态 Content/Asset/Voting fake。覆盖先只迭代 R、达标后两轮 P/E、评论输入隔离、严格阈值、错误排名、无可比数据、并发领取、租约重放、取消前后与登记响应丢失、文件归属及管理员/CSRF。E 使用明确标注的测试执行器。[worker 测试](../backend/internal/challengeworker/worker_test.go)覆盖真实 Completion HTTP 与流式材料 RPC 的工具往返、中文分页、摘要失败、越权引用、工具上限、Completion 响应结算和防重发。
+[模块集成测试](../backend/internal/challenge/integration_test.go)使用真实 PostgreSQL 18、受限 owner/runtime 账号、双副本 mTLS gRPC、真实 gateway HTTP 和有状态 Content/Asset/Voting fake。覆盖先只迭代 R、达标后两轮 P/E、评论输入隔离、严格阈值、错误排名、无可比数据、并发领取、租约重放、取消前后与登记响应丢失、文件归属及管理员/CSRF。E 使用明确标注的测试执行器。[worker 测试](../backend/internal/challenge/adapter/execution/worker_test.go)覆盖真实 Completion HTTP 与流式材料 RPC 的工具往返、中文分页、摘要失败、越权引用、工具上限、Completion 响应结算和防重发。
 
 2026-09-20，`gemini-3.8-flash` 的 Completion 短文本和 read_material 原生工具往返已通过；修正 E 后，`TestLiveExecutorCompletion` 经真实 HTTPS 中继、记账 RPC 与同一私有配置，完成原生命令工具请求、测试观察回传、最终文本作品和两次调用结算，退出码 0（8.053 秒）。工具观察使用固定测试文本，没有在宿主机执行模型命令；这不替代真实 Job、沙箱或多模态验收。供应商凭据始终保存在仓库外。
 
@@ -528,12 +528,52 @@ fake 直接实现生成的 gRPC server，使用受控时钟与故障点；正常
 
 **未验收部分**：E 的真实 Kubernetes Job、固定镜像、gVisor 沙箱、网络拒绝、资源超限与孤儿回收；真实 Content/Asset/Voting/Moderation 闭环；真人偏好数据与优化质量。隔离清单和适配器只是这些验收的实现基础，尚未安装到现有 lab。准确启动配置及复跑命令见 [backend/README](../backend/README.md#challenge-启动与验证)。
 
+<a id="layered-architecture"></a>
+## 6.4 分层与 agent 核心内聚
+
+2026-09-29，用户要求按既有分层架构调整 Challenge，并明确要求 agent 核心逻辑内聚。下面的目录、接口和职责分配是本次技术实现；没有新增业务服务、工作流框架或依赖。
+
+```text
+backend/internal/challenge/
+├── domain/                  # 领域对象、Engine、输入投影、排名与结果规则
+├── agent/                   # 一次 Attempt 的完整模型与工具循环
+│   ├── worker.go            # 领取、激活、续租、执行、提交与失败收尾
+│   ├── reasoning.go         # P/R Completion 与 read_material 循环
+│   ├── execution.go         # E Completion 与 run_command 循环
+│   ├── model.go             # 模型消息与工具消息
+│   └── ports.go             # 调度、模型和材料读取能力
+├── application/             # 管理用例、租约、预算、外部协作、事务作用域
+│   └── dto/                 # 纯 Go 请求／响应
+├── repo/postgres/           # SQL、行锁、事务与私有状态持久化
+│   └── migrations/          # 原迁移，内容与校验和不变
+├── transport/grpc/          # RPC 映射、错误码、可信 worker 身份
+└── adapter/
+    ├── protobuf/            # 显式协议映射、原有摘要及模型 JSON 格式
+    ├── rpc/                 # Identity/Content/Asset/Voting 与调度客户端
+    ├── completion/          # 模型配置与 HTTP 调用
+    └── execution/           # Kubernetes Job、中继、隔离工作区与命令执行
+```
+
+**核心阅读顺序**：先看 [domain/engine.go](../backend/internal/challenge/domain/engine.go) 的 `ApplyResult`，理解验证 R、训练 R、打包 P、执行 E、全量排序和独立解释如何推进；各工作项的输入组装也集中在这个文件。再看 [agent/worker.go](../backend/internal/challenge/agent/worker.go) 的 `RunOnce`，沿同包的 `Reason` 和 `CompleteExecution` 阅读单次 Attempt。P/R/E 保持在同一个核心包中，各角色的会话和材料权限独立。
+
+`domain` 只依赖标准库；`agent` 只引用领域对象、应用 DTO 和标准库，通过接口获取模型、调度与材料能力。工具循环判断是否继续、限制次数并处理输出；具体 HTTP、文件、命令进程和 Kubernetes 操作归 adapter。原 `internal/challengeworker` 已迁入上述位置。
+
+**服务调用链**：`cmd/challenge` 手工装配 `grpc.Server → application.Service → domain.Engine`。管理员入口可从 [application/service.go](../backend/internal/challenge/application/service.go) 阅读；worker 领取、预算结算和结果回执在 [application/worker.go](../backend/internal/challenge/application/worker.go)；[transport/grpc/server.go](../backend/internal/challenge/transport/grpc/server.go) 只负责协议边界，worker 证书摘要从受信 mTLS 上下文取得。
+
+**事务与恢复**：[application/ports.go](../backend/internal/challenge/application/ports.go) 定义 `WithinTx(func(Tx) error)`，由 [repo/postgres/store.go](../backend/internal/challenge/repo/postgres/store.go) 实现。一个回调内的运行状态、模型预留／结算、结果回执和审计共享数据库事务，错误则整体回滚。`Reconcile` 在事务外调用依赖，再锁定运行并比较版本后回写，保持取消、迟到结果和登记重试的原有语义。领取仍用数据库锁协调副本，不引入进程内互斥锁替代。
+
+**兼容与检查**：SQL 迁移不变；私有 `StoredRun` 仍按旧 protobuf 格式存储，应用层和领域层使用纯 Go 类型；配置和结果的摘要继续使用旧的确定性 protobuf 编码。显式映射不经过通用 JSON 中转，保留 oneof、可空字段、大整数和时间纳秒。[旧数据及事务测试](../backend/internal/challenge/compatibility_integration_test.go)直接插入旧格式数据并验证读取、幂等重放与回滚；[协议兼容测试](../backend/internal/challenge/adapter/protobuf/compatibility_test.go)比较旧格式字节和摘要；[架构检查](../backend/internal/challenge/architecture_test.go)限制各层依赖，防止网络、SQL 或进程操作重新进入核心。模块集成测试入口仍为 `internal/challenge`，原有 HTTP、RPC 和 worker 行为回归继续覆盖分层后的实现。
+
+本次重构在独立的一次性 PostgreSQL 18 上运行 `go test -race -tags=integration ./... -count=1 -timeout=120s`，退出 0；Challenge 10.694 秒、执行适配器 4.847 秒、Identity 42.771 秒。`buf lint`、`buf generate` 及生成一致性、`go vet ./...`、`go build ./cmd/...` 和 `npm run ci` 均退出 0，Node HTTP 5 项与 Python 19 项通过。另以 `go test -tags=live ./internal/challenge/adapter/execution -run '^$'` 验证 opt-in 测试可编译，没有调用真实模型。逐文件对比确认 OpenAPI 整份内容、全部 Proto 字段／服务契约及原迁移 SQL 不变。
+
+本次分层不改变 6.3 节的证据边界：真实 E 沙箱及完整业务依赖仍待验收。
+
 <a id="rpc-contract"></a>
 ## 附录 A：RPC 与 HTTP 对照
 
 ### A.1 ChallengeService 的接口面
 
-本附录只供实现对照；阅读功能时使用前文 DTO 即可。目标 package 为 `humanworth.challenge.v1`，下表是待落入 Proto 的业务与 worker 主接口，不是已经可调用的 RPC。生成后服务端和 mock 共用相同消息；不将模型会话、原始日志或供应商结构作为跨模块契约。
+本附录只供实现对照；阅读功能时使用前文 DTO 即可。package 为 `humanworth.challenge.v1`，下表接口已落入 Proto 并在本地实现，尚未发布。服务端边界和依赖 fake 共用生成消息，核心使用纯 Go 对象；不将模型会话、原始日志或供应商结构作为跨模块契约。
 
 | RPC | 核心输入 → 输出 | 调用方 / 关键语义 |
 | --- | --- | --- |

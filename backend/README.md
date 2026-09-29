@@ -8,6 +8,12 @@
 
 数据库事务由用例通过 `WithinTx` 定义，账号、流程、凭据和审计仓储共享一条事务连接。Google 换码在事务外执行；`identity-admin` 单独装配受限账号用例。迁移 SQL 位于 [repo/postgres/migrations](internal/identity/repo/postgres/migrations)，内容和校验和保持不变。根 `internal/identity` 仅保留集成和架构检查，现有 lab 测试入口不变。
 
+## Challenge 分层与 agent 核心
+
+Challenge 同样由 `cmd/challenge` 装配 `transport/grpc → application → domain`，`application/dto` 使用纯 Go 类型，`repo/postgres` 统一实现 SQL 和事务。完整目录与阅读顺序见 [Challenge 分层](../docs/backend-challenge.md#layered-architecture)。
+
+核心逻辑集中在两个包：`domain.Engine` 管理 R→P→E 的角色输入、结果校验与迭代推进；`agent` 管理一次 Attempt 的领取、续租、P/R 材料读取和 E 命令工具循环。`adapter/rpc`、`adapter/completion`、`adapter/execution` 分别连接外部 RPC、模型 HTTP、Kubernetes 与隔离工作区，核心不直接访问网络、文件或启动进程。数据库格式、Proto 和 OpenAPI 契约沿用现有版本。
+
 ## 开发与检查
 
 使用 Go **1.27.1**、Buf **1.72.0**。依赖固定在 `go.mod/go.sum`；Buf 配置通过固定版本的本地 Go 插件生成代码，不需要另装 protoc。
@@ -74,7 +80,7 @@ gateway 配置 `CHALLENGE_TARGET` 后启用六个管理员 HTTP 操作；仍通�
 
 ```sh
 CHALLENGE_MODEL_CONFIG_FILE=/path/to/private/model.json \
-  go test -tags=live ./internal/challengeworker -run 'TestLiveProvider|TestLiveExecutorCompletion' -count=1 -timeout=100s
+  go test -tags=live ./internal/challenge/adapter/execution -run 'TestLiveProvider|TestLiveExecutorCompletion' -count=1 -timeout=100s
 ```
 
 2026-09-20，用户提供的 `gemini-3.8-flash` 基础 Completion、read_material 工具往返，以及 E 经中继的 run_command 工具往返、最终文本作品和预算结算均通过。E 协议测试返回固定工具观察，没有在宿主机执行模型命令；多模态、真实排名质量和真实隔离执行需各自验证。测试密钥留在仓库外。

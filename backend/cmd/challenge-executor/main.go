@@ -3,17 +3,18 @@ package main
 
 import (
 	"context"
-	"github.com/KDZZZZZZ/human-worth/backend/internal/challengeworker"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/execution"
 )
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	if err := challengeworker.RunExecutor(ctx); err != nil {
+	if err := execution.RunExecutor(ctx); err != nil {
 		slog.Error("execution failed", "reason", err.Error())
 		os.Exit(1)
 	}

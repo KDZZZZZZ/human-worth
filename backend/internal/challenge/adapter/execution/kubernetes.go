@@ -1,4 +1,4 @@
-package challengeworker
+package execution
 
 import (
 	"bytes"
@@ -16,6 +16,10 @@ import (
 	"time"
 
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/completion"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/protobuf"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/agent"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/domain"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -43,7 +47,7 @@ type executorSession struct {
 type KubernetesExecutor struct {
 	Profile  ExecutorProfile
 	Client   pb.ChallengeServiceClient
-	Provider *Provider
+	Provider *completion.Provider
 	Instance string
 	mu       sync.Mutex
 	sessions map[string]*executorSession
@@ -80,7 +84,7 @@ func IsolationPolicy() map[string]any {
 
 // Preflight 拒绝宽松策略或其他叠加放行策略；运维配置只能指定已有隔离运行时。
 func (k *KubernetesExecutor) Preflight(ctx context.Context) error {
-	if k.Provider == nil || k.Provider.config.Protocol != "completion" {
+	if k.Provider == nil || k.Provider.Protocol() != "completion" {
 		return errors.New("executor requires completion protocol")
 	}
 	if k.Instance == "" {
@@ -153,8 +157,8 @@ func (b *limitedBuffer) Write(p []byte) (int, error) {
 }
 
 // Execute 只创建固定安全模板，Job 创建结果不明时核对同名对象，不新建第二份执行。
-func (k *KubernetesExecutor) Execute(ctx context.Context, a *pb.Assignment, grant string) (result *pb.GeneratedWork, resultErr error) {
-	if a.Executor == nil || k.Provider == nil || a.Executor.Harness != "completion-shell" || a.Executor.Model != k.Provider.config.Model || k.Provider.config.Protocol != "completion" || len(a.Executor.Skills) != 0 {
+func (k *KubernetesExecutor) execute(ctx context.Context, a *pb.Assignment, grant string) (result *pb.GeneratedWork, resultErr error) {
+	if a.Executor == nil || k.Provider == nil || a.Executor.Harness != "completion-shell" || a.Executor.Model != k.Provider.Model() || k.Provider.Protocol() != "completion" || len(a.Executor.Skills) != 0 {
 		return nil, errors.New("compatible completion executor configuration required")
 	}
 	if err := k.Preflight(ctx); err != nil {
@@ -292,7 +296,7 @@ func (k *KubernetesExecutor) Execute(ctx context.Context, a *pb.Assignment, gran
 			failed := session.settlementFailed
 			k.mu.Unlock()
 			if failed {
-				return nil, errModelUnknown
+				return nil, agent.ErrModelUnknown
 			}
 			if candidate != nil && inflight == 0 {
 				return candidate, nil
@@ -423,7 +427,7 @@ func (k *KubernetesExecutor) completions(w http.ResponseWriter, r *http.Request,
 	session.inflight++
 	k.mu.Unlock()
 	defer func() { k.mu.Lock(); session.inflight--; k.mu.Unlock() }()
-	var body completionRequest
+	var body agent.CompletionRequest
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2<<20))
 	decoder.DisallowUnknownFields()
 	if decoder.Decode(&body) != nil || decoder.Decode(new(any)) != io.EOF || body.Stream || len(body.Messages) == 0 {
@@ -447,7 +451,7 @@ func (k *KubernetesExecutor) completions(w http.ResponseWriter, r *http.Request,
 	}
 	if len(body.Tools) != 0 {
 		actual, _ := json.Marshal(body.Tools)
-		expected, _ := json.Marshal(executionTools())
+		expected, _ := json.Marshal(agent.ExecutionTools())
 		if !bytes.Equal(actual, expected) {
 			http.Error(w, "tool forbidden", 403)
 			return
@@ -472,7 +476,7 @@ func (k *KubernetesExecutor) completions(w http.ResponseWriter, r *http.Request,
 		http.Error(w, "dispatch unavailable", 409)
 		return
 	}
-	response, outcome, callErr := k.Provider.complete(ctx, data)
+	response, outcome, callErr := k.Provider.Complete(ctx, data)
 	settleCtx, stop := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
 	_, err = k.Client.SettleModelCall(settleCtx, &pb.SettleModelCallRequest{Attempt: session.assignment.Attempt, ReservationId: reservation.ReservationId, Outcome: outcome})
 	stop()
@@ -544,4 +548,9 @@ func (k *KubernetesExecutor) upload(w http.ResponseWriter, r *http.Request, sess
 	data, _ := protojson.Marshal(response.Asset)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(data)
+}
+
+func (k *KubernetesExecutor) Execute(ctx context.Context, a *domain.Assignment, grant string) (*domain.GeneratedWork, error) {
+	result, err := k.execute(ctx, protobuf.ToAssignment(a), grant)
+	return protobuf.FromGeneratedWork(result), err
 }

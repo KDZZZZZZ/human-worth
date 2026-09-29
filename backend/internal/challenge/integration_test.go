@@ -33,8 +33,14 @@ import (
 	content "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1"
 	identity "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/identity/v1"
 	voting "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/voting/v1"
-	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge"
-	"github.com/KDZZZZZZ/human-worth/backend/internal/challengeworker"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/completion"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/protobuf"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/rpc"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/agent"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/application"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/domain"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/repo/postgres"
+	challengegrpc "github.com/KDZZZZZZ/human-worth/backend/internal/challenge/transport/grpc"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/gateway"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/platform"
 	"github.com/jackc/pgx/v5"
@@ -207,7 +213,7 @@ func (d *dependencies) GetHumanPreferenceSnapshot(_ context.Context, q *voting.G
 		total += n
 	}
 	works, _ := d.ListChallengeWorks(context.Background(), nil)
-	return &voting.GetHumanPreferenceSnapshotResponse{SnapshotId: q.RunId + "_" + task, PolicyVersion: "fixture_v1", ValidUntil: timestamppb.New(now.Add(time.Hour)), Samples: []*voting.HumanPreference{{Snapshot: ref, WorkSetHash: challenge.WorkSetHash(works.Works), WindowStart: timestamppb.New(now.Add(-2 * time.Hour)), WindowEnd: timestamppb.New(now.Add(-time.Hour)), CountsByWork: counts, ValidVoteCount: total}}}, nil
+	return &voting.GetHumanPreferenceSnapshotResponse{SnapshotId: q.RunId + "_" + task, PolicyVersion: "fixture_v1", ValidUntil: timestamppb.New(now.Add(time.Hour)), Samples: []*voting.HumanPreference{{Snapshot: ref, WorkSetHash: workSetHash(works.Works), WindowStart: timestamppb.New(now.Add(-2 * time.Hour)), WindowEnd: timestamppb.New(now.Add(-time.Hour)), CountsByWork: counts, ValidVoteCount: total}}}, nil
 }
 func (d *dependencies) CheckHumanPreferenceSnapshot(context.Context, *voting.CheckHumanPreferenceSnapshotRequest) (*voting.CheckHumanPreferenceSnapshotResponse, error) {
 	d.mu.Lock()
@@ -321,7 +327,7 @@ func (p *pki) serve(service string, register func(*grpc.Server), authorize bool)
 	must(p.t, err)
 	opts := []grpc.ServerOption{grpc.Creds(credentials.NewTLS(tls))}
 	if authorize {
-		opts = append(opts, grpc.UnaryInterceptor(challenge.Authorization), grpc.StreamInterceptor(challenge.AuthorizationStream))
+		opts = append(opts, grpc.UnaryInterceptor(challengegrpc.Authorization), grpc.StreamInterceptor(challengegrpc.AuthorizationStream))
 	}
 	s := grpc.NewServer(opts...)
 	register(s)
@@ -344,7 +350,7 @@ func (p *pki) dial(address, service, caller string) *grpc.ClientConn {
 type lab struct {
 	t        *testing.T
 	db       *pgxpool.Pool
-	services [2]*challenge.Server
+	services [2]*application.Service
 	admins   [2]pb.ChallengeServiceClient
 	workers  [2]pb.ChallengeServiceClient
 	deps     *dependencies
@@ -405,8 +411,8 @@ func newLab(t *testing.T) *lab {
 	ownerCfg.ConnConfig.Password = password
 	ownerDB, err = pgxpool.NewWithConfig(t.Context(), ownerCfg)
 	must(t, err)
-	must(t, challenge.Migrate(t.Context(), ownerDB))
-	must(t, challenge.Migrate(t.Context(), ownerDB))
+	must(t, postgres.Migrate(t.Context(), ownerDB))
+	must(t, postgres.Migrate(t.Context(), ownerDB))
 	role := pgx.Identifier{roles[1]}.Sanitize()
 	_, err = db.Exec(t.Context(), "GRANT USAGE ON SCHEMA challenge TO "+role+"; GRANT SELECT ON challenge.schema_migrations TO "+role+"; GRANT SELECT,INSERT,UPDATE ON challenge.runs,challenge.claims,challenge.receipts,challenge.model_calls TO "+role+"; GRANT INSERT ON challenge.audit_events TO "+role+"; GRANT USAGE ON ALL SEQUENCES IN SCHEMA challenge TO "+role)
 	must(t, err)
@@ -415,7 +421,7 @@ func newLab(t *testing.T) *lab {
 	runtimeCfg.ConnConfig.Password = password
 	runtimeDB, err = pgxpool.NewWithConfig(t.Context(), runtimeCfg)
 	must(t, err)
-	must(t, challenge.Ready(t.Context(), runtimeDB))
+	must(t, postgres.Ready(t.Context(), runtimeDB))
 	for _, sql := range []string{"SELECT * FROM unrelated.private_data", "CREATE TABLE challenge.forbidden(id int)", "UPDATE challenge.schema_migrations SET checksum='forged'", "DELETE FROM challenge.audit_events"} {
 		if _, err = runtimeDB.Exec(t.Context(), sql); err == nil {
 			t.Fatalf("runtime permission exceeded: %s", sql)
@@ -428,9 +434,9 @@ func newLab(t *testing.T) *lab {
 	aa := l.pki.serve("asset", func(s *grpc.Server) { asset.RegisterAssetServiceServer(s, d) }, false)
 	va := l.pki.serve("voting", func(s *grpc.Server) { voting.RegisterVotingServiceServer(s, d) }, false)
 	for i := range l.services {
-		l.services[i], err = challenge.NewServer(runtimeDB, challenge.Config{Models: map[string]bool{"fixture-model": true}, Harnesses: map[string]bool{"fixture": true}}, identity.NewIdentityServiceClient(l.pki.dial(ia, "identity", "challenge")), content.NewContentServiceClient(l.pki.dial(ca, "content", "challenge")), asset.NewAssetServiceClient(l.pki.dial(aa, "asset", "challenge")), voting.NewVotingServiceClient(l.pki.dial(va, "voting", "challenge")))
+		l.services[i], err = newChallengeService(runtimeDB, domain.Config{Models: map[string]bool{"fixture-model": true}, Harnesses: map[string]bool{"fixture": true}}, identity.NewIdentityServiceClient(l.pki.dial(ia, "identity", "challenge")), content.NewContentServiceClient(l.pki.dial(ca, "content", "challenge")), asset.NewAssetServiceClient(l.pki.dial(aa, "asset", "challenge")), voting.NewVotingServiceClient(l.pki.dial(va, "voting", "challenge")))
 		must(t, err)
-		address := l.pki.serve("challenge", func(s *grpc.Server) { pb.RegisterChallengeServiceServer(s, l.services[i]) }, true)
+		address := l.pki.serve("challenge", func(s *grpc.Server) { pb.RegisterChallengeServiceServer(s, challengegrpc.NewServer(l.services[i])) }, true)
 		l.admins[i] = pb.NewChallengeServiceClient(l.pki.dial(address, "challenge", "gateway"))
 		l.workers[i] = pb.NewChallengeServiceClient(l.pki.dial(address, "challenge", "challenge-worker"))
 	}
@@ -490,7 +496,7 @@ func rankings(input *pb.RankInput, reverse bool) *pb.Rankings {
 func (l *lab) complete(a *pb.Assignment, result *pb.CompleteWorkRequest) {
 	l.t.Helper()
 	result.Attempt = a.Attempt
-	result.ResultDigest = challenge.ResultDigest(result)
+	result.ResultDigest = protobuf.ResultDigest(result)
 	_, err := l.workers[0].CompleteWork(l.t.Context(), result)
 	must(l.t, err)
 }
@@ -498,7 +504,7 @@ func (l *lab) complete(a *pb.Assignment, result *pb.CompleteWorkRequest) {
 // fixtureExecutor 只用于模块测试，绝不声称提供了真实执行器或沙箱隔离。
 type fixtureExecutor struct{ d *dependencies }
 
-func (e fixtureExecutor) Execute(_ context.Context, a *pb.Assignment, _ string) (*pb.GeneratedWork, error) {
+func (e fixtureExecutor) execute(_ context.Context, a *pb.Assignment, _ string) (*pb.GeneratedWork, error) {
 	data, _ := protojson.Marshal(a)
 	if strings.Contains(string(data), privateComment) || a.GetExecute() == nil {
 		return nil, fmt.Errorf("executor input leaked")
@@ -509,7 +515,7 @@ func (e fixtureExecutor) Execute(_ context.Context, a *pb.Assignment, _ string) 
 	return &pb.GeneratedWork{Work: &content.Work{Id: "work_" + a.Attempt.AttemptId, Artifacts: []*content.Artifact{{Value: &content.Artifact_Text{Text: "独立完成的作品"}}}}, Report: "关键决策：按初始要求完成；最终结果：文字作品。"}, nil
 }
 
-func (l *lab) modelProvider() *challengeworker.Provider {
+func (l *lab) modelProvider() *completion.Provider {
 	l.t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/chat/completions" || r.Header.Get("Authorization") != "Bearer fixture-secret" {
@@ -575,7 +581,7 @@ func (l *lab) modelProvider() *challengeworker.Provider {
 		json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"finish_reason": "stop", "message": map[string]any{"role": "assistant", "content": string(body)}}}})
 	}))
 	l.t.Cleanup(server.Close)
-	p, err := challengeworker.NewProvider(challengeworker.ProviderConfig{BaseURL: server.URL, Model: "fixture-model", Protocol: "completion", APIKey: "fixture-secret"}, server.Client())
+	p, err := completion.NewProvider(completion.ProviderConfig{BaseURL: server.URL, Model: "fixture-model", Protocol: "completion", APIKey: "fixture-secret"}, server.Client())
 	must(l.t, err)
 	return p
 }
@@ -609,7 +615,7 @@ func TestChallengeEndToEnd(t *testing.T) {
 		}
 	}
 	runID := started["id"].(string)
-	worker := &challengeworker.Worker{Client: l.workers[0], Provider: l.modelProvider(), Executor: fixtureExecutor{l.deps}, Instance: "worker_0"}
+	worker := &agent.Worker{Codec: protobuf.AgentPayloads{}, Client: rpc.WorkerClient{Client: l.workers[0]}, Provider: l.modelProvider(), Executor: fixtureExecutor{l.deps}, Instance: "worker_0"}
 	for step := 0; step < 40; step++ {
 		_ = l.services[step%2].Reconcile(t.Context())
 		run := l.get(runID)
@@ -708,7 +714,7 @@ func TestChallengeFencingAndCancellation(t *testing.T) {
 		t.Fatal("cancelled before close acknowledgement")
 	}
 	result := &pb.CompleteWorkRequest{Attempt: a.Attempt, Result: &pb.CompleteWorkRequest_Rankings{Rankings: rankings(a.GetRank(), false)}}
-	result.ResultDigest = challenge.ResultDigest(result)
+	result.ResultDigest = protobuf.ResultDigest(result)
 	_, err = l.workers[winner].CompleteWork(t.Context(), result)
 	code(t, err, codes.FailedPrecondition)
 	l.deps.closeUnavailable = false
@@ -782,4 +788,23 @@ func TestChallengeBudgetAndRoleBoundaries(t *testing.T) {
 	l.deps.preferenceValid = false
 	_, err = l.workers[0].ActivateAttempt(t.Context(), &pb.ActivateAttemptRequest{Attempt: packer.Attempt, ExecutionInstanceId: "new_process"})
 	code(t, err, codes.FailedPrecondition)
+}
+
+// The fixture uses the same explicit composition as cmd/challenge.
+func newChallengeService(db *pgxpool.Pool, cfg domain.Config, i identity.IdentityServiceClient, c content.ContentServiceClient, a asset.AssetServiceClient, v voting.VotingServiceClient) (*application.Service, error) {
+	store := postgres.New(db)
+	dependencies := rpc.Clients{Identity: i, Content: c, Asset: a, Voting: v}
+	return application.NewService(cfg, application.Dependencies{Reader: store, Transactions: store, Administrator: dependencies, Content: dependencies, Asset: dependencies, Voting: dependencies, Fingerprints: protobuf.Fingerprints{}})
+}
+func workSetHash(works []*content.Work) string {
+	var values []*domain.Work
+	for _, w := range works {
+		values = append(values, protobuf.FromWork(w))
+	}
+	return domain.WorkSetHash(values)
+}
+
+func (e fixtureExecutor) Execute(ctx context.Context, a *domain.Assignment, grant string) (*domain.GeneratedWork, error) {
+	value, err := e.execute(ctx, protobuf.ToAssignment(a), grant)
+	return protobuf.FromGeneratedWork(value), err
 }

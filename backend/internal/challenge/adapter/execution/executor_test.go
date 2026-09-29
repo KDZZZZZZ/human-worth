@@ -1,4 +1,4 @@
-package challengeworker
+package execution
 
 import (
 	"bytes"
@@ -16,6 +16,9 @@ import (
 	asset "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/asset/v1"
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1"
 	content "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/completion"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/protobuf"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/agent"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -69,7 +72,7 @@ else:
 			if scenario == "lost_create" {
 				os.WriteFile(filepath.Join(dir, "lost"), []byte("yes"), 0600)
 			}
-			provider, _ := NewProvider(ProviderConfig{BaseURL: "https://provider.invalid", Model: "test-model", Protocol: "completion", APIKey: "master-key-must-stay-outside"}, nil)
+			provider, _ := completion.NewProvider(completion.ProviderConfig{BaseURL: "https://provider.invalid", Model: "test-model", Protocol: "completion", APIKey: "master-key-must-stay-outside"}, nil)
 			k := &KubernetesExecutor{Client: clientFor(t, &workerRPC{}), Instance: "worker_fixture", Provider: provider, Profile: ExecutorProfile{Kubeconfig: "fixture-config", Context: "fixture-context", Namespace: "human-worth-execution", RuntimeClass: "gvisor", Image: "fixture@sha256:" + strings.Repeat("a", 64), RelayURL: "https://worker.invalid:9443", CAFile: filepath.Join(dir, "ca.crt")}}
 			a := &pb.Assignment{Attempt: &pb.AttemptRef{AttemptId: "attempt_test"}, Kind: pb.WorkKind_WORK_KIND_EXECUTE_PACKAGE, Executor: &pb.ExecutorConfiguration{Harness: "completion-shell", Model: "test-model"}, Deadline: timestamppb.New(time.Now().Add(10 * time.Second))}
 			ctx, cancel := context.WithTimeout(t.Context(), 8*time.Second)
@@ -113,7 +116,7 @@ else:
 					}
 				}
 			}()
-			result, err := k.Execute(ctx, a, "short-grant")
+			result, err := k.Execute(ctx, protobuf.FromAssignment(a), "short-grant")
 			cancel()
 			<-finished
 			if scenario == "success" || scenario == "lost_create" {
@@ -164,12 +167,12 @@ else:
 }
 
 // testExecutionRelay 走真实 HTTPS 与记账 RPC，只替代集群和供应商，不执行模型产生的命令。
-func testExecutionRelay(t *testing.T, upstream *Provider) (*pb.Assignment, *Provider, executionRelay, *workerRPC) {
+func testExecutionRelay(t *testing.T, upstream *completion.Provider) (*pb.Assignment, *completion.Provider, executionRelay, *workerRPC) {
 	t.Helper()
 	rpc := &workerRPC{}
 	a := &pb.Assignment{
 		Attempt: &pb.AttemptRef{AttemptId: "attempt_test"}, Role: "E", Kind: pb.WorkKind_WORK_KIND_EXECUTE_PACKAGE,
-		Executor: &pb.ExecutorConfiguration{Model: upstream.config.Model, Harness: "completion-shell"},
+		Executor: &pb.ExecutorConfiguration{Model: upstream.Model(), Harness: "completion-shell"},
 		Deadline: timestamppb.New(time.Now().Add(time.Minute)), ModelCallLimit: 3, ToolCallLimit: 2,
 		Input: &pb.Assignment_Execute{Execute: &pb.ExecuteInput{Initial: &pb.InitialTaskPackage{Description: "测试任务", WorkRequirements: "交付一件作品"}, ExecutionHints: "保留完整内容"}},
 	}
@@ -182,7 +185,7 @@ func testExecutionRelay(t *testing.T, upstream *Provider) (*pb.Assignment, *Prov
 		t.Fatal(err)
 	}
 	response.Body.Close()
-	provider, err := NewProvider(ProviderConfig{BaseURL: r.base, Model: upstream.config.Model, Protocol: "completion", APIKey: r.grant}, r.client)
+	provider, err := completion.NewProvider(completion.ProviderConfig{BaseURL: r.base, Model: upstream.Model(), Protocol: "completion", APIKey: r.grant}, r.client)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +198,7 @@ func TestCompletionExecutorLoop(t *testing.T) {
 			calls, commands := 0, 0
 			value := "执行工具得到的作品"
 			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				var request completionRequest
+				var request agent.CompletionRequest
 				if r.URL.Path != "/v1/chat/completions" || json.NewDecoder(r.Body).Decode(&request) != nil || request.Stream || len(request.Tools) != 1 {
 					t.Error("invalid native Completion request")
 				}
@@ -230,7 +233,7 @@ func TestCompletionExecutorLoop(t *testing.T) {
 				json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": answer, "finish_reason": reason}}})
 			}))
 			defer upstream.Close()
-			p, err := NewProvider(ProviderConfig{BaseURL: upstream.URL, Model: "test-model", Protocol: "completion", APIKey: "test-key"}, upstream.Client())
+			p, err := completion.NewProvider(completion.ProviderConfig{BaseURL: upstream.URL, Model: "test-model", Protocol: "completion", APIKey: "test-key"}, upstream.Client())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -241,7 +244,7 @@ func TestCompletionExecutorLoop(t *testing.T) {
 			if scenario == "model_limit" {
 				a.ModelCallLimit = 1
 			}
-			result, err := completeExecution(t.Context(), a, provider, "probe.txt", func(_ context.Context, command string) (string, error) {
+			result, err := agent.CompleteExecution(t.Context(), protobuf.FromAssignment(a), provider, protobuf.AgentPayloads{}, "probe.txt", func(_ context.Context, command string) (string, error) {
 				commands++
 				if command != "cat /work/input/probe.txt" {
 					t.Fatal("wrong command dispatched")

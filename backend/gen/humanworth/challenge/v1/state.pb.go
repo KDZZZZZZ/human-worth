@@ -24,7 +24,7 @@ const (
 )
 
 // StoredRun 仅用于 Challenge 自己的数据库，不得返回给管理员或 worker。
-// 使用 protobuf 保存包含 oneof 的当前状态，避免另外维护一套重复的序列化 DTO。
+// 保留现有 protobuf 持久化格式；repo 与 adapter 将其映射为纯 Go 领域状态。
 type StoredRun struct {
 	state               protoimpl.MessageState                  `protogen:"open.v1"`
 	Run                 *Run                                    `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`

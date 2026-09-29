@@ -1,4 +1,4 @@
-package challengeworker
+package execution
 
 import (
 	"bytes"
@@ -18,7 +18,11 @@ import (
 
 	asset "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/asset/v1"
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1"
-	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/completion"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/protobuf"
+	challengerpc "github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/rpc"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/agent"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/domain"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -92,7 +96,7 @@ func TestMaterialToolProtocol(t *testing.T) {
 			var received strings.Builder
 			calls := 0
 			model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				var request completionRequest
+				var request agent.CompletionRequest
 				if json.NewDecoder(r.Body).Decode(&request) != nil {
 					t.Error("bad request")
 					http.Error(w, "bad request", 400)
@@ -140,7 +144,7 @@ func TestMaterialToolProtocol(t *testing.T) {
 				json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": message, "finish_reason": reason}}})
 			}))
 			defer model.Close()
-			provider, err := NewProvider(ProviderConfig{BaseURL: model.URL, Protocol: "completion", Model: "test-model", APIKey: "fixture"}, model.Client())
+			provider, err := completion.NewProvider(completion.ProviderConfig{BaseURL: model.URL, Protocol: "completion", Model: "test-model", APIKey: "fixture"}, model.Client())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -148,13 +152,13 @@ func TestMaterialToolProtocol(t *testing.T) {
 			if scenario == "tool_limit" {
 				a.ToolCallLimit = 1
 			}
-			a.InputPolicyHash = challenge.InputPolicyHash(challenge.InputPolicyVersion, a.ModelCallLimit, a.ToolCallLimit)
+			a.InputPolicyHash = domain.InputPolicyHash(domain.InputPolicyVersion, a.ModelCallLimit, a.ToolCallLimit)
 			if scenario == "aggregate_limit" {
 				a.Materials[0].Asset.Bytes = 16 << 20
 				a.Materials = append(a.Materials, a.Materials[0])
 			}
-			worker := &Worker{Client: client, Provider: provider}
-			_, err = worker.model(t.Context(), a, "grant")
+			worker := &agent.Worker{Client: challengerpc.WorkerClient{Client: client}, Provider: provider, Codec: protobuf.AgentPayloads{}}
+			_, err = worker.Reason(t.Context(), protobuf.FromAssignment(a), "grant")
 			if scenario == "aggregate_limit" && calls != 0 {
 				t.Fatal("oversized batch dispatched before size validation")
 			}
@@ -180,7 +184,7 @@ func TestCompletionRelayAccounting(t *testing.T) {
 			var upstreamCalls int
 			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				upstreamCalls++
-				var request completionRequest
+				var request agent.CompletionRequest
 				if r.Header.Get("Authorization") != "Bearer upstream-secret" || r.URL.Path != "/v1/chat/completions" || json.NewDecoder(r.Body).Decode(&request) != nil {
 					t.Error("bad completion upstream request")
 				}
@@ -199,14 +203,14 @@ func TestCompletionRelayAccounting(t *testing.T) {
 				}
 			}))
 			defer upstream.Close()
-			provider, err := NewProvider(ProviderConfig{BaseURL: upstream.URL, Protocol: "completion", Model: "test-model", APIKey: "upstream-secret"}, upstream.Client())
+			provider, err := completion.NewProvider(completion.ProviderConfig{BaseURL: upstream.URL, Protocol: "completion", Model: "test-model", APIKey: "upstream-secret"}, upstream.Client())
 			if err != nil {
 				t.Fatal(err)
 			}
 			parameters, _ := structpb.NewStruct(map[string]any{"temperature": 0.25, "top_p": 0.8})
 			a := &pb.Assignment{Attempt: &pb.AttemptRef{AttemptId: "attempt_test"}, Executor: &pb.ExecutorConfiguration{Model: "test-model", Parameters: parameters}, Deadline: timestamppb.New(time.Now().Add(time.Minute))}
 			k := &KubernetesExecutor{Client: client, Provider: provider, sessions: map[string]*executorSession{"attempt_test": {assignment: a, grant: "short-grant", activated: true}}}
-			body := map[string]any{"model": "test-model", "messages": []any{map[string]string{"role": "user", "content": "OK"}}, "tools": executionTools(), "temperature": 2, "top_p": 0.1, "max_tokens": 999999}
+			body := map[string]any{"model": "test-model", "messages": []any{map[string]string{"role": "user", "content": "OK"}}, "tools": agent.ExecutionTools(), "temperature": 2, "top_p": 0.1, "max_tokens": 999999}
 			wantCode := 200
 			endpoint := "/attempts/attempt_test/v1/chat/completions"
 			switch scenario {
@@ -311,7 +315,7 @@ func TestExecutorFileAndProviderBoundaries(t *testing.T) {
 	f.Close()
 	configuration := filepath.Join(dir, "provider.json")
 	os.WriteFile(configuration, []byte(`{"base_url":"https://model.invalid","protocol":"completion","model":"test","api_key":"fixture"}`), 0644)
-	if _, err := LoadProvider(configuration); err == nil {
+	if _, err := completion.LoadProvider(configuration); err == nil {
 		t.Fatal("world-readable key accepted")
 	}
 	redirected := 0
@@ -319,11 +323,11 @@ func TestExecutorFileAndProviderBoundaries(t *testing.T) {
 	defer target.Close()
 	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target.URL, 307) }))
 	defer redirect.Close()
-	provider, err := NewProvider(ProviderConfig{BaseURL: redirect.URL, Protocol: "completion", Model: "test", APIKey: "fixture"}, redirect.Client())
+	provider, err := completion.NewProvider(completion.ProviderConfig{BaseURL: redirect.URL, Protocol: "completion", Model: "test", APIKey: "fixture"}, redirect.Client())
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = provider.complete(t.Context(), []byte(`{}`))
+	_, _, err = provider.Complete(t.Context(), []byte(`{}`))
 	if err == nil || redirected != 0 {
 		t.Fatal("provider followed credential redirect")
 	}

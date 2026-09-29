@@ -14,7 +14,11 @@ import (
 	"time"
 
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1"
-	"github.com/KDZZZZZZ/human-worth/backend/internal/challengeworker"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/completion"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/execution"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/protobuf"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/rpc"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/agent"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/platform"
 )
 
@@ -41,31 +45,34 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	w := &challengeworker.Worker{Client: pb.NewChallengeServiceClient(conn), Instance: instance}
+	client := pb.NewChallengeServiceClient(conn)
+	var provider *completion.Provider
+	w := &agent.Worker{Client: rpc.WorkerClient{Client: client}, Instance: instance, Codec: protobuf.AgentPayloads{}}
 	if path := os.Getenv("CHALLENGE_MODEL_CONFIG_FILE"); path != "" {
-		w.Provider, err = challengeworker.LoadProvider(path)
+		provider, err = completion.LoadProvider(path)
+		w.Provider = provider
 		if err != nil {
 			return err
 		}
 	}
 	var relay *http.Server
 	if path := os.Getenv("CHALLENGE_EXECUTOR_PROFILE_FILE"); path != "" {
-		profile, err := challengeworker.LoadExecutorProfile(path)
+		profile, err := execution.LoadExecutorProfile(path)
 		if err != nil {
 			return err
 		}
 		// E 默认复用 P/R 的 Completion 服务，只在明确配置时选择另一份模型文件。
-		provider := w.Provider
+		executorProvider := provider
 		if modelPath := os.Getenv("CHALLENGE_EXECUTOR_MODEL_CONFIG_FILE"); modelPath != "" {
-			provider, err = challengeworker.LoadProvider(modelPath)
+			executorProvider, err = completion.LoadProvider(modelPath)
 			if err != nil {
 				return err
 			}
 		}
-		if provider == nil {
+		if executorProvider == nil {
 			return errors.New("executor completion model configuration required")
 		}
-		k := &challengeworker.KubernetesExecutor{Profile: profile, Client: w.Client, Provider: provider, Instance: instance}
+		k := &execution.KubernetesExecutor{Profile: profile, Client: client, Provider: executorProvider, Instance: instance}
 		preflight, stop := context.WithTimeout(ctx, 30*time.Second)
 		err = k.Preflight(preflight)
 		if err == nil {

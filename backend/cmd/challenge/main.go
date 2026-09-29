@@ -16,7 +16,12 @@ import (
 	content "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1"
 	identity "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/identity/v1"
 	voting "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/voting/v1"
-	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/protobuf"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/rpc"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/application"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/domain"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/repo/postgres"
+	challengegrpc "github.com/KDZZZZZZ/human-worth/backend/internal/challenge/transport/grpc"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/platform"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -58,7 +63,7 @@ func run() error {
 	if len(os.Args) == 2 && os.Args[1] == "migrate" {
 		migration, stop := context.WithTimeout(ctx, 30*time.Second)
 		defer stop()
-		if challenge.Migrate(migration, db) != nil {
+		if postgres.Migrate(migration, db) != nil {
 			return errors.New("migration failed; check database access and schema version")
 		}
 		return nil
@@ -80,7 +85,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	s, err := challenge.NewServer(db, challenge.Config{Models: allow(models), Harnesses: allow(platform.Value("CHALLENGE_HARNESSES", "completion-shell")), Skills: allow(os.Getenv("CHALLENGE_SKILLS"))}, identity.NewIdentityServiceClient(clients["identity"]), content.NewContentServiceClient(clients["content"]), asset.NewAssetServiceClient(clients["asset"]), voting.NewVotingServiceClient(clients["voting"]))
+	store := postgres.New(db)
+	dependencies := rpc.Clients{Identity: identity.NewIdentityServiceClient(clients["identity"]), Content: content.NewContentServiceClient(clients["content"]), Asset: asset.NewAssetServiceClient(clients["asset"]), Voting: voting.NewVotingServiceClient(clients["voting"])}
+	s, err := application.NewService(domain.Config{Models: allow(models), Harnesses: allow(platform.Value("CHALLENGE_HARNESSES", "completion-shell")), Skills: allow(os.Getenv("CHALLENGE_SKILLS"))}, application.Dependencies{Reader: store, Transactions: store, Administrator: dependencies, Content: dependencies, Asset: dependencies, Voting: dependencies, Fingerprints: protobuf.Fingerprints{}})
 	if err != nil {
 		return err
 	}
@@ -99,11 +106,11 @@ func run() error {
 		shutdown(stop)
 	}()
 	runtime.Registry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{Name: "human_worth_database_connections", Help: "Open connections in this replica's pool"}, func() float64 { return float64(db.Stat().TotalConns()) }))
-	server := grpc.NewServer(grpc.Creds(credentials.NewTLS(tls)), grpc.ChainUnaryInterceptor(runtime.Unary, challenge.Authorization), grpc.StreamInterceptor(challenge.AuthorizationStream), grpc.StatsHandler(otelgrpc.NewServerHandler()), grpc.MaxRecvMsgSize(2<<20), grpc.MaxSendMsgSize(2<<20), grpc.MaxConcurrentStreams(64))
-	pb.RegisterChallengeServiceServer(server, s)
+	server := grpc.NewServer(grpc.Creds(credentials.NewTLS(tls)), grpc.ChainUnaryInterceptor(runtime.Unary, challengegrpc.Authorization), grpc.StreamInterceptor(challengegrpc.AuthorizationStream), grpc.StatsHandler(otelgrpc.NewServerHandler()), grpc.MaxRecvMsgSize(2<<20), grpc.MaxSendMsgSize(2<<20), grpc.MaxConcurrentStreams(64))
+	pb.RegisterChallengeServiceServer(server, challengegrpc.NewServer(s))
 	healthService := health.NewServer()
 	healthpb.RegisterHealthServer(server, healthService)
-	ready := func(c context.Context) error { return challenge.Ready(c, db) }
+	ready := func(c context.Context) error { return postgres.Ready(c, db) }
 	if err = ready(ctx); err != nil {
 		return err
 	}

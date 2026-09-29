@@ -15,8 +15,9 @@ import (
 	asset "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/asset/v1"
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1"
 	content "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1"
-	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge"
-	"github.com/KDZZZZZZ/human-worth/backend/internal/challengeworker"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/protobuf"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/rpc"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/agent"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/gateway"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
@@ -41,7 +42,7 @@ func TestChallengeStrictThresholdAndInvalidRankings(t *testing.T) {
 				bad := proto.Clone(good).(*pb.Rankings)
 				mutate(bad)
 				q := &pb.CompleteWorkRequest{Attempt: a.Attempt, Result: &pb.CompleteWorkRequest_Rankings{Rankings: bad}}
-				q.ResultDigest = challenge.ResultDigest(q)
+				q.ResultDigest = protobuf.ResultDigest(q)
 				_, err := l.workers[0].CompleteWork(t.Context(), q)
 				code(t, err, codes.InvalidArgument)
 			}
@@ -174,7 +175,7 @@ func TestChallengeMaterialAndUploadBoundaries(t *testing.T) {
 	forged := proto.Clone(stored.Asset).(*asset.Asset)
 	forged.AttemptId = "other_attempt"
 	q := &pb.CompleteWorkRequest{Attempt: e.Attempt, Result: &pb.CompleteWorkRequest_Generated{Generated: &pb.GeneratedWork{Work: &content.Work{Id: "work_" + e.Attempt.AttemptId, Artifacts: []*content.Artifact{{Value: &content.Artifact_File{File: forged}}}}, Report: "执行完成"}}}
-	q.ResultDigest = challenge.ResultDigest(q)
+	q.ResultDigest = protobuf.ResultDigest(q)
 	_, err = l.workers[0].CompleteWork(t.Context(), q)
 	code(t, err, codes.PermissionDenied)
 }
@@ -209,7 +210,7 @@ func TestChallengeHTTPRegistrationReceipt(t *testing.T) {
 	cfg.Ranker.Prompt = "直接按准确性排序"
 	cfg.RoundLimit = 1
 	run := l.start(cfg)
-	w := &challengeworker.Worker{Client: l.workers[0], Provider: l.modelProvider(), Executor: fixtureExecutor{l.deps}, Instance: "worker_0"}
+	w := &agent.Worker{Codec: protobuf.AgentPayloads{}, Client: rpc.WorkerClient{Client: l.workers[0]}, Provider: l.modelProvider(), Executor: fixtureExecutor{l.deps}, Instance: "worker_0"}
 	for step := 0; step < 12 && l.get(run.Id).Stage != "registering"; step++ {
 		must(t, l.services[0].Reconcile(t.Context()))
 		_, err := w.RunOnce(t.Context())

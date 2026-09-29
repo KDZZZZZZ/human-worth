@@ -9,7 +9,7 @@ import "humanworth/voting/v1/voting.proto";
 option go_package = "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1;challengev1";
 
 // StoredRun 仅用于 Challenge 自己的数据库，不得返回给管理员或 worker。
-// 使用 protobuf 保存包含 oneof 的当前状态，避免另外维护一套重复的序列化 DTO。
+// 保留现有 protobuf 持久化格式；repo 与 adapter 将其映射为纯 Go 领域状态。
 message StoredRun {
   Run run = 1;
   humanworth.content.v1.TaskDescription task = 2;

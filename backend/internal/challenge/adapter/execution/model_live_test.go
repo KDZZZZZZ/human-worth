@@ -1,17 +1,22 @@
 //go:build live
 
-package challengeworker
+package execution
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"google.golang.org/protobuf/encoding/protojson"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/completion"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/protobuf"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/agent"
+	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/domain"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // TestLiveProvider 仅在显式指定私有配置时请求真实模型，不包含业务材料或真人数据。
@@ -20,7 +25,7 @@ func TestLiveProvider(t *testing.T) {
 	if path == "" {
 		t.Skip("set private model configuration to opt in")
 	}
-	p, err := LoadProvider(path)
+	p, err := completion.LoadProvider(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,15 +42,15 @@ func TestLiveProviderTools(t *testing.T) {
 	if path == "" {
 		t.Skip("set private model configuration to opt in")
 	}
-	p, err := LoadProvider(path)
+	p, err := completion.LoadProvider(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
 	defer cancel()
-	request := completionRequest{Model: p.config.Model, MaxTokens: 128, Messages: []message{{Role: "user", Content: "Call read_material with materialRef probe_material exactly once. After receiving its result, return only the exact text it contains."}}, Tools: []any{map[string]any{"type": "function", "function": map[string]any{"name": "read_material", "description": "Read the selected test material.", "parameters": map[string]any{"type": "object", "properties": map[string]any{"materialRef": map[string]string{"type": "string"}}, "required": []string{"materialRef"}, "additionalProperties": false}}}}}
+	request := agent.CompletionRequest{Model: p.Model(), MaxTokens: 128, Messages: []agent.Message{{Role: "user", Content: "Call read_material with materialRef probe_material exactly once. After receiving its result, return only the exact text it contains."}}, Tools: []any{map[string]any{"type": "function", "function": map[string]any{"name": "read_material", "description": "Read the selected test material.", "parameters": map[string]any{"type": "object", "properties": map[string]any{"materialRef": map[string]string{"type": "string"}}, "required": []string{"materialRef"}, "additionalProperties": false}}}}}
 	body, _ := json.Marshal(request)
-	first, _, err := p.complete(ctx, body)
+	first, _, err := p.Complete(ctx, body)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,11 +63,11 @@ func TestLiveProviderTools(t *testing.T) {
 	if json.Unmarshal([]byte(call.Function.Arguments), &args) != nil || args["materialRef"] != "probe_material" {
 		t.Fatal("invalid provider tool arguments")
 	}
-	value := "challenge-tool-" + randomID()
-	request.Messages = append(request.Messages, message{Role: "assistant", Content: answer.Content, ToolCalls: answer.ToolCalls}, message{Role: "tool", ToolCallID: call.ID, Content: value})
+	value := "challenge-tool-" + domain.NewID("")
+	request.Messages = append(request.Messages, agent.Message{Role: "assistant", Content: answer.Content, ToolCalls: answer.ToolCalls}, agent.Message{Role: "tool", ToolCallID: call.ID, Content: value})
 	request.Tools = nil
 	body, _ = json.Marshal(request)
-	last, _, err := p.complete(ctx, body)
+	last, _, err := p.Complete(ctx, body)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,18 +83,18 @@ func TestLiveExecutorCompletion(t *testing.T) {
 	if path == "" {
 		t.Skip("set private model configuration to opt in")
 	}
-	upstream, err := LoadProvider(path)
+	upstream, err := completion.LoadProvider(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	a, provider, relay, rpc := testExecutionRelay(t, upstream)
 	a.GetExecute().Initial.Description = "这是协议测试。只调用 run_command 一次，command 准确为 cat /work/input/probe.txt；把工具返回的完整文本作为唯一 text 作品，不加前后缀，不另建文件。然后按规定 JSON 格式交付。"
 	a.GetExecute().Initial.WorkRequirements = "一件 text 类型作品，正文与工具结果完全相同。"
-	value := "completion-executor-" + randomID()
+	value := "completion-executor-" + domain.NewID("")
 	commands := 0
 	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
 	defer cancel()
-	result, err := completeExecution(ctx, a, provider, "/work/input/probe.txt", func(_ context.Context, command string) (string, error) {
+	result, err := agent.CompleteExecution(ctx, protobuf.FromAssignment(a), provider, protobuf.AgentPayloads{}, "/work/input/probe.txt", func(_ context.Context, command string) (string, error) {
 		commands++
 		if strings.TrimSpace(command) != "cat /work/input/probe.txt" {
 			return "", errors.New("unexpected protocol test command")
