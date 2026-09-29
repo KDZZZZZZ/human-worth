@@ -1,0 +1,368 @@
+syntax = "proto3";
+
+package humanworth.challenge.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "humanworth/asset/v1/asset.proto";
+import "humanworth/content/v1/content.proto";
+
+option go_package = "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1;challengev1";
+
+// ChallengeService 保存状态与权限；worker 只能领取并提交自己当前租约内的工作。
+service ChallengeService {
+  rpc StartRun(StartRunRequest) returns (StartRunResponse);
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
+  rpc GetRunSummary(GetRunSummaryRequest) returns (GetRunSummaryResponse);
+  rpc CancelRun(CancelRunRequest) returns (CancelRunResponse);
+  rpc RestartRun(RestartRunRequest) returns (RestartRunResponse);
+  rpc RegisterCandidate(RegisterCandidateRequest) returns (RegisterCandidateResponse);
+  rpc ClaimWork(ClaimWorkRequest) returns (ClaimWorkResponse);
+  rpc RenewLease(RenewLeaseRequest) returns (RenewLeaseResponse);
+  rpc ReportProgress(ReportProgressRequest) returns (ReportProgressResponse);
+  rpc ReadMaterial(ReadMaterialRequest) returns (stream ReadMaterialResponse);
+  rpc UploadArtifact(stream UploadArtifactRequest) returns (UploadArtifactResponse);
+  rpc CompleteWork(CompleteWorkRequest) returns (CompleteWorkResponse);
+  rpc FailWork(FailWorkRequest) returns (FailWorkResponse);
+  rpc ActivateAttempt(ActivateAttemptRequest) returns (ActivateAttemptResponse);
+  rpc CheckTaskAccess(CheckTaskAccessRequest) returns (CheckTaskAccessResponse);
+  rpc ReserveModelCall(ReserveModelCallRequest) returns (ReserveModelCallResponse);
+  rpc SettleModelCall(SettleModelCallRequest) returns (SettleModelCallResponse);
+}
+
+message InitialTaskPackage {
+  int64 task_revision = 1;
+  repeated string task_attachment_ids = 2;
+  string description = 3;
+  string work_requirements = 4;
+}
+message ModelConfiguration {
+  string model = 1;
+  string prompt = 2;
+  google.protobuf.Struct parameters = 3;
+}
+message ExecutorConfiguration {
+  string model = 1;
+  string prompt = 2;
+  string harness = 3;
+  repeated string skills = 4;
+  google.protobuf.Struct parameters = 5;
+}
+message Budget {
+  int64 amount = 1;
+  string unit = 2;
+}
+// RunConfiguration 在启动时冻结，只有当前 P/R 提示可以按所属阶段更新。
+message RunConfiguration {
+  InitialTaskPackage initial_task_package = 1;
+  ModelConfiguration packer = 2;
+  ExecutorConfiguration executor = 3;
+  ModelConfiguration ranker = 4;
+  double ranker_fit_threshold = 5;
+  int32 ranker_min_comparable_pairs = 6;
+  int32 ranker_round_limit = 7;
+  int32 round_limit = 8;
+  Budget budget = 9;
+}
+message RankerFit {
+  string status = 1;
+  optional double score = 2;
+  google.protobuf.Timestamp evaluated_at = 3;
+}
+message Candidate {
+  string id = 1;
+  string registration_state = 2;
+  string entry_id = 3;
+  string review_id = 4;
+}
+// Run 只返回管理员所需摘要，不暴露标签、内部提示、余额或消耗。
+message Run {
+  string id = 1;
+  string task_id = 2;
+  string parent_run_id = 3;
+  string administrator_id = 4;
+  string status = 5;
+  string stage = 6;
+  int32 ranker_round = 7;
+  int32 round = 8;
+  RankerFit ranker_fit = 9;
+  RunConfiguration configuration = 10;
+  string failure_reason = 11;
+  repeated Candidate candidates = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+  google.protobuf.Timestamp ended_at = 15;
+}
+message StartRunRequest {
+  string actor_assertion = 1;
+  string task_id = 2;
+  RunConfiguration configuration = 3;
+  string idempotency_key = 4;
+}
+message StartRunResponse {
+  Run run = 1;
+}
+message GetRunRequest {
+  string actor_assertion = 1;
+  string run_id = 2;
+}
+message GetRunResponse {
+  Run run = 1;
+}
+message ListRunsRequest {
+  string actor_assertion = 1;
+  string cursor = 2;
+  int32 limit = 3;
+  string status = 4;
+}
+message ListRunsResponse {
+  repeated Run items = 1;
+  string next_cursor = 2;
+}
+message GetRunSummaryRequest {
+  string actor_assertion = 1;
+}
+message GetRunSummaryResponse {
+  int64 active_runs = 1;
+  int64 failed_runs = 2;
+}
+message CancelRunRequest {
+  string actor_assertion = 1;
+  string run_id = 2;
+  string reason = 3;
+}
+message CancelRunResponse {
+  Run run = 1;
+}
+message RestartRunRequest {
+  string actor_assertion = 1;
+  string parent_run_id = 2;
+  RunConfiguration configuration = 3;
+  string idempotency_key = 4;
+}
+message RestartRunResponse {
+  Run run = 1;
+}
+message RegisterCandidateRequest {
+  string actor_assertion = 1;
+  string run_id = 2;
+  string candidate_id = 3;
+}
+message RegisterCandidateResponse {
+  humanworth.content.v1.RegistrationReceipt receipt = 1;
+}
+
+enum WorkKind {
+  WORK_KIND_UNSPECIFIED = 0;
+  WORK_KIND_VALIDATE_RANKER = 1;
+  WORK_KIND_TRAIN_RANKER = 2;
+  WORK_KIND_REFINE_RANKER = 3;
+  WORK_KIND_PACK_TASK = 4;
+  WORK_KIND_EXECUTE_PACKAGE = 5;
+  WORK_KIND_RANK_WORKS = 6;
+  WORK_KIND_EXPLAIN_OWN_WORK = 7;
+}
+// AttemptRef 连同 mTLS worker 身份构成写入围栏，旧代次不能提交有效结果。
+message AttemptRef {
+  string run_id = 1;
+  string work_item_id = 2;
+  string attempt_id = 3;
+  int64 lease_epoch = 4;
+  string worker_instance_id = 5;
+}
+message Judgment {
+  string work_id = 1;
+  string criteria = 2;
+  string rationale = 3;
+  repeated string evidence_refs = 4;
+}
+message Ranking {
+  string task_id = 1;
+  repeated string ordered_work_ids = 2;
+  repeated Judgment judgments = 3;
+}
+message Rankings {
+  repeated Ranking items = 1;
+}
+message RankingSample {
+  humanworth.content.v1.TaskDescription task = 1;
+  repeated humanworth.content.v1.Work works = 2;
+  repeated humanworth.content.v1.Comment comments = 3;
+}
+message RankInput {
+  repeated RankingSample samples = 1;
+}
+message TrainingSample {
+  RankingSample sample = 1;
+  Ranking ranking = 2;
+  map<string, int64> human_counts = 3;
+}
+message RefineRankerInput {
+  repeated TrainingSample samples = 1;
+  double previous_fit = 2;
+}
+message OwnFeedback {
+  humanworth.content.v1.Work work = 1;
+  string report = 2;
+  int32 rank = 3;
+  int32 population_size = 4;
+  Judgment judgment = 5;
+  double ranker_fit_score = 6;
+  string evaluation_id = 7;
+}
+// PackInput 没有评论、其他作品或真人标签字段。
+message PackInput {
+  InitialTaskPackage initial = 1;
+  string execution_hints = 2;
+  OwnFeedback feedback = 3;
+}
+message ExecuteInput {
+  InitialTaskPackage initial = 1;
+  string execution_hints = 2;
+}
+// ExplainInput 与全量排序分开，禁止复用含评论的上下文或授权。
+message ExplainInput {
+  string task_description = 1;
+  humanworth.content.v1.Work own_work = 2;
+}
+message Material {
+  string id = 1;
+  humanworth.asset.v1.Asset asset = 2;
+  string task_id = 3;
+  string source_kind = 4;
+  string source_id = 5;
+}
+message Assignment {
+  AttemptRef attempt = 1;
+  WorkKind kind = 2;
+  string role = 3;
+  ModelConfiguration model = 4;
+  ExecutorConfiguration executor = 5;
+  repeated Material materials = 6;
+  google.protobuf.Timestamp lease_expires_at = 7;
+  google.protobuf.Timestamp deadline = 8;
+  int32 model_call_limit = 9;
+  int32 tool_call_limit = 10;
+  string input_policy_hash = 11;
+  string work_item_id = 17;
+  oneof input {
+    RankInput rank = 12;
+    RefineRankerInput refine = 13;
+    PackInput pack = 14;
+    ExecuteInput execute = 15;
+    ExplainInput explain = 16;
+  }
+}
+message ClaimWorkRequest {
+  string worker_instance_id = 1;
+  string claim_request_id = 2;
+  repeated WorkKind capabilities = 3;
+}
+message ClaimWorkResponse {
+  Assignment assignment = 1;
+}
+message RenewLeaseRequest {
+  AttemptRef attempt = 1;
+}
+message RenewLeaseResponse {
+  google.protobuf.Timestamp expires_at = 1;
+  bool stop_requested = 2;
+}
+message ReportProgressRequest {
+  AttemptRef attempt = 1;
+  int64 sequence = 2;
+  string phase = 3;
+}
+message ReportProgressResponse {
+  int64 ack_sequence = 1;
+}
+message ReadMaterialRequest {
+  AttemptRef attempt = 1;
+  string material_id = 2;
+  int64 offset = 3;
+}
+message ReadMaterialResponse {
+  bytes chunk = 1;
+  int64 offset = 2;
+  string digest = 3;
+}
+message UploadArtifactRequest {
+  AttemptRef attempt = 1;
+  string upload_id = 2;
+  string filename = 3;
+  string media_type = 4;
+  int64 bytes = 5;
+  string sha256 = 6;
+  bytes chunk = 7;
+}
+message UploadArtifactResponse {
+  humanworth.asset.v1.Asset asset = 1;
+}
+message PromptResult {
+  string prompt = 1;
+}
+message GeneratedWork {
+  humanworth.content.v1.Work work = 1;
+  string report = 2;
+}
+message CompleteWorkRequest {
+  AttemptRef attempt = 1;
+  string result_digest = 2;
+  oneof result {
+    PromptResult prompt = 3;
+    Rankings rankings = 4;
+    GeneratedWork generated = 5;
+    Judgment judgment = 6;
+  }
+}
+message CompleteWorkResponse {
+  bool accepted = 1;
+}
+message FailWorkRequest {
+  AttemptRef attempt = 1;
+  string failure_code = 2;
+  bool outcome_known = 3;
+}
+message FailWorkResponse {
+  bool accepted = 1;
+}
+message ActivateAttemptRequest {
+  AttemptRef attempt = 1;
+  string execution_instance_id = 2;
+}
+message ActivateAttemptResponse {
+  string grant = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+message CheckTaskAccessRequest {
+  AttemptRef attempt = 1;
+  string grant = 2;
+  string operation = 3;
+  string resource_ref = 4;
+}
+message CheckTaskAccessResponse {
+  bool allowed = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+// 每个 request_id 只返回一次发送权；响应丢失不得重新生成 ID 绕过未知结果。
+message ReserveModelCallRequest {
+  AttemptRef attempt = 1;
+  string grant = 2;
+  string request_id = 3;
+  string request_digest = 4;
+  string model = 5;
+}
+message ReserveModelCallResponse {
+  string reservation_id = 1;
+  string state = 2;
+  bool dispatch_permit = 3;
+}
+message SettleModelCallRequest {
+  AttemptRef attempt = 1;
+  string reservation_id = 2;
+  string outcome = 3;
+}
+message SettleModelCallResponse {
+  string state = 1;
+}

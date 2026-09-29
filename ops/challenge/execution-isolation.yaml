@@ -1,0 +1,99 @@
+# 独立 E 命名空间；须先安装支持 NetworkPolicy 的 CNI 和 handler=runsc 的 RuntimeClass。
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: human-worth-execution
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: challenge-execution-isolation
+  namespace: human-worth-execution
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: human-worth
+          podSelector:
+            matchLabels:
+              app: challenge-worker
+      ports:
+        - {protocol: TCP, port: 9443}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: challenge-execution
+  namespace: human-worth-execution
+spec:
+  hard:
+    pods: '2'
+    limits.cpu: '2'
+    limits.memory: 4Gi
+    limits.ephemeral-storage: 2Gi
+---
+# 仅可信 worker 可持有这个 ServiceAccount 的凭据，E Pod 从不挂载它。
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: challenge-worker
+  namespace: human-worth
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: challenge-worker-jobs
+  namespace: human-worth-execution
+rules:
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, create, delete, deletecollection]
+  - apiGroups: ['']
+    resources: [secrets]
+    verbs: [create]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: challenge-worker-jobs
+  namespace: human-worth-execution
+subjects:
+  - {kind: ServiceAccount, name: challenge-worker, namespace: human-worth}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: challenge-worker-jobs}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: challenge-worker-runtime
+rules:
+  - apiGroups: [node.k8s.io]
+    resources: [runtimeclasses]
+    resourceNames: [gvisor, runsc]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: challenge-worker-runtime
+subjects:
+  - {kind: ServiceAccount, name: challenge-worker, namespace: human-worth}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: challenge-worker-runtime}

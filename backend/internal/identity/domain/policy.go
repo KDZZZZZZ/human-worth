@@ -17,6 +17,12 @@ const (
 	ViewStatistics     Operation = "view_statistics"
 	CastVote           Operation = "cast_vote"
 	StartRun           Operation = "start_run"
+	GetRun             Operation = "get_run"
+	ListRuns           Operation = "list_runs"
+	GetRunSummary      Operation = "get_run_summary"
+	CancelRun          Operation = "cancel_run"
+	RestartRun         Operation = "restart_run"
+	RegisterCandidate  Operation = "register_candidate"
 )
 
 // 【阅读 1】Policy 约束一个业务操作的受众与凭据用途；Write 表示存在副作用，web 调用需要 CSRF。
@@ -47,8 +53,10 @@ func PolicyFor(op Operation) (Policy, bool) {
 		return Policy{Audience: "voting", Write: true, MCP: true}, true
 	case CastVote:
 		return Policy{Audience: "voting", Write: true}, true
-	case StartRun:
+	case StartRun, CancelRun, RestartRun, RegisterCandidate:
 		return Policy{Audience: "challenge", Write: true, Admin: true}, true
+	case GetRun, ListRuns, GetRunSummary:
+		return Policy{Audience: "challenge", Admin: true}, true
 	default:
 		return Policy{}, false
 	}

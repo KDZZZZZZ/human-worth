@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package humanworth.voting.v1;
+
+import "google/protobuf/timestamp.proto";
+import "humanworth/content/v1/content.proto";
+
+option go_package = "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/voting/v1;votingv1";
+
+// VotingService 的机器监督接口仅允许 Challenge，不能映射为网站或 MCP 统计旁路。
+service VotingService {
+  rpc GetHumanPreferenceSnapshot(GetHumanPreferenceSnapshotRequest) returns (GetHumanPreferenceSnapshotResponse);
+  rpc CheckHumanPreferenceSnapshot(CheckHumanPreferenceSnapshotRequest) returns (CheckHumanPreferenceSnapshotResponse);
+}
+message HumanPreference {
+  humanworth.content.v1.SnapshotRef snapshot = 1;
+  string work_set_hash = 2;
+  google.protobuf.Timestamp window_start = 3;
+  google.protobuf.Timestamp window_end = 4;
+  map<string, int64> counts_by_work = 5;
+  int64 valid_vote_count = 6;
+}
+// 训练与验证按任务分离；排除已暴露任务，数据不足明确返回而非伪造高分。
+message GetHumanPreferenceSnapshotRequest {
+  string run_id = 1;
+  string purpose = 2;
+  repeated string excluded_task_ids = 3;
+  int32 batch_index = 4;
+}
+message GetHumanPreferenceSnapshotResponse {
+  string snapshot_id = 1;
+  string policy_version = 2;
+  google.protobuf.Timestamp valid_until = 3;
+  repeated HumanPreference samples = 4;
+}
+message CheckHumanPreferenceSnapshotRequest {
+  string snapshot_id = 1;
+  string policy_version = 2;
+}
+message CheckHumanPreferenceSnapshotResponse {
+  bool valid = 1;
+}

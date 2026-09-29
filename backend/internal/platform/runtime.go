@@ -88,7 +88,9 @@ func (r *Runtime) Unary(ctx context.Context, request any, info *grpc.UnaryServer
 	switch info.FullMethod {
 	case "/humanworth.content.v1.ContentService/ListMySubmissions":
 		timeout = 5 * time.Second
-	case "/humanworth.identity.v1.IdentityService/CompleteGoogleLogin":
+	case "/humanworth.identity.v1.IdentityService/CompleteGoogleLogin",
+		"/humanworth.challenge.v1.ChallengeService/StartRun",
+		"/humanworth.challenge.v1.ChallengeService/RestartRun":
 		timeout = 15 * time.Second
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)

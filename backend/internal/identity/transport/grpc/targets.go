@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	challengepb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1"
 	contentpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1"
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/identity/v1"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/identity/application"
@@ -23,6 +24,12 @@ func Targets() []application.Target {
 		{Operation: domain.ListTasks, Audience: "discovery", Method: "/humanworth.discovery.v1.DiscoveryService/ListTasks"},
 		{Operation: domain.ViewStatistics, Audience: "voting", Method: "/humanworth.voting.v1.VotingService/ViewTaskStatistics"},
 		{Operation: domain.CastVote, Audience: "voting", Method: "/humanworth.voting.v1.VotingService/CastVote"},
-		{Operation: domain.StartRun, Audience: "challenge", Method: "/humanworth.challenge.v1.ChallengeService/StartRun"},
+		{Operation: domain.StartRun, Audience: "challenge", Method: challengepb.ChallengeService_StartRun_FullMethodName},
+		{Operation: domain.GetRun, Audience: "challenge", Method: challengepb.ChallengeService_GetRun_FullMethodName},
+		{Operation: domain.ListRuns, Audience: "challenge", Method: challengepb.ChallengeService_ListRuns_FullMethodName},
+		{Operation: domain.GetRunSummary, Audience: "challenge", Method: challengepb.ChallengeService_GetRunSummary_FullMethodName},
+		{Operation: domain.CancelRun, Audience: "challenge", Method: challengepb.ChallengeService_CancelRun_FullMethodName},
+		{Operation: domain.RestartRun, Audience: "challenge", Method: challengepb.ChallengeService_RestartRun_FullMethodName},
+		{Operation: domain.RegisterCandidate, Audience: "challenge", Method: challengepb.ChallengeService_RegisterCandidate_FullMethodName},
 	}
 }

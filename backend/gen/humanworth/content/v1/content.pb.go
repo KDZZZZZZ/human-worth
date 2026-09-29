@@ -7,9 +7,11 @@
 package contentv1
 
 import (
+	v1 "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/asset/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	structpb "google.golang.org/protobuf/types/known/structpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -908,11 +910,1381 @@ func (x *ReplaceTaskDraftResponse) GetSubmission() *TaskSubmission {
 	return nil
 }
 
+// Artifact 是作品正文或文件，链接只能作为补充；不携带作者与模型身份。
+type Artifact struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Value:
+	//
+	//	*Artifact_Text
+	//	*Artifact_File
+	//	*Artifact_Link
+	Value         isArtifact_Value `protobuf_oneof:"value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Artifact) Reset() {
+	*x = Artifact{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Artifact) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Artifact) ProtoMessage() {}
+
+func (x *Artifact) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Artifact.ProtoReflect.Descriptor instead.
+func (*Artifact) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *Artifact) GetValue() isArtifact_Value {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+func (x *Artifact) GetText() string {
+	if x != nil {
+		if x, ok := x.Value.(*Artifact_Text); ok {
+			return x.Text
+		}
+	}
+	return ""
+}
+
+func (x *Artifact) GetFile() *v1.Asset {
+	if x != nil {
+		if x, ok := x.Value.(*Artifact_File); ok {
+			return x.File
+		}
+	}
+	return nil
+}
+
+func (x *Artifact) GetLink() string {
+	if x != nil {
+		if x, ok := x.Value.(*Artifact_Link); ok {
+			return x.Link
+		}
+	}
+	return ""
+}
+
+type isArtifact_Value interface {
+	isArtifact_Value()
+}
+
+type Artifact_Text struct {
+	Text string `protobuf:"bytes,1,opt,name=text,proto3,oneof"`
+}
+
+type Artifact_File struct {
+	File *v1.Asset `protobuf:"bytes,2,opt,name=file,proto3,oneof"`
+}
+
+type Artifact_Link struct {
+	Link string `protobuf:"bytes,3,opt,name=link,proto3,oneof"`
+}
+
+func (*Artifact_Text) isArtifact_Value() {}
+
+func (*Artifact_File) isArtifact_Value() {}
+
+func (*Artifact_Link) isArtifact_Value() {}
+
+type Work struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Artifacts     []*Artifact            `protobuf:"bytes,2,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Work) Reset() {
+	*x = Work{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Work) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Work) ProtoMessage() {}
+
+func (x *Work) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Work.ProtoReflect.Descriptor instead.
+func (*Work) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *Work) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Work) GetArtifacts() []*Artifact {
+	if x != nil {
+		return x.Artifacts
+	}
+	return nil
+}
+
+type TaskAttachment struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Asset           *v1.Asset              `protobuf:"bytes,1,opt,name=asset,proto3" json:"asset,omitempty"`
+	CloudUseAllowed bool                   `protobuf:"varint,2,opt,name=cloud_use_allowed,json=cloudUseAllowed,proto3" json:"cloud_use_allowed,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *TaskAttachment) Reset() {
+	*x = TaskAttachment{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskAttachment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskAttachment) ProtoMessage() {}
+
+func (x *TaskAttachment) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskAttachment.ProtoReflect.Descriptor instead.
+func (*TaskAttachment) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *TaskAttachment) GetAsset() *v1.Asset {
+	if x != nil {
+		return x.Asset
+	}
+	return nil
+}
+
+func (x *TaskAttachment) GetCloudUseAllowed() bool {
+	if x != nil {
+		return x.CloudUseAllowed
+	}
+	return false
+}
+
+type TaskDescription struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Revision      int64                  `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Attachments   []*TaskAttachment      `protobuf:"bytes,4,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TaskDescription) Reset() {
+	*x = TaskDescription{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskDescription) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskDescription) ProtoMessage() {}
+
+func (x *TaskDescription) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskDescription.ProtoReflect.Descriptor instead.
+func (*TaskDescription) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *TaskDescription) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *TaskDescription) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *TaskDescription) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *TaskDescription) GetAttachments() []*TaskAttachment {
+	if x != nil {
+		return x.Attachments
+	}
+	return nil
+}
+
+type Comment struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Body          string                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Comment) Reset() {
+	*x = Comment{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Comment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Comment) ProtoMessage() {}
+
+func (x *Comment) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Comment.ProtoReflect.Descriptor instead.
+func (*Comment) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *Comment) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Comment) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+// SnapshotRef 固定任务、作品目录及评论截点，禁止跨版本拼接真人标签。
+type SnapshotRef struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	TaskId          string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	TaskRevision    int64                  `protobuf:"varint,2,opt,name=task_revision,json=taskRevision,proto3" json:"task_revision,omitempty"`
+	CatalogRevision int64                  `protobuf:"varint,3,opt,name=catalog_revision,json=catalogRevision,proto3" json:"catalog_revision,omitempty"`
+	CommentCutoff   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=comment_cutoff,json=commentCutoff,proto3" json:"comment_cutoff,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *SnapshotRef) Reset() {
+	*x = SnapshotRef{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SnapshotRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SnapshotRef) ProtoMessage() {}
+
+func (x *SnapshotRef) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SnapshotRef.ProtoReflect.Descriptor instead.
+func (*SnapshotRef) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *SnapshotRef) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *SnapshotRef) GetTaskRevision() int64 {
+	if x != nil {
+		return x.TaskRevision
+	}
+	return 0
+}
+
+func (x *SnapshotRef) GetCatalogRevision() int64 {
+	if x != nil {
+		return x.CatalogRevision
+	}
+	return 0
+}
+
+func (x *SnapshotRef) GetCommentCutoff() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CommentCutoff
+	}
+	return nil
+}
+
+type GetChallengeTaskDescriptionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Snapshot      *SnapshotRef           `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetChallengeTaskDescriptionRequest) Reset() {
+	*x = GetChallengeTaskDescriptionRequest{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetChallengeTaskDescriptionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChallengeTaskDescriptionRequest) ProtoMessage() {}
+
+func (x *GetChallengeTaskDescriptionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChallengeTaskDescriptionRequest.ProtoReflect.Descriptor instead.
+func (*GetChallengeTaskDescriptionRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *GetChallengeTaskDescriptionRequest) GetSnapshot() *SnapshotRef {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
+type GetChallengeTaskDescriptionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Task          *TaskDescription       `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
+	Visible       bool                   `protobuf:"varint,2,opt,name=visible,proto3" json:"visible,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetChallengeTaskDescriptionResponse) Reset() {
+	*x = GetChallengeTaskDescriptionResponse{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetChallengeTaskDescriptionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChallengeTaskDescriptionResponse) ProtoMessage() {}
+
+func (x *GetChallengeTaskDescriptionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChallengeTaskDescriptionResponse.ProtoReflect.Descriptor instead.
+func (*GetChallengeTaskDescriptionResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GetChallengeTaskDescriptionResponse) GetTask() *TaskDescription {
+	if x != nil {
+		return x.Task
+	}
+	return nil
+}
+
+func (x *GetChallengeTaskDescriptionResponse) GetVisible() bool {
+	if x != nil {
+		return x.Visible
+	}
+	return false
+}
+
+type ListChallengeWorksRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Snapshot      *SnapshotRef           `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListChallengeWorksRequest) Reset() {
+	*x = ListChallengeWorksRequest{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListChallengeWorksRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListChallengeWorksRequest) ProtoMessage() {}
+
+func (x *ListChallengeWorksRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListChallengeWorksRequest.ProtoReflect.Descriptor instead.
+func (*ListChallengeWorksRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ListChallengeWorksRequest) GetSnapshot() *SnapshotRef {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
+type ListChallengeWorksResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Works           []*Work                `protobuf:"bytes,1,rep,name=works,proto3" json:"works,omitempty"`
+	CatalogRevision int64                  `protobuf:"varint,2,opt,name=catalog_revision,json=catalogRevision,proto3" json:"catalog_revision,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ListChallengeWorksResponse) Reset() {
+	*x = ListChallengeWorksResponse{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListChallengeWorksResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListChallengeWorksResponse) ProtoMessage() {}
+
+func (x *ListChallengeWorksResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListChallengeWorksResponse.ProtoReflect.Descriptor instead.
+func (*ListChallengeWorksResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *ListChallengeWorksResponse) GetWorks() []*Work {
+	if x != nil {
+		return x.Works
+	}
+	return nil
+}
+
+func (x *ListChallengeWorksResponse) GetCatalogRevision() int64 {
+	if x != nil {
+		return x.CatalogRevision
+	}
+	return 0
+}
+
+type ListChallengeCommentsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Snapshot      *SnapshotRef           `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListChallengeCommentsRequest) Reset() {
+	*x = ListChallengeCommentsRequest{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListChallengeCommentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListChallengeCommentsRequest) ProtoMessage() {}
+
+func (x *ListChallengeCommentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListChallengeCommentsRequest.ProtoReflect.Descriptor instead.
+func (*ListChallengeCommentsRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ListChallengeCommentsRequest) GetSnapshot() *SnapshotRef {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
+type ListChallengeCommentsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Comments      []*Comment             `protobuf:"bytes,1,rep,name=comments,proto3" json:"comments,omitempty"`
+	CutoffAt      *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=cutoff_at,json=cutoffAt,proto3" json:"cutoff_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListChallengeCommentsResponse) Reset() {
+	*x = ListChallengeCommentsResponse{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListChallengeCommentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListChallengeCommentsResponse) ProtoMessage() {}
+
+func (x *ListChallengeCommentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListChallengeCommentsResponse.ProtoReflect.Descriptor instead.
+func (*ListChallengeCommentsResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ListChallengeCommentsResponse) GetComments() []*Comment {
+	if x != nil {
+		return x.Comments
+	}
+	return nil
+}
+
+func (x *ListChallengeCommentsResponse) GetCutoffAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CutoffAt
+	}
+	return nil
+}
+
+type MaterialRef struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	SourceKind    string                 `protobuf:"bytes,2,opt,name=source_kind,json=sourceKind,proto3" json:"source_kind,omitempty"`
+	SourceId      string                 `protobuf:"bytes,3,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MaterialRef) Reset() {
+	*x = MaterialRef{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MaterialRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MaterialRef) ProtoMessage() {}
+
+func (x *MaterialRef) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MaterialRef.ProtoReflect.Descriptor instead.
+func (*MaterialRef) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *MaterialRef) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *MaterialRef) GetSourceKind() string {
+	if x != nil {
+		return x.SourceKind
+	}
+	return ""
+}
+
+func (x *MaterialRef) GetSourceId() string {
+	if x != nil {
+		return x.SourceId
+	}
+	return ""
+}
+
+type CheckChallengeMaterialsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Snapshot      *SnapshotRef           `protobuf:"bytes,2,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	Purpose       string                 `protobuf:"bytes,3,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	WorkIds       []string               `protobuf:"bytes,4,rep,name=work_ids,json=workIds,proto3" json:"work_ids,omitempty"`
+	Materials     []*MaterialRef         `protobuf:"bytes,5,rep,name=materials,proto3" json:"materials,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CheckChallengeMaterialsRequest) Reset() {
+	*x = CheckChallengeMaterialsRequest{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckChallengeMaterialsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckChallengeMaterialsRequest) ProtoMessage() {}
+
+func (x *CheckChallengeMaterialsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckChallengeMaterialsRequest.ProtoReflect.Descriptor instead.
+func (*CheckChallengeMaterialsRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *CheckChallengeMaterialsRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *CheckChallengeMaterialsRequest) GetSnapshot() *SnapshotRef {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
+func (x *CheckChallengeMaterialsRequest) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *CheckChallengeMaterialsRequest) GetWorkIds() []string {
+	if x != nil {
+		return x.WorkIds
+	}
+	return nil
+}
+
+func (x *CheckChallengeMaterialsRequest) GetMaterials() []*MaterialRef {
+	if x != nil {
+		return x.Materials
+	}
+	return nil
+}
+
+type CheckChallengeMaterialsResponse struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Allowed              bool                   `protobuf:"varint,1,opt,name=allowed,proto3" json:"allowed,omitempty"`
+	AuthorizationVersion string                 `protobuf:"bytes,2,opt,name=authorization_version,json=authorizationVersion,proto3" json:"authorization_version,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *CheckChallengeMaterialsResponse) Reset() {
+	*x = CheckChallengeMaterialsResponse{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckChallengeMaterialsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckChallengeMaterialsResponse) ProtoMessage() {}
+
+func (x *CheckChallengeMaterialsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckChallengeMaterialsResponse.ProtoReflect.Descriptor instead.
+func (*CheckChallengeMaterialsResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *CheckChallengeMaterialsResponse) GetAllowed() bool {
+	if x != nil {
+		return x.Allowed
+	}
+	return false
+}
+
+func (x *CheckChallengeMaterialsResponse) GetAuthorizationVersion() string {
+	if x != nil {
+		return x.AuthorizationVersion
+	}
+	return ""
+}
+
+type OpenRunRegistrationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenRunRegistrationRequest) Reset() {
+	*x = OpenRunRegistrationRequest{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenRunRegistrationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenRunRegistrationRequest) ProtoMessage() {}
+
+func (x *OpenRunRegistrationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenRunRegistrationRequest.ProtoReflect.Descriptor instead.
+func (*OpenRunRegistrationRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *OpenRunRegistrationRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *OpenRunRegistrationRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+type OpenRunRegistrationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	State         string                 `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenRunRegistrationResponse) Reset() {
+	*x = OpenRunRegistrationResponse{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenRunRegistrationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenRunRegistrationResponse) ProtoMessage() {}
+
+func (x *OpenRunRegistrationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenRunRegistrationResponse.ProtoReflect.Descriptor instead.
+func (*OpenRunRegistrationResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *OpenRunRegistrationResponse) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+// 关闭必须写墓碑，先关闭再收到打开请求也不能恢复通道。
+type CloseRunRegistrationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloseRunRegistrationRequest) Reset() {
+	*x = CloseRunRegistrationRequest{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloseRunRegistrationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloseRunRegistrationRequest) ProtoMessage() {}
+
+func (x *CloseRunRegistrationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloseRunRegistrationRequest.ProtoReflect.Descriptor instead.
+func (*CloseRunRegistrationRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *CloseRunRegistrationRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *CloseRunRegistrationRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+type CloseRunRegistrationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	State         string                 `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloseRunRegistrationResponse) Reset() {
+	*x = CloseRunRegistrationResponse{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloseRunRegistrationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloseRunRegistrationResponse) ProtoMessage() {}
+
+func (x *CloseRunRegistrationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloseRunRegistrationResponse.ProtoReflect.Descriptor instead.
+func (*CloseRunRegistrationResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *CloseRunRegistrationResponse) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+type RegistrationReceipt struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	CandidateId   string                 `protobuf:"bytes,2,opt,name=candidate_id,json=candidateId,proto3" json:"candidate_id,omitempty"`
+	EntryId       string                 `protobuf:"bytes,3,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	ReviewId      string                 `protobuf:"bytes,4,opt,name=review_id,json=reviewId,proto3" json:"review_id,omitempty"`
+	ReviewState   string                 `protobuf:"bytes,5,opt,name=review_state,json=reviewState,proto3" json:"review_state,omitempty"`
+	Created       bool                   `protobuf:"varint,6,opt,name=created,proto3" json:"created,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RegistrationReceipt) Reset() {
+	*x = RegistrationReceipt{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegistrationReceipt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegistrationReceipt) ProtoMessage() {}
+
+func (x *RegistrationReceipt) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegistrationReceipt.ProtoReflect.Descriptor instead.
+func (*RegistrationReceipt) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *RegistrationReceipt) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *RegistrationReceipt) GetCandidateId() string {
+	if x != nil {
+		return x.CandidateId
+	}
+	return ""
+}
+
+func (x *RegistrationReceipt) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
+}
+
+func (x *RegistrationReceipt) GetReviewId() string {
+	if x != nil {
+		return x.ReviewId
+	}
+	return ""
+}
+
+func (x *RegistrationReceipt) GetReviewState() string {
+	if x != nil {
+		return x.ReviewState
+	}
+	return ""
+}
+
+func (x *RegistrationReceipt) GetCreated() bool {
+	if x != nil {
+		return x.Created
+	}
+	return false
+}
+
+// 登记、通道状态检查和审核 outbox 必须在 Content 自己的事务中提交。
+type RegisterChallengeCandidateRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	RunId              string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	CandidateId        string                 `protobuf:"bytes,2,opt,name=candidate_id,json=candidateId,proto3" json:"candidate_id,omitempty"`
+	TaskId             string                 `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	SourceAttemptId    string                 `protobuf:"bytes,4,opt,name=source_attempt_id,json=sourceAttemptId,proto3" json:"source_attempt_id,omitempty"`
+	Work               *Work                  `protobuf:"bytes,5,opt,name=work,proto3" json:"work,omitempty"`
+	ExecutorConfigHash string                 `protobuf:"bytes,6,opt,name=executor_config_hash,json=executorConfigHash,proto3" json:"executor_config_hash,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *RegisterChallengeCandidateRequest) Reset() {
+	*x = RegisterChallengeCandidateRequest{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegisterChallengeCandidateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterChallengeCandidateRequest) ProtoMessage() {}
+
+func (x *RegisterChallengeCandidateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterChallengeCandidateRequest.ProtoReflect.Descriptor instead.
+func (*RegisterChallengeCandidateRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *RegisterChallengeCandidateRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *RegisterChallengeCandidateRequest) GetCandidateId() string {
+	if x != nil {
+		return x.CandidateId
+	}
+	return ""
+}
+
+func (x *RegisterChallengeCandidateRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *RegisterChallengeCandidateRequest) GetSourceAttemptId() string {
+	if x != nil {
+		return x.SourceAttemptId
+	}
+	return ""
+}
+
+func (x *RegisterChallengeCandidateRequest) GetWork() *Work {
+	if x != nil {
+		return x.Work
+	}
+	return nil
+}
+
+func (x *RegisterChallengeCandidateRequest) GetExecutorConfigHash() string {
+	if x != nil {
+		return x.ExecutorConfigHash
+	}
+	return ""
+}
+
+type RegisterChallengeCandidateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Receipt       *RegistrationReceipt   `protobuf:"bytes,1,opt,name=receipt,proto3" json:"receipt,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RegisterChallengeCandidateResponse) Reset() {
+	*x = RegisterChallengeCandidateResponse{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegisterChallengeCandidateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterChallengeCandidateResponse) ProtoMessage() {}
+
+func (x *RegisterChallengeCandidateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterChallengeCandidateResponse.ProtoReflect.Descriptor instead.
+func (*RegisterChallengeCandidateResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *RegisterChallengeCandidateResponse) GetReceipt() *RegistrationReceipt {
+	if x != nil {
+		return x.Receipt
+	}
+	return nil
+}
+
+type GetChallengeRegistrationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	CandidateId   string                 `protobuf:"bytes,2,opt,name=candidate_id,json=candidateId,proto3" json:"candidate_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetChallengeRegistrationRequest) Reset() {
+	*x = GetChallengeRegistrationRequest{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetChallengeRegistrationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChallengeRegistrationRequest) ProtoMessage() {}
+
+func (x *GetChallengeRegistrationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChallengeRegistrationRequest.ProtoReflect.Descriptor instead.
+func (*GetChallengeRegistrationRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *GetChallengeRegistrationRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *GetChallengeRegistrationRequest) GetCandidateId() string {
+	if x != nil {
+		return x.CandidateId
+	}
+	return ""
+}
+
+type GetChallengeRegistrationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Receipt       *RegistrationReceipt   `protobuf:"bytes,1,opt,name=receipt,proto3" json:"receipt,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetChallengeRegistrationResponse) Reset() {
+	*x = GetChallengeRegistrationResponse{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetChallengeRegistrationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChallengeRegistrationResponse) ProtoMessage() {}
+
+func (x *GetChallengeRegistrationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChallengeRegistrationResponse.ProtoReflect.Descriptor instead.
+func (*GetChallengeRegistrationResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *GetChallengeRegistrationResponse) GetReceipt() *RegistrationReceipt {
+	if x != nil {
+		return x.Receipt
+	}
+	return nil
+}
+
 var File_humanworth_content_v1_content_proto protoreflect.FileDescriptor
 
 const file_humanworth_content_v1_content_proto_rawDesc = "" +
 	"\n" +
-	"#humanworth/content/v1/content.proto\x12\x15humanworth.content.v1\x1a\x1cgoogle/protobuf/struct.proto\"o\n" +
+	"#humanworth/content/v1/content.proto\x12\x15humanworth.content.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1fhumanworth/asset/v1/asset.proto\"o\n" +
 	"\rArtifactInput\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x1e\n" +
 	"\basset_id\x18\x02 \x01(\tH\x00R\aassetId\x88\x01\x01\x12\x15\n" +
@@ -998,12 +2370,104 @@ const file_humanworth_content_v1_content_proto_rawDesc = "" +
 	"\x18ReplaceTaskDraftResponse\x12E\n" +
 	"\n" +
 	"submission\x18\x01 \x01(\v2%.humanworth.content.v1.TaskSubmissionR\n" +
-	"submission2\xed\x03\n" +
+	"submission\"q\n" +
+	"\bArtifact\x12\x14\n" +
+	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x120\n" +
+	"\x04file\x18\x02 \x01(\v2\x1a.humanworth.asset.v1.AssetH\x00R\x04file\x12\x14\n" +
+	"\x04link\x18\x03 \x01(\tH\x00R\x04linkB\a\n" +
+	"\x05value\"U\n" +
+	"\x04Work\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12=\n" +
+	"\tartifacts\x18\x02 \x03(\v2\x1f.humanworth.content.v1.ArtifactR\tartifacts\"n\n" +
+	"\x0eTaskAttachment\x120\n" +
+	"\x05asset\x18\x01 \x01(\v2\x1a.humanworth.asset.v1.AssetR\x05asset\x12*\n" +
+	"\x11cloud_use_allowed\x18\x02 \x01(\bR\x0fcloudUseAllowed\"\xb1\x01\n" +
+	"\x0fTaskDescription\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x03R\brevision\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12G\n" +
+	"\vattachments\x18\x04 \x03(\v2%.humanworth.content.v1.TaskAttachmentR\vattachments\"-\n" +
+	"\aComment\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04body\x18\x02 \x01(\tR\x04body\"\xb9\x01\n" +
+	"\vSnapshotRef\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12#\n" +
+	"\rtask_revision\x18\x02 \x01(\x03R\ftaskRevision\x12)\n" +
+	"\x10catalog_revision\x18\x03 \x01(\x03R\x0fcatalogRevision\x12A\n" +
+	"\x0ecomment_cutoff\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\rcommentCutoff\"d\n" +
+	"\"GetChallengeTaskDescriptionRequest\x12>\n" +
+	"\bsnapshot\x18\x01 \x01(\v2\".humanworth.content.v1.SnapshotRefR\bsnapshot\"{\n" +
+	"#GetChallengeTaskDescriptionResponse\x12:\n" +
+	"\x04task\x18\x01 \x01(\v2&.humanworth.content.v1.TaskDescriptionR\x04task\x12\x18\n" +
+	"\avisible\x18\x02 \x01(\bR\avisible\"[\n" +
+	"\x19ListChallengeWorksRequest\x12>\n" +
+	"\bsnapshot\x18\x01 \x01(\v2\".humanworth.content.v1.SnapshotRefR\bsnapshot\"z\n" +
+	"\x1aListChallengeWorksResponse\x121\n" +
+	"\x05works\x18\x01 \x03(\v2\x1b.humanworth.content.v1.WorkR\x05works\x12)\n" +
+	"\x10catalog_revision\x18\x02 \x01(\x03R\x0fcatalogRevision\"^\n" +
+	"\x1cListChallengeCommentsRequest\x12>\n" +
+	"\bsnapshot\x18\x01 \x01(\v2\".humanworth.content.v1.SnapshotRefR\bsnapshot\"\x94\x01\n" +
+	"\x1dListChallengeCommentsResponse\x12:\n" +
+	"\bcomments\x18\x01 \x03(\v2\x1e.humanworth.content.v1.CommentR\bcomments\x127\n" +
+	"\tcutoff_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bcutoffAt\"f\n" +
+	"\vMaterialRef\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x1f\n" +
+	"\vsource_kind\x18\x02 \x01(\tR\n" +
+	"sourceKind\x12\x1b\n" +
+	"\tsource_id\x18\x03 \x01(\tR\bsourceId\"\xee\x01\n" +
+	"\x1eCheckChallengeMaterialsRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12>\n" +
+	"\bsnapshot\x18\x02 \x01(\v2\".humanworth.content.v1.SnapshotRefR\bsnapshot\x12\x18\n" +
+	"\apurpose\x18\x03 \x01(\tR\apurpose\x12\x19\n" +
+	"\bwork_ids\x18\x04 \x03(\tR\aworkIds\x12@\n" +
+	"\tmaterials\x18\x05 \x03(\v2\".humanworth.content.v1.MaterialRefR\tmaterials\"p\n" +
+	"\x1fCheckChallengeMaterialsResponse\x12\x18\n" +
+	"\aallowed\x18\x01 \x01(\bR\aallowed\x123\n" +
+	"\x15authorization_version\x18\x02 \x01(\tR\x14authorizationVersion\"L\n" +
+	"\x1aOpenRunRegistrationRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\"3\n" +
+	"\x1bOpenRunRegistrationResponse\x12\x14\n" +
+	"\x05state\x18\x01 \x01(\tR\x05state\"M\n" +
+	"\x1bCloseRunRegistrationRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\"4\n" +
+	"\x1cCloseRunRegistrationResponse\x12\x14\n" +
+	"\x05state\x18\x01 \x01(\tR\x05state\"\xc4\x01\n" +
+	"\x13RegistrationReceipt\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12!\n" +
+	"\fcandidate_id\x18\x02 \x01(\tR\vcandidateId\x12\x19\n" +
+	"\bentry_id\x18\x03 \x01(\tR\aentryId\x12\x1b\n" +
+	"\treview_id\x18\x04 \x01(\tR\breviewId\x12!\n" +
+	"\freview_state\x18\x05 \x01(\tR\vreviewState\x12\x18\n" +
+	"\acreated\x18\x06 \x01(\bR\acreated\"\x85\x02\n" +
+	"!RegisterChallengeCandidateRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12!\n" +
+	"\fcandidate_id\x18\x02 \x01(\tR\vcandidateId\x12\x17\n" +
+	"\atask_id\x18\x03 \x01(\tR\x06taskId\x12*\n" +
+	"\x11source_attempt_id\x18\x04 \x01(\tR\x0fsourceAttemptId\x12/\n" +
+	"\x04work\x18\x05 \x01(\v2\x1b.humanworth.content.v1.WorkR\x04work\x120\n" +
+	"\x14executor_config_hash\x18\x06 \x01(\tR\x12executorConfigHash\"j\n" +
+	"\"RegisterChallengeCandidateResponse\x12D\n" +
+	"\areceipt\x18\x01 \x01(\v2*.humanworth.content.v1.RegistrationReceiptR\areceipt\"[\n" +
+	"\x1fGetChallengeRegistrationRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12!\n" +
+	"\fcandidate_id\x18\x02 \x01(\tR\vcandidateId\"h\n" +
+	" GetChallengeRegistrationResponse\x12D\n" +
+	"\areceipt\x18\x01 \x01(\v2*.humanworth.content.v1.RegistrationReceiptR\areceipt2\xb0\f\n" +
 	"\x0eContentService\x12p\n" +
 	"\x0fCreateTaskDraft\x12-.humanworth.content.v1.CreateTaskDraftRequest\x1a..humanworth.content.v1.CreateTaskDraftResponse\x12|\n" +
 	"\x13GetMyTaskSubmission\x121.humanworth.content.v1.GetMyTaskSubmissionRequest\x1a2.humanworth.content.v1.GetMyTaskSubmissionResponse\x12v\n" +
 	"\x11ListMySubmissions\x12/.humanworth.content.v1.ListMySubmissionsRequest\x1a0.humanworth.content.v1.ListMySubmissionsResponse\x12s\n" +
-	"\x10ReplaceTaskDraft\x12..humanworth.content.v1.ReplaceTaskDraftRequest\x1a/.humanworth.content.v1.ReplaceTaskDraftResponseBMZKgithub.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1;contentv1b\x06proto3"
+	"\x10ReplaceTaskDraft\x12..humanworth.content.v1.ReplaceTaskDraftRequest\x1a/.humanworth.content.v1.ReplaceTaskDraftResponse\x12\x94\x01\n" +
+	"\x1bGetChallengeTaskDescription\x129.humanworth.content.v1.GetChallengeTaskDescriptionRequest\x1a:.humanworth.content.v1.GetChallengeTaskDescriptionResponse\x12y\n" +
+	"\x12ListChallengeWorks\x120.humanworth.content.v1.ListChallengeWorksRequest\x1a1.humanworth.content.v1.ListChallengeWorksResponse\x12\x82\x01\n" +
+	"\x15ListChallengeComments\x123.humanworth.content.v1.ListChallengeCommentsRequest\x1a4.humanworth.content.v1.ListChallengeCommentsResponse\x12\x88\x01\n" +
+	"\x17CheckChallengeMaterials\x125.humanworth.content.v1.CheckChallengeMaterialsRequest\x1a6.humanworth.content.v1.CheckChallengeMaterialsResponse\x12|\n" +
+	"\x13OpenRunRegistration\x121.humanworth.content.v1.OpenRunRegistrationRequest\x1a2.humanworth.content.v1.OpenRunRegistrationResponse\x12\x7f\n" +
+	"\x14CloseRunRegistration\x122.humanworth.content.v1.CloseRunRegistrationRequest\x1a3.humanworth.content.v1.CloseRunRegistrationResponse\x12\x91\x01\n" +
+	"\x1aRegisterChallengeCandidate\x128.humanworth.content.v1.RegisterChallengeCandidateRequest\x1a9.humanworth.content.v1.RegisterChallengeCandidateResponse\x12\x8b\x01\n" +
+	"\x18GetChallengeRegistration\x126.humanworth.content.v1.GetChallengeRegistrationRequest\x1a7.humanworth.content.v1.GetChallengeRegistrationResponseBMZKgithub.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1;contentv1b\x06proto3"
 
 var (
 	file_humanworth_content_v1_content_proto_rawDescOnce sync.Once
@@ -1017,26 +2481,52 @@ func file_humanworth_content_v1_content_proto_rawDescGZIP() []byte {
 	return file_humanworth_content_v1_content_proto_rawDescData
 }
 
-var file_humanworth_content_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_humanworth_content_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
 var file_humanworth_content_v1_content_proto_goTypes = []any{
-	(*ArtifactInput)(nil),               // 0: humanworth.content.v1.ArtifactInput
-	(*PermissionsInput)(nil),            // 1: humanworth.content.v1.PermissionsInput
-	(*AgentConfigurationInput)(nil),     // 2: humanworth.content.v1.AgentConfigurationInput
-	(*EntryInput)(nil),                  // 3: humanworth.content.v1.EntryInput
-	(*TaskDraftInput)(nil),              // 4: humanworth.content.v1.TaskDraftInput
-	(*TaskSubmission)(nil),              // 5: humanworth.content.v1.TaskSubmission
-	(*CreateTaskDraftRequest)(nil),      // 6: humanworth.content.v1.CreateTaskDraftRequest
-	(*CreateTaskDraftResponse)(nil),     // 7: humanworth.content.v1.CreateTaskDraftResponse
-	(*GetMyTaskSubmissionRequest)(nil),  // 8: humanworth.content.v1.GetMyTaskSubmissionRequest
-	(*GetMyTaskSubmissionResponse)(nil), // 9: humanworth.content.v1.GetMyTaskSubmissionResponse
-	(*ListMySubmissionsRequest)(nil),    // 10: humanworth.content.v1.ListMySubmissionsRequest
-	(*ListMySubmissionsResponse)(nil),   // 11: humanworth.content.v1.ListMySubmissionsResponse
-	(*ReplaceTaskDraftRequest)(nil),     // 12: humanworth.content.v1.ReplaceTaskDraftRequest
-	(*ReplaceTaskDraftResponse)(nil),    // 13: humanworth.content.v1.ReplaceTaskDraftResponse
-	(*structpb.Struct)(nil),             // 14: google.protobuf.Struct
+	(*ArtifactInput)(nil),                       // 0: humanworth.content.v1.ArtifactInput
+	(*PermissionsInput)(nil),                    // 1: humanworth.content.v1.PermissionsInput
+	(*AgentConfigurationInput)(nil),             // 2: humanworth.content.v1.AgentConfigurationInput
+	(*EntryInput)(nil),                          // 3: humanworth.content.v1.EntryInput
+	(*TaskDraftInput)(nil),                      // 4: humanworth.content.v1.TaskDraftInput
+	(*TaskSubmission)(nil),                      // 5: humanworth.content.v1.TaskSubmission
+	(*CreateTaskDraftRequest)(nil),              // 6: humanworth.content.v1.CreateTaskDraftRequest
+	(*CreateTaskDraftResponse)(nil),             // 7: humanworth.content.v1.CreateTaskDraftResponse
+	(*GetMyTaskSubmissionRequest)(nil),          // 8: humanworth.content.v1.GetMyTaskSubmissionRequest
+	(*GetMyTaskSubmissionResponse)(nil),         // 9: humanworth.content.v1.GetMyTaskSubmissionResponse
+	(*ListMySubmissionsRequest)(nil),            // 10: humanworth.content.v1.ListMySubmissionsRequest
+	(*ListMySubmissionsResponse)(nil),           // 11: humanworth.content.v1.ListMySubmissionsResponse
+	(*ReplaceTaskDraftRequest)(nil),             // 12: humanworth.content.v1.ReplaceTaskDraftRequest
+	(*ReplaceTaskDraftResponse)(nil),            // 13: humanworth.content.v1.ReplaceTaskDraftResponse
+	(*Artifact)(nil),                            // 14: humanworth.content.v1.Artifact
+	(*Work)(nil),                                // 15: humanworth.content.v1.Work
+	(*TaskAttachment)(nil),                      // 16: humanworth.content.v1.TaskAttachment
+	(*TaskDescription)(nil),                     // 17: humanworth.content.v1.TaskDescription
+	(*Comment)(nil),                             // 18: humanworth.content.v1.Comment
+	(*SnapshotRef)(nil),                         // 19: humanworth.content.v1.SnapshotRef
+	(*GetChallengeTaskDescriptionRequest)(nil),  // 20: humanworth.content.v1.GetChallengeTaskDescriptionRequest
+	(*GetChallengeTaskDescriptionResponse)(nil), // 21: humanworth.content.v1.GetChallengeTaskDescriptionResponse
+	(*ListChallengeWorksRequest)(nil),           // 22: humanworth.content.v1.ListChallengeWorksRequest
+	(*ListChallengeWorksResponse)(nil),          // 23: humanworth.content.v1.ListChallengeWorksResponse
+	(*ListChallengeCommentsRequest)(nil),        // 24: humanworth.content.v1.ListChallengeCommentsRequest
+	(*ListChallengeCommentsResponse)(nil),       // 25: humanworth.content.v1.ListChallengeCommentsResponse
+	(*MaterialRef)(nil),                         // 26: humanworth.content.v1.MaterialRef
+	(*CheckChallengeMaterialsRequest)(nil),      // 27: humanworth.content.v1.CheckChallengeMaterialsRequest
+	(*CheckChallengeMaterialsResponse)(nil),     // 28: humanworth.content.v1.CheckChallengeMaterialsResponse
+	(*OpenRunRegistrationRequest)(nil),          // 29: humanworth.content.v1.OpenRunRegistrationRequest
+	(*OpenRunRegistrationResponse)(nil),         // 30: humanworth.content.v1.OpenRunRegistrationResponse
+	(*CloseRunRegistrationRequest)(nil),         // 31: humanworth.content.v1.CloseRunRegistrationRequest
+	(*CloseRunRegistrationResponse)(nil),        // 32: humanworth.content.v1.CloseRunRegistrationResponse
+	(*RegistrationReceipt)(nil),                 // 33: humanworth.content.v1.RegistrationReceipt
+	(*RegisterChallengeCandidateRequest)(nil),   // 34: humanworth.content.v1.RegisterChallengeCandidateRequest
+	(*RegisterChallengeCandidateResponse)(nil),  // 35: humanworth.content.v1.RegisterChallengeCandidateResponse
+	(*GetChallengeRegistrationRequest)(nil),     // 36: humanworth.content.v1.GetChallengeRegistrationRequest
+	(*GetChallengeRegistrationResponse)(nil),    // 37: humanworth.content.v1.GetChallengeRegistrationResponse
+	(*structpb.Struct)(nil),                     // 38: google.protobuf.Struct
+	(*v1.Asset)(nil),                            // 39: humanworth.asset.v1.Asset
+	(*timestamppb.Timestamp)(nil),               // 40: google.protobuf.Timestamp
 }
 var file_humanworth_content_v1_content_proto_depIdxs = []int32{
-	14, // 0: humanworth.content.v1.AgentConfigurationInput.parameters:type_name -> google.protobuf.Struct
+	38, // 0: humanworth.content.v1.AgentConfigurationInput.parameters:type_name -> google.protobuf.Struct
 	0,  // 1: humanworth.content.v1.EntryInput.artifacts:type_name -> humanworth.content.v1.ArtifactInput
 	1,  // 2: humanworth.content.v1.EntryInput.permissions:type_name -> humanworth.content.v1.PermissionsInput
 	2,  // 3: humanworth.content.v1.EntryInput.agent_configuration:type_name -> humanworth.content.v1.AgentConfigurationInput
@@ -1048,19 +2538,52 @@ var file_humanworth_content_v1_content_proto_depIdxs = []int32{
 	5,  // 9: humanworth.content.v1.ListMySubmissionsResponse.items:type_name -> humanworth.content.v1.TaskSubmission
 	4,  // 10: humanworth.content.v1.ReplaceTaskDraftRequest.content:type_name -> humanworth.content.v1.TaskDraftInput
 	5,  // 11: humanworth.content.v1.ReplaceTaskDraftResponse.submission:type_name -> humanworth.content.v1.TaskSubmission
-	6,  // 12: humanworth.content.v1.ContentService.CreateTaskDraft:input_type -> humanworth.content.v1.CreateTaskDraftRequest
-	8,  // 13: humanworth.content.v1.ContentService.GetMyTaskSubmission:input_type -> humanworth.content.v1.GetMyTaskSubmissionRequest
-	10, // 14: humanworth.content.v1.ContentService.ListMySubmissions:input_type -> humanworth.content.v1.ListMySubmissionsRequest
-	12, // 15: humanworth.content.v1.ContentService.ReplaceTaskDraft:input_type -> humanworth.content.v1.ReplaceTaskDraftRequest
-	7,  // 16: humanworth.content.v1.ContentService.CreateTaskDraft:output_type -> humanworth.content.v1.CreateTaskDraftResponse
-	9,  // 17: humanworth.content.v1.ContentService.GetMyTaskSubmission:output_type -> humanworth.content.v1.GetMyTaskSubmissionResponse
-	11, // 18: humanworth.content.v1.ContentService.ListMySubmissions:output_type -> humanworth.content.v1.ListMySubmissionsResponse
-	13, // 19: humanworth.content.v1.ContentService.ReplaceTaskDraft:output_type -> humanworth.content.v1.ReplaceTaskDraftResponse
-	16, // [16:20] is the sub-list for method output_type
-	12, // [12:16] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	39, // 12: humanworth.content.v1.Artifact.file:type_name -> humanworth.asset.v1.Asset
+	14, // 13: humanworth.content.v1.Work.artifacts:type_name -> humanworth.content.v1.Artifact
+	39, // 14: humanworth.content.v1.TaskAttachment.asset:type_name -> humanworth.asset.v1.Asset
+	16, // 15: humanworth.content.v1.TaskDescription.attachments:type_name -> humanworth.content.v1.TaskAttachment
+	40, // 16: humanworth.content.v1.SnapshotRef.comment_cutoff:type_name -> google.protobuf.Timestamp
+	19, // 17: humanworth.content.v1.GetChallengeTaskDescriptionRequest.snapshot:type_name -> humanworth.content.v1.SnapshotRef
+	17, // 18: humanworth.content.v1.GetChallengeTaskDescriptionResponse.task:type_name -> humanworth.content.v1.TaskDescription
+	19, // 19: humanworth.content.v1.ListChallengeWorksRequest.snapshot:type_name -> humanworth.content.v1.SnapshotRef
+	15, // 20: humanworth.content.v1.ListChallengeWorksResponse.works:type_name -> humanworth.content.v1.Work
+	19, // 21: humanworth.content.v1.ListChallengeCommentsRequest.snapshot:type_name -> humanworth.content.v1.SnapshotRef
+	18, // 22: humanworth.content.v1.ListChallengeCommentsResponse.comments:type_name -> humanworth.content.v1.Comment
+	40, // 23: humanworth.content.v1.ListChallengeCommentsResponse.cutoff_at:type_name -> google.protobuf.Timestamp
+	19, // 24: humanworth.content.v1.CheckChallengeMaterialsRequest.snapshot:type_name -> humanworth.content.v1.SnapshotRef
+	26, // 25: humanworth.content.v1.CheckChallengeMaterialsRequest.materials:type_name -> humanworth.content.v1.MaterialRef
+	15, // 26: humanworth.content.v1.RegisterChallengeCandidateRequest.work:type_name -> humanworth.content.v1.Work
+	33, // 27: humanworth.content.v1.RegisterChallengeCandidateResponse.receipt:type_name -> humanworth.content.v1.RegistrationReceipt
+	33, // 28: humanworth.content.v1.GetChallengeRegistrationResponse.receipt:type_name -> humanworth.content.v1.RegistrationReceipt
+	6,  // 29: humanworth.content.v1.ContentService.CreateTaskDraft:input_type -> humanworth.content.v1.CreateTaskDraftRequest
+	8,  // 30: humanworth.content.v1.ContentService.GetMyTaskSubmission:input_type -> humanworth.content.v1.GetMyTaskSubmissionRequest
+	10, // 31: humanworth.content.v1.ContentService.ListMySubmissions:input_type -> humanworth.content.v1.ListMySubmissionsRequest
+	12, // 32: humanworth.content.v1.ContentService.ReplaceTaskDraft:input_type -> humanworth.content.v1.ReplaceTaskDraftRequest
+	20, // 33: humanworth.content.v1.ContentService.GetChallengeTaskDescription:input_type -> humanworth.content.v1.GetChallengeTaskDescriptionRequest
+	22, // 34: humanworth.content.v1.ContentService.ListChallengeWorks:input_type -> humanworth.content.v1.ListChallengeWorksRequest
+	24, // 35: humanworth.content.v1.ContentService.ListChallengeComments:input_type -> humanworth.content.v1.ListChallengeCommentsRequest
+	27, // 36: humanworth.content.v1.ContentService.CheckChallengeMaterials:input_type -> humanworth.content.v1.CheckChallengeMaterialsRequest
+	29, // 37: humanworth.content.v1.ContentService.OpenRunRegistration:input_type -> humanworth.content.v1.OpenRunRegistrationRequest
+	31, // 38: humanworth.content.v1.ContentService.CloseRunRegistration:input_type -> humanworth.content.v1.CloseRunRegistrationRequest
+	34, // 39: humanworth.content.v1.ContentService.RegisterChallengeCandidate:input_type -> humanworth.content.v1.RegisterChallengeCandidateRequest
+	36, // 40: humanworth.content.v1.ContentService.GetChallengeRegistration:input_type -> humanworth.content.v1.GetChallengeRegistrationRequest
+	7,  // 41: humanworth.content.v1.ContentService.CreateTaskDraft:output_type -> humanworth.content.v1.CreateTaskDraftResponse
+	9,  // 42: humanworth.content.v1.ContentService.GetMyTaskSubmission:output_type -> humanworth.content.v1.GetMyTaskSubmissionResponse
+	11, // 43: humanworth.content.v1.ContentService.ListMySubmissions:output_type -> humanworth.content.v1.ListMySubmissionsResponse
+	13, // 44: humanworth.content.v1.ContentService.ReplaceTaskDraft:output_type -> humanworth.content.v1.ReplaceTaskDraftResponse
+	21, // 45: humanworth.content.v1.ContentService.GetChallengeTaskDescription:output_type -> humanworth.content.v1.GetChallengeTaskDescriptionResponse
+	23, // 46: humanworth.content.v1.ContentService.ListChallengeWorks:output_type -> humanworth.content.v1.ListChallengeWorksResponse
+	25, // 47: humanworth.content.v1.ContentService.ListChallengeComments:output_type -> humanworth.content.v1.ListChallengeCommentsResponse
+	28, // 48: humanworth.content.v1.ContentService.CheckChallengeMaterials:output_type -> humanworth.content.v1.CheckChallengeMaterialsResponse
+	30, // 49: humanworth.content.v1.ContentService.OpenRunRegistration:output_type -> humanworth.content.v1.OpenRunRegistrationResponse
+	32, // 50: humanworth.content.v1.ContentService.CloseRunRegistration:output_type -> humanworth.content.v1.CloseRunRegistrationResponse
+	35, // 51: humanworth.content.v1.ContentService.RegisterChallengeCandidate:output_type -> humanworth.content.v1.RegisterChallengeCandidateResponse
+	37, // 52: humanworth.content.v1.ContentService.GetChallengeRegistration:output_type -> humanworth.content.v1.GetChallengeRegistrationResponse
+	41, // [41:53] is the sub-list for method output_type
+	29, // [29:41] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_humanworth_content_v1_content_proto_init() }
@@ -1074,13 +2597,18 @@ func file_humanworth_content_v1_content_proto_init() {
 	file_humanworth_content_v1_content_proto_msgTypes[3].OneofWrappers = []any{}
 	file_humanworth_content_v1_content_proto_msgTypes[4].OneofWrappers = []any{}
 	file_humanworth_content_v1_content_proto_msgTypes[10].OneofWrappers = []any{}
+	file_humanworth_content_v1_content_proto_msgTypes[14].OneofWrappers = []any{
+		(*Artifact_Text)(nil),
+		(*Artifact_File)(nil),
+		(*Artifact_Link)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_humanworth_content_v1_content_proto_rawDesc), len(file_humanworth_content_v1_content_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   38,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -1,0 +1,15 @@
+# 运维提供包含 /bin/sh 与任务所需语言工具的固定 digest 镜像，E 直接使用 Completion。
+ARG EXECUTOR_IMAGE
+FROM golang:1.27.1-bookworm@sha256:648f440f42a0958804efb24df176f806f9d353b41f1c0627f666428e40310f6b AS build
+WORKDIR /src
+COPY backend/go.mod backend/go.sum ./
+RUN go mod download
+COPY backend/cmd ./cmd
+COPY backend/internal ./internal
+COPY backend/gen ./gen
+RUN CGO_ENABLED=0 go build -trimpath -o /challenge-executor ./cmd/challenge-executor
+
+FROM ${EXECUTOR_IMAGE}
+COPY --from=build /challenge-executor /usr/local/bin/challenge-executor
+USER 10001:10001
+ENTRYPOINT ["/usr/local/bin/challenge-executor"]

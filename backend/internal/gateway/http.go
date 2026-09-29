@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	challengepb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1"
 	contentpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1"
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/identity/v1"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/platform"
@@ -40,6 +41,7 @@ const FlowCookie = "__Host-human-worth-oauth"
 var web embed.FS
 
 type Options struct {
+	Challenge            challengepb.ChallengeServiceClient
 	DeploymentStatusFile string
 	Content              contentpb.ContentServiceClient
 	Origin               string
@@ -125,6 +127,9 @@ func New(client pb.IdentityServiceClient, options Options) (http.Handler, error)
 	} {
 		mux.HandleFunc(route.method+" "+route.path, h.operation(route.operation, route.handler))
 	}
+	if options.Challenge != nil {
+		h.challengeRoutes(mux)
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Referrer-Policy", "no-referrer")
@@ -205,13 +210,19 @@ func (h *Handler) operation(name string, next http.HandlerFunc) http.HandlerFunc
 		if name == "listMySubmissions" {
 			timeout = 5 * time.Second
 		}
+		bodyLimit := int64(16384)
+		// Challenge 初始包和三个提示可以超过身份接口的 16 KiB 请求上限。
+		if name == "startChallengeRun" || name == "restartChallengeRun" {
+			bodyLimit = 1 << 20
+			timeout = 15 * time.Second
+		}
 		if name == "completeGoogleLogin" {
 			timeout = 15 * time.Second
 		}
 		ctx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 		r = r.WithContext(ctx)
-		r.Body = http.MaxBytesReader(w, r.Body, 16384)
+		r.Body = http.MaxBytesReader(w, r.Body, bodyLimit)
 		next(w, r)
 	}
 }

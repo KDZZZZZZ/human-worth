@@ -19,22 +19,39 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ContentService_CreateTaskDraft_FullMethodName     = "/humanworth.content.v1.ContentService/CreateTaskDraft"
-	ContentService_GetMyTaskSubmission_FullMethodName = "/humanworth.content.v1.ContentService/GetMyTaskSubmission"
-	ContentService_ListMySubmissions_FullMethodName   = "/humanworth.content.v1.ContentService/ListMySubmissions"
-	ContentService_ReplaceTaskDraft_FullMethodName    = "/humanworth.content.v1.ContentService/ReplaceTaskDraft"
+	ContentService_CreateTaskDraft_FullMethodName             = "/humanworth.content.v1.ContentService/CreateTaskDraft"
+	ContentService_GetMyTaskSubmission_FullMethodName         = "/humanworth.content.v1.ContentService/GetMyTaskSubmission"
+	ContentService_ListMySubmissions_FullMethodName           = "/humanworth.content.v1.ContentService/ListMySubmissions"
+	ContentService_ReplaceTaskDraft_FullMethodName            = "/humanworth.content.v1.ContentService/ReplaceTaskDraft"
+	ContentService_GetChallengeTaskDescription_FullMethodName = "/humanworth.content.v1.ContentService/GetChallengeTaskDescription"
+	ContentService_ListChallengeWorks_FullMethodName          = "/humanworth.content.v1.ContentService/ListChallengeWorks"
+	ContentService_ListChallengeComments_FullMethodName       = "/humanworth.content.v1.ContentService/ListChallengeComments"
+	ContentService_CheckChallengeMaterials_FullMethodName     = "/humanworth.content.v1.ContentService/CheckChallengeMaterials"
+	ContentService_OpenRunRegistration_FullMethodName         = "/humanworth.content.v1.ContentService/OpenRunRegistration"
+	ContentService_CloseRunRegistration_FullMethodName        = "/humanworth.content.v1.ContentService/CloseRunRegistration"
+	ContentService_RegisterChallengeCandidate_FullMethodName  = "/humanworth.content.v1.ContentService/RegisterChallengeCandidate"
+	ContentService_GetChallengeRegistration_FullMethodName    = "/humanworth.content.v1.ContentService/GetChallengeRegistration"
 )
 
 // ContentServiceClient is the client API for ContentService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Private website drafts only. No review, publication or MCP methods in this phase.
+// Website draft RPCs are implemented; Challenge collaboration RPCs remain dependency contracts.
 type ContentServiceClient interface {
 	CreateTaskDraft(ctx context.Context, in *CreateTaskDraftRequest, opts ...grpc.CallOption) (*CreateTaskDraftResponse, error)
 	GetMyTaskSubmission(ctx context.Context, in *GetMyTaskSubmissionRequest, opts ...grpc.CallOption) (*GetMyTaskSubmissionResponse, error)
 	ListMySubmissions(ctx context.Context, in *ListMySubmissionsRequest, opts ...grpc.CallOption) (*ListMySubmissionsResponse, error)
 	ReplaceTaskDraft(ctx context.Context, in *ReplaceTaskDraftRequest, opts ...grpc.CallOption) (*ReplaceTaskDraftResponse, error)
+	// Challenge dependencies: implemented by stateful integration fixtures until the full modules land.
+	GetChallengeTaskDescription(ctx context.Context, in *GetChallengeTaskDescriptionRequest, opts ...grpc.CallOption) (*GetChallengeTaskDescriptionResponse, error)
+	ListChallengeWorks(ctx context.Context, in *ListChallengeWorksRequest, opts ...grpc.CallOption) (*ListChallengeWorksResponse, error)
+	ListChallengeComments(ctx context.Context, in *ListChallengeCommentsRequest, opts ...grpc.CallOption) (*ListChallengeCommentsResponse, error)
+	CheckChallengeMaterials(ctx context.Context, in *CheckChallengeMaterialsRequest, opts ...grpc.CallOption) (*CheckChallengeMaterialsResponse, error)
+	OpenRunRegistration(ctx context.Context, in *OpenRunRegistrationRequest, opts ...grpc.CallOption) (*OpenRunRegistrationResponse, error)
+	CloseRunRegistration(ctx context.Context, in *CloseRunRegistrationRequest, opts ...grpc.CallOption) (*CloseRunRegistrationResponse, error)
+	RegisterChallengeCandidate(ctx context.Context, in *RegisterChallengeCandidateRequest, opts ...grpc.CallOption) (*RegisterChallengeCandidateResponse, error)
+	GetChallengeRegistration(ctx context.Context, in *GetChallengeRegistrationRequest, opts ...grpc.CallOption) (*GetChallengeRegistrationResponse, error)
 }
 
 type contentServiceClient struct {
@@ -85,16 +102,105 @@ func (c *contentServiceClient) ReplaceTaskDraft(ctx context.Context, in *Replace
 	return out, nil
 }
 
+func (c *contentServiceClient) GetChallengeTaskDescription(ctx context.Context, in *GetChallengeTaskDescriptionRequest, opts ...grpc.CallOption) (*GetChallengeTaskDescriptionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetChallengeTaskDescriptionResponse)
+	err := c.cc.Invoke(ctx, ContentService_GetChallengeTaskDescription_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentServiceClient) ListChallengeWorks(ctx context.Context, in *ListChallengeWorksRequest, opts ...grpc.CallOption) (*ListChallengeWorksResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListChallengeWorksResponse)
+	err := c.cc.Invoke(ctx, ContentService_ListChallengeWorks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentServiceClient) ListChallengeComments(ctx context.Context, in *ListChallengeCommentsRequest, opts ...grpc.CallOption) (*ListChallengeCommentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListChallengeCommentsResponse)
+	err := c.cc.Invoke(ctx, ContentService_ListChallengeComments_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentServiceClient) CheckChallengeMaterials(ctx context.Context, in *CheckChallengeMaterialsRequest, opts ...grpc.CallOption) (*CheckChallengeMaterialsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CheckChallengeMaterialsResponse)
+	err := c.cc.Invoke(ctx, ContentService_CheckChallengeMaterials_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentServiceClient) OpenRunRegistration(ctx context.Context, in *OpenRunRegistrationRequest, opts ...grpc.CallOption) (*OpenRunRegistrationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OpenRunRegistrationResponse)
+	err := c.cc.Invoke(ctx, ContentService_OpenRunRegistration_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentServiceClient) CloseRunRegistration(ctx context.Context, in *CloseRunRegistrationRequest, opts ...grpc.CallOption) (*CloseRunRegistrationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CloseRunRegistrationResponse)
+	err := c.cc.Invoke(ctx, ContentService_CloseRunRegistration_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentServiceClient) RegisterChallengeCandidate(ctx context.Context, in *RegisterChallengeCandidateRequest, opts ...grpc.CallOption) (*RegisterChallengeCandidateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RegisterChallengeCandidateResponse)
+	err := c.cc.Invoke(ctx, ContentService_RegisterChallengeCandidate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentServiceClient) GetChallengeRegistration(ctx context.Context, in *GetChallengeRegistrationRequest, opts ...grpc.CallOption) (*GetChallengeRegistrationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetChallengeRegistrationResponse)
+	err := c.cc.Invoke(ctx, ContentService_GetChallengeRegistration_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ContentServiceServer is the server API for ContentService service.
 // All implementations must embed UnimplementedContentServiceServer
 // for forward compatibility.
 //
-// Private website drafts only. No review, publication or MCP methods in this phase.
+// Website draft RPCs are implemented; Challenge collaboration RPCs remain dependency contracts.
 type ContentServiceServer interface {
 	CreateTaskDraft(context.Context, *CreateTaskDraftRequest) (*CreateTaskDraftResponse, error)
 	GetMyTaskSubmission(context.Context, *GetMyTaskSubmissionRequest) (*GetMyTaskSubmissionResponse, error)
 	ListMySubmissions(context.Context, *ListMySubmissionsRequest) (*ListMySubmissionsResponse, error)
 	ReplaceTaskDraft(context.Context, *ReplaceTaskDraftRequest) (*ReplaceTaskDraftResponse, error)
+	// Challenge dependencies: implemented by stateful integration fixtures until the full modules land.
+	GetChallengeTaskDescription(context.Context, *GetChallengeTaskDescriptionRequest) (*GetChallengeTaskDescriptionResponse, error)
+	ListChallengeWorks(context.Context, *ListChallengeWorksRequest) (*ListChallengeWorksResponse, error)
+	ListChallengeComments(context.Context, *ListChallengeCommentsRequest) (*ListChallengeCommentsResponse, error)
+	CheckChallengeMaterials(context.Context, *CheckChallengeMaterialsRequest) (*CheckChallengeMaterialsResponse, error)
+	OpenRunRegistration(context.Context, *OpenRunRegistrationRequest) (*OpenRunRegistrationResponse, error)
+	CloseRunRegistration(context.Context, *CloseRunRegistrationRequest) (*CloseRunRegistrationResponse, error)
+	RegisterChallengeCandidate(context.Context, *RegisterChallengeCandidateRequest) (*RegisterChallengeCandidateResponse, error)
+	GetChallengeRegistration(context.Context, *GetChallengeRegistrationRequest) (*GetChallengeRegistrationResponse, error)
 	mustEmbedUnimplementedContentServiceServer()
 }
 
@@ -116,6 +222,30 @@ func (UnimplementedContentServiceServer) ListMySubmissions(context.Context, *Lis
 }
 func (UnimplementedContentServiceServer) ReplaceTaskDraft(context.Context, *ReplaceTaskDraftRequest) (*ReplaceTaskDraftResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ReplaceTaskDraft not implemented")
+}
+func (UnimplementedContentServiceServer) GetChallengeTaskDescription(context.Context, *GetChallengeTaskDescriptionRequest) (*GetChallengeTaskDescriptionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetChallengeTaskDescription not implemented")
+}
+func (UnimplementedContentServiceServer) ListChallengeWorks(context.Context, *ListChallengeWorksRequest) (*ListChallengeWorksResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListChallengeWorks not implemented")
+}
+func (UnimplementedContentServiceServer) ListChallengeComments(context.Context, *ListChallengeCommentsRequest) (*ListChallengeCommentsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListChallengeComments not implemented")
+}
+func (UnimplementedContentServiceServer) CheckChallengeMaterials(context.Context, *CheckChallengeMaterialsRequest) (*CheckChallengeMaterialsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CheckChallengeMaterials not implemented")
+}
+func (UnimplementedContentServiceServer) OpenRunRegistration(context.Context, *OpenRunRegistrationRequest) (*OpenRunRegistrationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method OpenRunRegistration not implemented")
+}
+func (UnimplementedContentServiceServer) CloseRunRegistration(context.Context, *CloseRunRegistrationRequest) (*CloseRunRegistrationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CloseRunRegistration not implemented")
+}
+func (UnimplementedContentServiceServer) RegisterChallengeCandidate(context.Context, *RegisterChallengeCandidateRequest) (*RegisterChallengeCandidateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RegisterChallengeCandidate not implemented")
+}
+func (UnimplementedContentServiceServer) GetChallengeRegistration(context.Context, *GetChallengeRegistrationRequest) (*GetChallengeRegistrationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetChallengeRegistration not implemented")
 }
 func (UnimplementedContentServiceServer) mustEmbedUnimplementedContentServiceServer() {}
 func (UnimplementedContentServiceServer) testEmbeddedByValue()                        {}
@@ -210,6 +340,150 @@ func _ContentService_ReplaceTaskDraft_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ContentService_GetChallengeTaskDescription_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetChallengeTaskDescriptionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).GetChallengeTaskDescription(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_GetChallengeTaskDescription_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).GetChallengeTaskDescription(ctx, req.(*GetChallengeTaskDescriptionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentService_ListChallengeWorks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListChallengeWorksRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).ListChallengeWorks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_ListChallengeWorks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).ListChallengeWorks(ctx, req.(*ListChallengeWorksRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentService_ListChallengeComments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListChallengeCommentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).ListChallengeComments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_ListChallengeComments_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).ListChallengeComments(ctx, req.(*ListChallengeCommentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentService_CheckChallengeMaterials_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckChallengeMaterialsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).CheckChallengeMaterials(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_CheckChallengeMaterials_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).CheckChallengeMaterials(ctx, req.(*CheckChallengeMaterialsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentService_OpenRunRegistration_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OpenRunRegistrationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).OpenRunRegistration(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_OpenRunRegistration_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).OpenRunRegistration(ctx, req.(*OpenRunRegistrationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentService_CloseRunRegistration_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CloseRunRegistrationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).CloseRunRegistration(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_CloseRunRegistration_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).CloseRunRegistration(ctx, req.(*CloseRunRegistrationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentService_RegisterChallengeCandidate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegisterChallengeCandidateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).RegisterChallengeCandidate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_RegisterChallengeCandidate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).RegisterChallengeCandidate(ctx, req.(*RegisterChallengeCandidateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentService_GetChallengeRegistration_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetChallengeRegistrationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).GetChallengeRegistration(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_GetChallengeRegistration_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).GetChallengeRegistration(ctx, req.(*GetChallengeRegistrationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ContentService_ServiceDesc is the grpc.ServiceDesc for ContentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -232,6 +506,38 @@ var ContentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReplaceTaskDraft",
 			Handler:    _ContentService_ReplaceTaskDraft_Handler,
+		},
+		{
+			MethodName: "GetChallengeTaskDescription",
+			Handler:    _ContentService_GetChallengeTaskDescription_Handler,
+		},
+		{
+			MethodName: "ListChallengeWorks",
+			Handler:    _ContentService_ListChallengeWorks_Handler,
+		},
+		{
+			MethodName: "ListChallengeComments",
+			Handler:    _ContentService_ListChallengeComments_Handler,
+		},
+		{
+			MethodName: "CheckChallengeMaterials",
+			Handler:    _ContentService_CheckChallengeMaterials_Handler,
+		},
+		{
+			MethodName: "OpenRunRegistration",
+			Handler:    _ContentService_OpenRunRegistration_Handler,
+		},
+		{
+			MethodName: "CloseRunRegistration",
+			Handler:    _ContentService_CloseRunRegistration_Handler,
+		},
+		{
+			MethodName: "RegisterChallengeCandidate",
+			Handler:    _ContentService_RegisterChallengeCandidate_Handler,
+		},
+		{
+			MethodName: "GetChallengeRegistration",
+			Handler:    _ContentService_GetChallengeRegistration_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

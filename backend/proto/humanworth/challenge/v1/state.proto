@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package humanworth.challenge.v1;
+
+import "humanworth/challenge/v1/challenge.proto";
+import "humanworth/content/v1/content.proto";
+import "humanworth/voting/v1/voting.proto";
+
+option go_package = "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1;challengev1";
+
+// StoredRun 仅用于 Challenge 自己的数据库，不得返回给管理员或 worker。
+// 使用 protobuf 保存包含 oneof 的当前状态，避免另外维护一套重复的序列化 DTO。
+message StoredRun {
+  Run run = 1;
+  humanworth.content.v1.TaskDescription task = 2;
+  humanworth.content.v1.SnapshotRef target = 3;
+  repeated humanworth.content.v1.Work works = 4;
+  repeated humanworth.content.v1.Comment comments = 5;
+  string ranker_prompt = 6;
+  string execution_hints = 7;
+  Assignment assignment = 8;
+  string pending = 9;
+  string terminal_target = 10;
+  int64 epoch = 11;
+  string grant_hash = 12;
+  string execution_instance_id = 13;
+  humanworth.voting.v1.GetHumanPreferenceSnapshotResponse validation = 14;
+  humanworth.voting.v1.GetHumanPreferenceSnapshotResponse training = 15;
+  repeated RankingSample training_inputs = 16;
+  Rankings training_rankings = 17;
+  repeated string seen_task_ids = 18;
+  string fit_binding = 19;
+  OwnFeedback feedback = 20;
+  string source_attempt_id = 21;
+  int64 reserved_calls = 22;
+  int64 progress_sequence = 23;
+  string progress_phase = 24;
+}

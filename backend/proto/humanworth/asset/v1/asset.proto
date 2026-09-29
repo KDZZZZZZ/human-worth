@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package humanworth.asset.v1;
+
+option go_package = "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/asset/v1;assetv1";
+
+// AssetService 先定义挑战需要的文件接口；每次访问由服务身份、用途和归属共同授权。
+service AssetService {
+  rpc GetAsset(GetAssetRequest) returns (GetAssetResponse);
+  rpc ReadAsset(ReadAssetRequest) returns (stream ReadAssetResponse);
+  rpc UploadAsset(stream UploadAssetRequest) returns (UploadAssetResponse);
+}
+
+// Asset 描述已完成校验的不可变文件，正文经有界流传输。
+message Asset {
+  string id = 1;
+  string filename = 2;
+  string media_type = 3;
+  int64 bytes = 4;
+  string sha256 = 5;
+  string run_id = 6;
+  string attempt_id = 7;
+}
+message Access {
+  string task_id = 1;
+  string run_id = 2;
+  string attempt_id = 3;
+  string purpose = 4;
+}
+message GetAssetRequest {
+  string asset_id = 1;
+  Access access = 2;
+}
+message GetAssetResponse {
+  Asset asset = 1;
+}
+message ReadAssetRequest {
+  string asset_id = 1;
+  Access access = 2;
+  int64 offset = 3;
+}
+message ReadAssetResponse {
+  bytes chunk = 1;
+  int64 offset = 2;
+  string sha256 = 3;
+}
+// 首帧带元数据，后续帧仅带数据；同 upload_id 必须找回同一结果，不能重复建文件。
+message UploadAssetRequest {
+  Access access = 1;
+  string upload_id = 2;
+  string filename = 3;
+  string media_type = 4;
+  int64 bytes = 5;
+  string sha256 = 6;
+  bytes chunk = 7;
+}
+message UploadAssetResponse {
+  Asset asset = 1;
+}

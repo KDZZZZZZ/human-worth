@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	challengepb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1"
 	contentpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1"
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/identity/v1"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/gateway"
@@ -99,7 +100,16 @@ func run() error {
 		}
 		return nil
 	}
-	handler, err := gateway.New(pb.NewIdentityServiceClient(conn), gateway.Options{Content: contentClient, DeploymentStatusFile: os.Getenv("DEPLOYMENT_STATUS_FILE"), Origin: origin, LogoPath: platform.Value("SITE_LOGO_FILE", "../public/brand/logo.png"), TrustedProxies: proxies, Logger: runtime.Log, Registry: runtime.Registry, Ready: ready})
+	var challengeClient challengepb.ChallengeServiceClient
+	if target := os.Getenv("CHALLENGE_TARGET"); target != "" {
+		challengeConnection, e := platform.Client(target, "challenge")
+		if e != nil {
+			return e
+		}
+		defer challengeConnection.Close()
+		challengeClient = challengepb.NewChallengeServiceClient(challengeConnection)
+	}
+	handler, err := gateway.New(pb.NewIdentityServiceClient(conn), gateway.Options{Challenge: challengeClient, Content: contentClient, DeploymentStatusFile: os.Getenv("DEPLOYMENT_STATUS_FILE"), Origin: origin, LogoPath: platform.Value("SITE_LOGO_FILE", "../public/brand/logo.png"), TrustedProxies: proxies, Logger: runtime.Log, Registry: runtime.Registry, Ready: ready})
 	if err != nil {
 		return err
 	}
