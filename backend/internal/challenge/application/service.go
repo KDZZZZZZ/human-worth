@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/application/dto"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/domain"
@@ -249,4 +250,14 @@ func (s *Service) RegisterCandidate(ctx context.Context, q *dto.RegisterCandidat
 		return nil, err
 	}
 	return &dto.RegisterCandidateResponse{Receipt: receipt}, nil
+}
+
+func (s *Service) ListAuditEvents(ctx context.Context, assertion string, before time.Time, id string, limit int32) ([]dto.AuditEvent, error) {
+	if _, e := s.admin(ctx, assertion, "ListAuditEvents"); e != nil {
+		return nil, e
+	}
+	if limit < 1 || limit > 101 || len(id) > 256 {
+		return nil, domain.Invalid("invalid_request")
+	}
+	return s.reader.ListAuditEvents(ctx, before, id, limit)
 }

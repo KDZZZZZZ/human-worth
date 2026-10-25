@@ -53,7 +53,10 @@
       "content",
       "asset",
       "moderation",
-      "voting"
+      "voting",
+      "discovery",
+      "challenge",
+      "challenge-worker"
     ],
     "database": false,
     "checks": []
@@ -100,10 +103,53 @@
     "grants": "ops/voting/grants.sql",
     "checks": [
       {
-        "path": "/api/tasks/tsk_00000000000000000000000000000000/voting-eligibility",
+        "path": "/api/tasks/tsk_00000000000000000000000000000000/ballot",
         "status": 401,
         "code": "unauthenticated"
       }
     ]
+  },
+  "discovery": {
+    "dependencies": [
+      "identity",
+      "content",
+      "voting"
+    ],
+    "database": false,
+    "checks": [
+      {
+        "path": "/api/tasks",
+        "status": 200
+      },
+      {
+        "path": "/api/board",
+        "status": 200
+      }
+    ]
+  },
+  "challenge": {
+    "dependencies": [
+      "identity",
+      "content",
+      "asset",
+      "voting",
+      "moderation"
+    ],
+    "database": true,
+    "grants": "ops/challenge/grants.sql",
+    "checks": [
+      {
+        "path": "/api/admin/challenge-runs",
+        "status": 401,
+        "code": "unauthenticated"
+      }
+    ]
+  },
+  "challenge-worker": {
+    "dependencies": [
+      "challenge"
+    ],
+    "database": false,
+    "checks": []
   }
 }

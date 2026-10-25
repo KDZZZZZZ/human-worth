@@ -11,6 +11,18 @@ import (
 type OperationID string
 
 const (
+	CreateReport             OperationID = "create_report"
+	ListReports              OperationID = "list_reports"
+	ResolveReport            OperationID = "resolve_report"
+	TakeDownContent          OperationID = "take_down_content"
+	AdminDashboard           OperationID = "admin_dashboard"
+	ListAuditEvents          OperationID = "list_audit_events"
+	ListChallengeAuditEvents OperationID = "list_challenge_audit_events"
+	ListComments             OperationID = "list_comments"
+	CreateComment            OperationID = "create_comment"
+	ReadBoard                OperationID = "read_board"
+	VotingEligibility        OperationID = "voting_eligibility"
+	ReadBallot               OperationID = "read_ballot"
 	RequestTaskReview        OperationID = "request_task_review"
 	ListReviews              OperationID = "list_reviews"
 	GetReview                OperationID = "get_review"
@@ -112,6 +124,18 @@ var operations = [...]Operation{
 	{ID: PrepareCatalog, FullMethod: "/humanworth.voting.v1.VotingService/PrepareCatalogChange", RPCTimeout: 5 * time.Second},
 	{ID: ActivateCatalog, FullMethod: "/humanworth.voting.v1.VotingService/ActivateCatalogSnapshot", RPCTimeout: 5 * time.Second},
 	{ID: GetCatalogTransition, FullMethod: "/humanworth.voting.v1.VotingService/GetCatalogTransition"},
+	{ID: CreateReport, FullMethod: "/humanworth.moderation.v1.ModerationService/CreateReport", Policy: IdentityPolicy{Audience: "moderation", Write: true}, HasPolicy: true, RPCTimeout: 5 * time.Second},
+	{ID: ListReports, FullMethod: "/humanworth.moderation.v1.ModerationService/ListReports", Policy: IdentityPolicy{Audience: "moderation", Admin: true}, HasPolicy: true, RPCTimeout: 5 * time.Second},
+	{ID: ResolveReport, FullMethod: "/humanworth.moderation.v1.ModerationService/ResolveReport", Policy: IdentityPolicy{Audience: "moderation", Write: true, Admin: true}, HasPolicy: true, RPCTimeout: 5 * time.Second},
+	{ID: TakeDownContent, FullMethod: "/humanworth.moderation.v1.ModerationService/TakeDownContent", Policy: IdentityPolicy{Audience: "moderation", Write: true, Admin: true}, HasPolicy: true, RPCTimeout: 5 * time.Second},
+	{ID: AdminDashboard, FullMethod: "/humanworth.moderation.v1.ModerationService/GetDashboard", Policy: IdentityPolicy{Audience: "moderation", Admin: true}, HasPolicy: true, RPCTimeout: 5 * time.Second},
+	{ID: ListAuditEvents, FullMethod: "/humanworth.moderation.v1.ModerationService/ListAuditEvents", Policy: IdentityPolicy{Audience: "moderation", Admin: true}, HasPolicy: true, RPCTimeout: 5 * time.Second},
+	{ID: ListChallengeAuditEvents, FullMethod: "/humanworth.challenge.v1.ChallengeService/ListAuditEvents", Policy: IdentityPolicy{Audience: "challenge", Admin: true}, HasPolicy: true, RPCTimeout: 5 * time.Second},
+
+	{ID: ListComments, FullMethod: "/humanworth.content.v1.ContentService/ListComments", Policy: IdentityPolicy{Audience: "content", Anonymous: true, MCP: true}, HasPolicy: true, RPCTimeout: 5 * time.Second},
+	{ID: CreateComment, FullMethod: "/humanworth.content.v1.ContentService/CreateComment", Policy: IdentityPolicy{Audience: "content", Write: true}, HasPolicy: true, RPCTimeout: 5 * time.Second},
+	{ID: ReadBoard, FullMethod: "/humanworth.discovery.v1.DiscoveryService/GetPublicBoard", Policy: IdentityPolicy{Audience: "discovery", Anonymous: true, MCP: true}, HasPolicy: true, RPCTimeout: 5 * time.Second},
+
 	{ID: RequestTaskReview, FullMethod: "/humanworth.content.v1.ContentService/RequestTaskReview", Policy: IdentityPolicy{Audience: "content", Write: true}, HasPolicy: true, RPCTimeout: 5 * time.Second},
 	{ID: ListReviews, FullMethod: "/humanworth.moderation.v1.ModerationService/ListReviews", Policy: IdentityPolicy{Audience: "moderation", Admin: true}, HasPolicy: true, RPCTimeout: 5 * time.Second},
 	{ID: GetReview, FullMethod: "/humanworth.moderation.v1.ModerationService/GetReview", Policy: IdentityPolicy{Audience: "moderation", Admin: true}, HasPolicy: true},
@@ -167,6 +191,20 @@ var httpRoutes = [...]HTTPRoute{
 	{Name: "getBallot", Method: "GET", Path: "/api/tasks/{taskId}/ballot", Target: GetBallot, Timeout: 5 * time.Second},
 	{Name: "castVote", Method: "PUT", Path: "/api/tasks/{taskId}/vote", Target: CastVote, Timeout: 5 * time.Second},
 	{Name: "accessTaskStatistics", Method: "POST", Path: "/api/tasks/{taskId}/statistics-access", Target: ViewStatistics, Timeout: 5 * time.Second},
+	{Name: "mcpRequest", Method: "POST", Path: "/api/mcp", Timeout: 10 * time.Second, MaxBodyBytes: 64 << 10},
+	{Name: "createReport", Method: "POST", Path: "/api/reports", Target: CreateReport, Timeout: 5 * time.Second},
+	{Name: "listReports", Method: "GET", Path: "/api/admin/reports", Target: ListReports, Timeout: 5 * time.Second},
+	{Name: "resolveReport", Method: "POST", Path: "/api/admin/reports/{reportId}/resolution", Target: ResolveReport, Timeout: 5 * time.Second},
+	{Name: "takeDownContent", Method: "POST", Path: "/api/admin/takedowns", Target: TakeDownContent, Timeout: 5 * time.Second},
+	{Name: "getAdminDashboard", Method: "GET", Path: "/api/admin/dashboard", Target: AdminDashboard, Timeout: 5 * time.Second},
+	{Name: "listAuditEvents", Method: "GET", Path: "/api/admin/audit-events", Target: ListAuditEvents, Timeout: 5 * time.Second},
+
+	{Name: "listTasks", Method: "GET", Path: "/api/tasks", Target: ListTasks, Timeout: 5 * time.Second},
+	{Name: "getPublicBoard", Method: "GET", Path: "/api/board", Target: ReadBoard, Timeout: 5 * time.Second},
+	{Name: "listComments", Method: "GET", Path: "/api/tasks/{taskId}/comments", Target: ListComments, Timeout: 5 * time.Second},
+	{Name: "createComment", Method: "POST", Path: "/api/tasks/{taskId}/comments", Target: CreateComment, Timeout: 5 * time.Second},
+
+	{Name: "downloadTaskAsset", OpenAPIID: "downloadTaskAsset", Method: "GET", Path: "/api/tasks/{taskId}/assets/{assetId}/content", Timeout: 15 * time.Minute},
 	{Name: "getTask", Method: "GET", Path: "/api/tasks/{taskId}", Target: ReadTask},
 	{Name: "listApprovedEntries", Method: "GET", Path: "/api/tasks/{taskId}/entries", Target: ListApprovedEntries, Timeout: 5 * time.Second},
 	{Name: "submitAdditionalEntry", Method: "POST", Path: "/api/tasks/{taskId}/entries", Target: SubmitAdditionalEntry, Timeout: 5 * time.Second},

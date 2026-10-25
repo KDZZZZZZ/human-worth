@@ -12,6 +12,15 @@ option go_package = "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/cont
 service ContentService {
   // Voting mTLS only; complete allowlisted snapshot, never browsing pagination.
   rpc GetVotingCatalogSnapshot(GetVotingCatalogSnapshotRequest) returns (GetVotingCatalogSnapshotResponse);
+  rpc ListComments(ListCommentsRequest) returns (ListCommentsResponse);
+  rpc CreateComment(CreateCommentRequest) returns (CreateCommentResponse);
+  // Discovery-only safe projection, no vote counts or private metadata.
+  rpc ListDiscoverableTasks(ListDiscoverableTasksRequest) returns (ListDiscoverableTasksResponse);
+  // Moderation-only authority; a report does not change visibility.
+  rpc CheckModerationTarget(CheckModerationTargetRequest) returns (CheckModerationTargetResponse);
+  rpc ApplyTakedown(ApplyTakedownRequest) returns (ApplyTakedownResponse);
+  // Voting-only complete approved catalog.
+  rpc GetVotingCatalog(GetVotingCatalogRequest) returns (GetVotingCatalogResponse);
   // Gateway mTLS + method-bound Identity assertion (anonymous/web/MCP); 2s.
   rpc GetTask(GetTaskRequest) returns (GetTaskResponse);
   // Read-only browsing, NOT the complete Voting ballot; 5s, keyset pagination.
@@ -73,7 +82,7 @@ message PublicTask {
   PublicAuthor author = 7;
   optional double heat = 8;
   google.protobuf.Timestamp published_at = 9;
-  // Current frozen task model has no task-level attachments; always empty.
+  // Explicit task-level files; never inferred from an entry.
   repeated humanworth.asset.v1.Asset task_attachments = 10;
 }
 message ApprovedEntry {
@@ -91,7 +100,9 @@ message GetTaskRequest {
   string actor_assertion = 1;
   string task_id = 2;
 }
-message GetTaskResponse { PublicTask task = 1; }
+message GetTaskResponse {
+  PublicTask task = 1;
+}
 message ListApprovedEntriesRequest {
   string actor_assertion = 1;
   string task_id = 2;
@@ -107,6 +118,7 @@ message ArtifactInput {
   string kind = 1;
   optional string asset_id = 2;
   optional string url = 3;
+  optional string text = 4;
 }
 message PermissionsInput {
   optional bool cloud_use = 1;
@@ -137,6 +149,7 @@ message TaskDraftInput {
   optional string category = 4;
   // Initial drafts are ordered components of this aggregate, not public entries.
   repeated EntryInput entries = 5;
+  repeated TaskAttachmentInput task_attachments = 6;
 }
 message TaskSubmission {
   string id = 1;
@@ -156,12 +169,16 @@ message CreateTaskDraftRequest {
   // Gateway obtains this assertion for the same web session and Asset method.
   string asset_actor_assertion = 4;
 }
-message CreateTaskDraftResponse { TaskSubmission submission = 1; }
+message CreateTaskDraftResponse {
+  TaskSubmission submission = 1;
+}
 message GetMyTaskSubmissionRequest {
   string actor_assertion = 1;
   string task_id = 2;
 }
-message GetMyTaskSubmissionResponse { TaskSubmission submission = 1; }
+message GetMyTaskSubmissionResponse {
+  TaskSubmission submission = 1;
+}
 message ListMySubmissionsRequest {
   string actor_assertion = 1;
   // Empty values select the only implemented first-phase values.
@@ -182,7 +199,9 @@ message ReplaceTaskDraftRequest {
   TaskDraftInput content = 4;
   string asset_actor_assertion = 5;
 }
-message ReplaceTaskDraftResponse { TaskSubmission submission = 1; }
+message ReplaceTaskDraftResponse {
+  TaskSubmission submission = 1;
+}
 
 // Artifact 是作品正文或文件，链接只能作为补充；不携带作者与模型身份。
 message Artifact {
@@ -257,6 +276,8 @@ message CheckChallengeMaterialsResponse {
 message OpenRunRegistrationRequest {
   string run_id = 1;
   string task_id = 2;
+  string administrator_id = 3;
+  string executor_model = 4;
 }
 message OpenRunRegistrationResponse {
   string state = 1;
@@ -359,9 +380,15 @@ message RequestTaskReviewRequest {
   int64 expected_revision = 3;
   string asset_actor_assertion = 4;
 }
-message RequestTaskReviewResponse { TaskSubmission submission = 1; }
-message GetReviewSnapshotRequest { string review_id = 1; }
-message GetReviewSnapshotResponse { ReviewSnapshot snapshot = 1; }
+message RequestTaskReviewResponse {
+  TaskSubmission submission = 1;
+}
+message GetReviewSnapshotRequest {
+  string review_id = 1;
+}
+message GetReviewSnapshotResponse {
+  ReviewSnapshot snapshot = 1;
+}
 enum ReviewOutcome {
   REVIEW_OUTCOME_UNSPECIFIED = 0;
   REVIEW_OUTCOME_APPROVE = 1;
@@ -387,7 +414,9 @@ message CheckReviewAssetAccessRequest {
   string review_id = 2;
   string asset_id = 3;
 }
-message CheckReviewAssetAccessResponse { bool allowed = 1; }
+message CheckReviewAssetAccessResponse {
+  bool allowed = 1;
+}
 
 // Separate from TaskSubmission: no field/type/meaning changes to the task protocol.
 message EntrySubmission {
@@ -413,12 +442,16 @@ message SubmitAdditionalEntryRequest {
   EntryInput content = 4;
   string asset_actor_assertion = 5;
 }
-message SubmitAdditionalEntryResponse { EntrySubmission submission = 1; }
+message SubmitAdditionalEntryResponse {
+  EntrySubmission submission = 1;
+}
 message GetMyEntrySubmissionRequest {
   string actor_assertion = 1;
   string entry_id = 2;
 }
-message GetMyEntrySubmissionResponse { EntrySubmission submission = 1; }
+message GetMyEntrySubmissionResponse {
+  EntrySubmission submission = 1;
+}
 message ResubmitRejectedEntryRequest {
   string actor_assertion = 1;
   string entry_id = 2;
@@ -426,7 +459,9 @@ message ResubmitRejectedEntryRequest {
   EntryInput content = 4;
   string asset_actor_assertion = 5;
 }
-message ResubmitRejectedEntryResponse { EntrySubmission submission = 1; }
+message ResubmitRejectedEntryResponse {
+  EntrySubmission submission = 1;
+}
 message ListMyEntrySubmissionsRequest {
   string actor_assertion = 1;
   // Empty means all supported states; explicit draft/cloud/initial are rejected.
@@ -444,8 +479,12 @@ message EntryReviewSnapshot {
   EntrySubmission submission = 2;
   google.protobuf.Timestamp created_at = 3;
 }
-message GetEntryReviewSnapshotRequest { string review_id = 1; }
-message GetEntryReviewSnapshotResponse { EntryReviewSnapshot snapshot = 1; }
+message GetEntryReviewSnapshotRequest {
+  string review_id = 1;
+}
+message GetEntryReviewSnapshotResponse {
+  EntryReviewSnapshot snapshot = 1;
+}
 message ApplyEntryReviewDecisionRequest {
   string decision_id = 1;
   string review_id = 2;
@@ -477,5 +516,111 @@ message VotingCatalogSnapshot {
   repeated ApprovedEntry entries = 7;
   string sha256 = 8;
 }
-message GetVotingCatalogSnapshotRequest { string task_id = 1; }
-message GetVotingCatalogSnapshotResponse { VotingCatalogSnapshot catalog = 1; }
+message GetVotingCatalogSnapshotRequest {
+  string task_id = 1;
+}
+message GetVotingCatalogSnapshotResponse {
+  VotingCatalogSnapshot catalog = 1;
+}
+message VotingAuthor {
+  string id = 1;
+  string display_name = 2;
+}
+message VotingArtifact {
+  string kind = 1;
+  string asset_id = 2;
+  string url = 3;
+  string text = 4;
+}
+message VotingEntry {
+  string id = 1;
+  string task_id = 2;
+  string side = 3;
+  string title = 4;
+  string description = 5;
+  string source = 6;
+  repeated VotingArtifact artifacts = 7;
+  VotingAuthor author = 8;
+  google.protobuf.Timestamp approved_at = 9;
+}
+message VotingCatalog {
+  string task_id = 1;
+  int64 task_revision = 2;
+  int64 catalog_revision = 3;
+  bool visible = 4;
+  repeated VotingEntry entries = 5;
+  // SHA-256 of sorted entry IDs joined by newline; content is version-bound.
+  string work_set_hash = 6;
+}
+message GetVotingCatalogRequest {
+  string task_id = 1;
+  // public or preference. Preference requires current cloud-use authorization
+  // and recoverable material/comment versions for the exact snapshot below.
+  string purpose = 2;
+  SnapshotRef snapshot = 3;
+  string run_id = 4;
+}
+message GetVotingCatalogResponse {
+  VotingCatalog catalog = 1;
+  bool preference_allowed = 2;
+}
+
+message TaskAttachmentInput {
+  string asset_id = 1;
+  optional bool cloud_use_allowed = 2;
+}
+
+message PublicComment {
+  string id = 1;
+  string task_id = 2;
+  PublicAuthor author = 3;
+  string body = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+message ListCommentsRequest {
+  string actor_assertion = 1;
+  string task_id = 2;
+  int32 limit = 3;
+  string cursor = 4;
+}
+message ListCommentsResponse {
+  repeated PublicComment items = 1;
+  string next_cursor = 2;
+}
+message CreateCommentRequest {
+  string actor_assertion = 1;
+  string task_id = 2;
+  string body = 3;
+  string idempotency_key = 4;
+}
+message CreateCommentResponse {
+  PublicComment comment = 1;
+}
+message ListDiscoverableTasksRequest {
+  string order = 1;
+  optional string category = 2;
+  int32 limit = 3;
+  string cursor = 4;
+  optional string query = 5;
+}
+message ListDiscoverableTasksResponse {
+  repeated PublicTask items = 1;
+  string next_cursor = 2;
+}
+message CheckModerationTargetRequest {
+  string target_kind = 1;
+  string target_id = 2;
+}
+message CheckModerationTargetResponse {
+  bool visible = 1;
+  string task_id = 2;
+}
+message ApplyTakedownRequest {
+  string decision_id = 1;
+  string target_kind = 2;
+  string target_id = 3;
+}
+message ApplyTakedownResponse {
+  string decision_id = 1;
+  string task_id = 2;
+}

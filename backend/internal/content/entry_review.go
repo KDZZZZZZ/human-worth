@@ -135,7 +135,7 @@ func (s *Server) localApplyEntryReviewDecision(ctx context.Context, r *pb.ApplyE
 			return nil, storage(err)
 		}
 		approved = &now
-		_, err = tx.Exec(ctx, `INSERT INTO content.reviewed_entries(id,task_id,position,state,approved_at,origin,author_id,content) VALUES($1,$2,$3,'approved',$4,'additional',$5,$6)`, r.EntryId, r.TaskId, position, now, frozen.AuthorId, data)
+		_, err = tx.Exec(ctx, `INSERT INTO content.reviewed_entries(id,task_id,position,state,approved_at,origin,author_id,content) VALUES($1,$2,$3,'approved',$4,$7,$5,$6)`, r.EntryId, r.TaskId, position, now, frozen.AuthorId, data, frozen.Origin)
 		if err == nil {
 			_, err = tx.Exec(ctx, `UPDATE content.reviewed_tasks SET next_entry_position=next_entry_position+1,catalog_revision=catalog_revision+1 WHERE task_id=$1`, r.TaskId)
 		}

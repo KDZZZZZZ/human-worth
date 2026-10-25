@@ -91,6 +91,9 @@ func run() error {
 	runtime.Registry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{Name: "human_worth_database_connections", Help: "Open connections in this replica's pool"}, func() float64 { return float64(db.Stat().TotalConns()) }))
 	server := grpc.NewServer(grpc.Creds(credentials.NewTLS(serverTLS)), grpc.ChainUnaryInterceptor(runtime.Unary, voting.Authorization), grpc.StreamInterceptor(voting.AuthorizationStream), grpc.StatsHandler(otelgrpc.NewServerHandler()), grpc.MaxRecvMsgSize(2<<20), grpc.MaxSendMsgSize(2<<20), grpc.MaxConcurrentStreams(64))
 	app := &voting.Server{DB: db, Identity: identitypb.NewIdentityServiceClient(conn), Content: contentpb.NewContentServiceClient(contentConn)}
+	if err = app.BackfillConclusions(ctx); err != nil {
+		return err
+	}
 	pb.RegisterVotingServiceServer(server, app)
 	go func() {
 		ticker := time.NewTicker(time.Minute)

@@ -1,0 +1,17 @@
+# Disposable backend verification; no public port mapping or production namespace.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: human-worth-backend-check
+networking:
+  disableDefaultCNI: true
+  podSubnet: 10.245.0.0/16
+  serviceSubnet: 10.97.0.0/16
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed
+  - role: worker
+    image: kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed
+    labels: {human-worth.io/worker: "true"}
+  - role: worker
+    image: kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed
+    labels: {human-worth.io/worker: "true"}

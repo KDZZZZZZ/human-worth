@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: challenge-worker, namespace: human-worth}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Service
+metadata: {name: challenge-worker, namespace: human-worth}
+spec:
+  clusterIP: None
+  selector: {app: challenge-worker}
+  ports: [{name: relay, port: 9443, targetPort: relay}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: challenge-worker, namespace: human-worth}
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector: {matchLabels: {app: challenge-worker}}
+  strategy:
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
+  template:
+    metadata: {labels: {app: challenge-worker}}
+    spec:
+      serviceAccountName: challenge-worker
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 20
+      nodeSelector: {human-worth.io/worker: "true"}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector: {matchLabels: {app: challenge-worker}}
+      securityContext: {runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: challenge-worker
+          image: human-worth/challenge-worker:local
+          imagePullPolicy: Never
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 400m, memory: 192Mi}
+          env:
+            - {name: CHALLENGE_TARGET, value: "dns:///challenge.human-worth.svc.cluster.local:8443"}
+            - {name: WORKER_INSTANCE_ID, valueFrom: {fieldRef: {fieldPath: metadata.name}}}
+            - {name: POD_IP, valueFrom: {fieldRef: {fieldPath: status.podIP}}}
+            - {name: CHALLENGE_MODEL_CONFIG_FILE, value: /challenge-worker-secrets/model.json}
+            - {name: CHALLENGE_EXECUTOR_PROFILE_FILE, value: /challenge-worker-secrets/executor.json}
+            - {name: RELAY_CERT_FILE, value: /tls/tls.crt}
+            - {name: RELAY_KEY_FILE, value: /tls/tls.key}
+            - {name: HTTPS_PROXY, value: "http://model-egress.human-worth.svc.cluster.local:3128"}
+            - {name: NO_PROXY, value: "localhost,127.0.0.1,.svc,.svc.cluster.local"}
+            - {name: SERVICE_CERT_FILE, value: /tls/tls.crt}
+            - {name: SERVICE_KEY_FILE, value: /tls/tls.key}
+            - {name: SERVICE_CA_FILE, value: /tls/ca.crt}
+            - {name: POD_NAME, valueFrom: {fieldRef: {fieldPath: metadata.name}}}
+            - {name: GOMEMLIMIT, value: 150MiB}
+          ports: [{name: relay, containerPort: 9443}, {name: health, containerPort: 8081}]
+          startupProbe: {httpGet: {path: /livez, port: health}, periodSeconds: 2, failureThreshold: 30}
+          livenessProbe: {httpGet: {path: /livez, port: health}, periodSeconds: 10}
+          readinessProbe: {httpGet: {path: /readyz, port: health}, periodSeconds: 3, timeoutSeconds: 3, failureThreshold: 2}
+          volumeMounts:
+            - {name: tls, mountPath: /tls, readOnly: true}
+            - {name: challenge-worker-secrets, mountPath: /challenge-worker-secrets, readOnly: true}
+            - {name: api, mountPath: /api, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: api
+          projected:
+            defaultMode: 0440
+            sources:
+              - serviceAccountToken: {path: token, expirationSeconds: 3600}
+              - configMap: {name: kube-root-ca.crt, items: [{key: ca.crt, path: ca.crt}]}
+        - {name: tmp, emptyDir: {sizeLimit: 16Mi}}
+        - {name: tls, secret: {secretName: challenge-worker-tls, defaultMode: 0440}}
+        - {name: challenge-worker-secrets, secret: {secretName: challenge-worker-runtime, defaultMode: 0440}}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: {name: challenge-worker, namespace: human-worth}
+spec:
+  minAvailable: 1
+  selector: {matchLabels: {app: challenge-worker}}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: challenge-worker, namespace: human-worth}
+spec:
+  podSelector: {matchLabels: {app: challenge-worker}}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: human-worth-execution}}
+      ports: [{protocol: TCP, port: 9443}]
+  egress:
+    - to: [{podSelector: {matchLabels: {app: challenge}}}]
+      ports: [{protocol: TCP, port: 8443}]
+    - to: [{podSelector: {matchLabels: {app: model-egress}}}]
+      ports: [{protocol: TCP, port: 3128}]
+    # app.py narrows this to the Kubernetes API endpoint on each deployment.
+    - to: [{ipBlock: {cidr: 127.0.0.1/32}}]
+      ports: [{protocol: TCP, port: 6443}]

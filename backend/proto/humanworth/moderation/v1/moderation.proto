@@ -7,8 +7,14 @@ import "humanworth/content/v1/content.proto";
 
 option go_package = "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/moderation/v1;moderationv1";
 
-// Only initial task bundles in phase 4; no reports/audit platform.
+// Durable review, reporting and administrator action workflows.
 service ModerationService {
+  rpc CreateReport(CreateReportRequest) returns (CreateReportResponse);
+  rpc ListReports(ListReportsRequest) returns (ListReportsResponse);
+  rpc ResolveReport(ResolveReportRequest) returns (ResolveReportResponse);
+  rpc TakeDownContent(TakeDownContentRequest) returns (TakeDownContentResponse);
+  rpc GetDashboard(GetDashboardRequest) returns (GetDashboardResponse);
+  rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
   // content mTLS only; review ID + task/revision idempotent, payload mismatch
   // AlreadyExists. 5s; safe identical retry. No transaction waits for RPC.
   rpc CreateReviewCase(CreateReviewCaseRequest) returns (CreateReviewCaseResponse);
@@ -48,8 +54,12 @@ message Review {
   humanworth.content.v1.EntryReviewSnapshot entry_snapshot = 12;
   humanworth.content.v1.ApplyEntryReviewDecisionResponse entry_receipt = 13;
 }
-message CreateReviewCaseRequest { humanworth.content.v1.ReviewSnapshot snapshot = 1; }
-message CreateReviewCaseResponse { Review review = 1; }
+message CreateReviewCaseRequest {
+  humanworth.content.v1.ReviewSnapshot snapshot = 1;
+}
+message CreateReviewCaseResponse {
+  Review review = 1;
+}
 message ListReviewsRequest {
   string actor_assertion = 1;
   string status = 2;
@@ -64,14 +74,98 @@ message GetReviewRequest {
   string actor_assertion = 1;
   string review_id = 2;
 }
-message GetReviewResponse { Review review = 1; }
+message GetReviewResponse {
+  Review review = 1;
+}
 message DecideReviewRequest {
   string actor_assertion = 1;
   string review_id = 2;
   humanworth.content.v1.ReviewOutcome decision = 3;
   optional string reason = 4;
 }
-message DecideReviewResponse { Review review = 1; }
+message DecideReviewResponse {
+  Review review = 1;
+}
 
-message CreateEntryReviewCaseRequest { humanworth.content.v1.EntryReviewSnapshot snapshot = 1; }
-message CreateEntryReviewCaseResponse { Review review = 1; }
+message CreateEntryReviewCaseRequest {
+  humanworth.content.v1.EntryReviewSnapshot snapshot = 1;
+}
+message CreateEntryReviewCaseResponse {
+  Review review = 1;
+}
+
+message ModerationTarget {
+  string target_kind = 1;
+  string target_id = 2;
+  string reason = 3;
+}
+message Report {
+  string id = 1;
+  ModerationTarget target = 2;
+  string status = 3;
+  optional string resolution_reason = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp resolved_at = 6;
+  string delivery_state = 7;
+}
+message CreateReportRequest {
+  string actor_assertion = 1;
+  ModerationTarget target = 2;
+  string idempotency_key = 3;
+}
+message CreateReportResponse {
+  Report report = 1;
+}
+message ListReportsRequest {
+  string actor_assertion = 1;
+  string status = 2;
+  int32 limit = 3;
+  string cursor = 4;
+}
+message ListReportsResponse {
+  repeated Report items = 1;
+  string next_cursor = 2;
+}
+message ResolveReportRequest {
+  string actor_assertion = 1;
+  string report_id = 2;
+  string action = 3;
+  string reason = 4;
+}
+message ResolveReportResponse {
+  Report report = 1;
+}
+message AuditEvent {
+  string id = 1;
+  string actor_id = 2;
+  string action = 3;
+  string target_id = 4;
+  string outcome = 5;
+  optional string reason = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+message TakeDownContentRequest {
+  string actor_assertion = 1;
+  ModerationTarget target = 2;
+  string idempotency_key = 3;
+}
+message TakeDownContentResponse {
+  AuditEvent event = 1;
+}
+message GetDashboardRequest {
+  string actor_assertion = 1;
+}
+message GetDashboardResponse {
+  int64 pending_task_reviews = 1;
+  int64 pending_entry_reviews = 2;
+  int64 open_reports = 3;
+}
+message ListAuditEventsRequest {
+  string actor_assertion = 1;
+  int32 limit = 2;
+  google.protobuf.Timestamp before_time = 3;
+  string before_id = 4;
+}
+message ListAuditEventsResponse {
+  repeated AuditEvent items = 1;
+}

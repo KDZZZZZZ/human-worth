@@ -11,6 +11,7 @@ import (
 	assetpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/asset/v1"
 	challengepb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1"
 	contentpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1"
+	discoverypb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/discovery/v1"
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/identity/v1"
 	moderationpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/moderation/v1"
 	votingpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/voting/v1"
@@ -45,6 +46,7 @@ const FlowCookie = "__Host-human-worth-oauth"
 var web embed.FS
 
 type Options struct {
+	Discovery            discoverypb.DiscoveryServiceClient
 	Voting               votingpb.VotingServiceClient
 	Moderation           moderationpb.ModerationServiceClient
 	Challenge            challengepb.ChallengeServiceClient
@@ -254,7 +256,7 @@ func rpcErrorFor(w http.ResponseWriter, err error, unavailable string) {
 		reason = "request_cancelled"
 	case codes.InvalidArgument:
 		code = 400
-		if reason == "initial_bundle_required" || reason == "statistics_confirmation_required" {
+		if reason == "initial_bundle_required" || reason == "artifact_body_required" || reason == "statistics_confirmation_required" {
 			code = 422
 		}
 		if reason == "unsupported_media_type" {
@@ -268,7 +270,7 @@ func rpcErrorFor(w http.ResponseWriter, err error, unavailable string) {
 		code = 404
 	case codes.AlreadyExists, codes.Aborted, codes.FailedPrecondition:
 		code = 409
-		if reason == "initial_bundle_required" || reason == "statistics_confirmation_required" {
+		if reason == "initial_bundle_required" || reason == "artifact_body_required" || reason == "statistics_confirmation_required" {
 			code = 422
 		}
 	case codes.ResourceExhausted:

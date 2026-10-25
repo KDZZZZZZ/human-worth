@@ -98,13 +98,17 @@ message VerifyActorRequest {
 message VerifyActorResponse {
   Principal principal = 1;
 }
-message GetCurrentSessionRequest { string actor_assertion = 1; }
+message GetCurrentSessionRequest {
+  string actor_assertion = 1;
+}
 message GetCurrentSessionResponse {
   Account account = 1;
   Role role = 2;
   string csrf_token = 3;
 }
-message LogoutCurrentSessionRequest { string actor_assertion = 1; }
+message LogoutCurrentSessionRequest {
+  string actor_assertion = 1;
+}
 message LogoutCurrentSessionResponse {}
 message McpToken {
   string id = 1;

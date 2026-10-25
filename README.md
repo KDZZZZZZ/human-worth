@@ -10,12 +10,12 @@
   <img src="public/brand/poster.png" alt="Human Worth 海报：人类与机器人并肩看日落，共同创造更好的未来" width="640">
 </p>
 
-公网已提供 Go Identity（Google 登录、会话、MCP 凭据）、Content 本人草稿接口与 Swagger，后端运行在本机 kind lab。2026-09-19 用户已确认真人 Google 登录成功并看到账号。Challenge 已完成本地核心实现与依赖 fake 联调，三角色 Completion 及 E 工具往返已验证，尚未发布；真实 E 沙箱待联调。Content 已支持创建、详情、列表与替换私有草稿；公开投稿、投票和审核仍待实现。
+后端部署清单包含 Identity、Asset、Voting、Content、Moderation、Discovery、Challenge、challenge-worker 和 gateway。2026-10-25 补齐发现与看板、评论举报、MCP 传输和 Challenge 真实依赖／执行闭环；实际公网版本与部署完成状态以 `/api/health` 为准。接口、技术选择、实际验证与边界见 [后端补全记录](docs/backend-completion.md)。前端接入与页面验收单独进行。
 
 - [协作与设计补全规则](AGENTS.md)
-- [后端架构划分：七个业务服务、网关与挑战执行器](docs/backend-architecture.md)（七服务目标，Identity 已实现）
+- [后端架构划分：七个业务服务、网关与挑战执行器](docs/backend-architecture.md)（七个业务服务与 gateway、worker）
 - [Identity 设计：核心对象、登录鉴权与 platform 实现清单](docs/backend-identity.md)（设计与当前实现）
-- [Challenge 设计：打包、执行、排序三个 agent](docs/backend-challenge.md)（设计草案；先 R 拟合达标，再固定 R 优化 P／运行 E；P 不看任何评论）
+- [Challenge 设计：打包、执行、排序三个 agent](docs/backend-challenge.md)（先 R 拟合达标，再固定 R 优化 P／运行 E；P 不看任何评论）
 - [部署与实验计划：当前环境、kind 集群、故障演练和回退](docs/deployment.md)（公网 Identity 与保留的基座回退链路）
 - [OpenAPI YAML 接口契约草案](openapi.yaml)（健康检查与 Identity 已有代码；区分实现及公网发布状态）
 - [Swagger 在线文档](https://worth.oopsbox.cn/docs/)（只读浏览与 YAML 下载）
@@ -45,7 +45,7 @@ npm run build:docs
 python3 -m http.server 18191 --bind 127.0.0.1 --directory dist
 ```
 
-本地文档地址为 `http://127.0.0.1:18191/docs/`。接口筛选、schema 和实现状态可展开查看；禁用 Try it out，不执行 API 请求。本地 0.7.0 草案包含已上线的 Identity，以及已本地实现的 Challenge 管理接口、管理员初始包、三角色配置与收尾登记契约，以及待实现的任务附件和作品业务接口；线上仍为 0.5.0。发布步骤见[静态文档部署](docs/deployment.md#swagger-docs)。
+本地文档地址为 `http://127.0.0.1:18191/docs/`。接口筛选、schema 和实现状态可展开查看；禁用 Try it out，不执行 API 请求。OpenAPI 0.8.0 记录后端全部接口，部署该版本后再同步公网文档。发布步骤见[静态文档部署](docs/deployment.md#swagger-docs)。
 
 ## 开发环境入口
 
@@ -56,4 +56,4 @@ python3 -m http.server 18191 --bind 127.0.0.1 --directory dist
 
 代码在本机运行，阿里云 ECS 经独立隧道提供公网入口。合入 `dev` 后，本机定时检查该提交的 push CI，成功才构建镜像、迁移和滚动部署；所需时间取决于构建与调度。本机开机且网络可用时自动运行。
 
-上述 HTTPS 入口当前提供 Identity 与 0.5.0 Swagger；实际应用版本以 `/api/health` 的 revision 为准。安装、发布证据和回退见[部署文档](docs/deployment.md#identity-lab)。前端本地 HTTP 代理继续请求公网 API；Google 登录首版只在配置的 HTTPS 域名使用。
+上述 HTTPS 入口以当前 dev 的已发布能力为准；实际应用版本以 `/api/health` 的 revision 为准。安装、发布证据和回退见[部署文档](docs/deployment.md#identity-lab)。前端本地 HTTP 代理继续请求公网 API；Google 登录首版只在配置的 HTTPS 域名使用。

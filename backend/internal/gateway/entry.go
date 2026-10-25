@@ -71,10 +71,10 @@ func entryInput(raw json.RawMessage) (*pb.EntryInput, bool) {
 		return nil, false
 	}
 	for _, artifact := range input.Artifacts {
-		if artifact == nil || (artifact.Kind != "file" && artifact.Kind != "link") {
+		if artifact == nil || (artifact.Kind != "file" && artifact.Kind != "link" && artifact.Kind != "text") {
 			return nil, false
 		}
-		if artifact.Kind == "file" && (artifact.GetAssetId() == "" || artifact.Url != nil) || artifact.Kind == "link" && (artifact.GetUrl() == "" || artifact.AssetId != nil) {
+		if artifact.Kind == "file" && (artifact.GetAssetId() == "" || artifact.Url != nil || artifact.Text != nil) || artifact.Kind == "link" && (artifact.GetUrl() == "" || artifact.AssetId != nil || artifact.Text != nil) || artifact.Kind == "text" && (strings.TrimSpace(artifact.GetText()) == "" || artifact.AssetId != nil || artifact.Url != nil) {
 			return nil, false
 		}
 	}

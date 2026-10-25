@@ -27,6 +27,7 @@ type ResultReceipt struct {
 type ModelCall struct{ ID, State, Digest string }
 
 type Reader interface {
+	ListAuditEvents(context.Context, time.Time, string, int32) ([]dto.AuditEvent, error)
 	Read(context.Context, string) (*Record, error)
 	LookupRun(context.Context, RunKey) (*domain.Run, error)
 	ListRuns(context.Context, string, string, int32) ([]*domain.Run, error)

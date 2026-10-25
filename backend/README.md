@@ -1,6 +1,8 @@
 # Go 后端
 
-当前已发布 `gateway`、`IdentityService`、`ContentService` 四个本人草稿接口；Asset 的私有上传服务已在本分支实现并已接入本分支 kind lab，Moderation 已完成本地审核闭环与双副本 kind 验收；这些改动尚未合入或公网发布。Asset 使用 S3-compatible 共享存储，`FileStorage` 仅限显式单进程测试；本地 SeaweedFS 和 kind 验收不等于生产 HA 或公网验收。`ChallengeService`、challenge-worker 与 P/R/E Completion 适配器已本地实现，真实 PostgreSQL 与依赖 fake 联调已有记录，真实 E 沙箱及完整依赖闭环仍待验收，未发布。见 [Identity](../docs/backend-identity.md)、[Content](../docs/backend-content.md)、[Asset](../docs/backend-asset.md)、[Challenge](../docs/backend-challenge.md#implementation)和[部署文档](../docs/deployment.md#identity-lab)。
+当前后端功能与验证统一见 [后端补全记录](../docs/backend-completion.md)。本次基于 dev `1fe4d3f`，保留原有六模块和数据库事实，新增 Discovery、Challenge／worker 部署以及评论、举报、看板、完整 MCP，共九个部署模块。公网版本和完成状态以 `/api/health` 为准。
+
+下面按日期保留早期阶段记录，其中“未实现／未发布”只描述该次历史验收；当前范围和限制以上述补全记录为准。
 
 ## Asset 3C：过审作品文件读取（本地分支，未发布）
 
@@ -124,7 +126,7 @@ docker build --provenance=false --sbom=false -f backend/Dockerfile \
   -t human-worth/identity:development .
 ```
 
-`SERVICE` 可取 `identity`、`gateway`、`content`、`asset`、`identity-admin`、`challenge`、`challenge-worker`。此镜像内的 worker 支持 P/R；启用 E 的可信 worker 还需要固定版本的 `kubectl`。运行镜像为非 root、只读文件系统友好的静态 Go 程序，没有 shell 和编译工具；当前工作分支的 lab catalog 启用 Identity、Asset、Content 和 gateway，已发布环境仍只有 Identity、Content 和 gateway；Challenge 待真实依赖与执行隔离验收后纳入。
+`SERVICE` 可取 `identity`、`gateway`、`content`、`asset`、`moderation`、`voting`、`discovery`、`challenge`、`challenge-worker`、`identity-admin`。普通镜像默认 `service` target；worker 使用 `--target worker`，包含固定版本 kubectl。E 使用独立 `Dockerfile.executor` 的 Python／shell 镜像，按 digest 引用；主供应商密钥和集群凭据留在可信 worker。
 
 ## Challenge 启动与验证
 
@@ -143,7 +145,7 @@ CHALLENGE_MODEL_CONFIG_FILE=/path/to/private/model.json \
 
 启用 E 时配置 `CHALLENGE_EXECUTOR_PROFILE_FILE`、`RELAY_CERT_FILE` 和 `RELAY_KEY_FILE`。默认使用 `CHALLENGE_MODEL_CONFIG_FILE`；只有选择不同模型时才另外设置 `CHALLENGE_EXECUTOR_MODEL_CONFIG_FILE`，该文件也必须是 Completion 配置。profile 字段为 `kubeconfig`、`context`、`namespace`、`image`（必须带 SHA-256 digest）、`runtime_class`（gvisor/runsc，handler 为 runsc）、`relay_url`（HTTPS、9443 端口、指向该 worker 实例）、`ca_file`。worker 使用受限 kubeconfig，业务证书与供应商密钥不进入 E Pod；每个实例必须使用独立客户端证书，不能只靠实例名隔离身份。
 
-[执行策略清单](../ops/challenge/execution-isolation.yaml)提供命名空间、RBAC、网络白名单和总资源限制；worker 校验该命名空间仅存在这份网络策略。部署前仍必须确认 CNI 实际执行拒绝规则。使用 [Dockerfile.executor](Dockerfile.executor) 和已核验、固定 digest 的 `EXECUTOR_IMAGE` 构建 E 镜像，只要求包含 `/bin/sh` 及任务所需语言工具。执行镜像、gVisor、网络隔离和命令进程限制尚未在真实集群验收；不能通过 privileged 或禁用沙箱绕过失败。现有发布控制器不会自动安装这组配置。
+[执行策略清单](../ops/challenge/execution-isolation.yaml)提供命名空间、RBAC、网络白名单和总资源限制；worker 校验该命名空间仅存在这份网络策略。部署前仍必须确认 CNI 实际执行拒绝规则。使用 [Dockerfile.executor](Dockerfile.executor) 和已核验、固定 digest 的 `EXECUTOR_IMAGE` 构建 E 镜像，只要求包含 `/bin/sh` 及任务所需语言工具。最新隔离实测见补全记录。可信控制器在部署前预检 gVisor，再安装固定隔离策略；gVisor 节点运行时由 `ops/lab/execution.py` 单独准备。不能通过 privileged 或禁用沙箱绕过失败。
 
 每个 E Attempt 固定 Job 名，禁止自动重试；独立卷、非 root、只读根文件系统、无 ServiceAccount token，限 1 CPU/2 GiB 内存/1 GiB 临时存储。成功回传后先删除 Job 再提交工作；清理失败会失败收尾，同实例重启按标签清理旧 Job，Job TTL 及 Secret ownerReference 提供额外回收。重启时的 `WORKER_INSTANCE_ID` 应保持稳定，多个活跃实例不能复用。
 

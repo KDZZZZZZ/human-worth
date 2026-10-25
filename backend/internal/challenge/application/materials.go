@@ -38,6 +38,12 @@ func (s *Service) ReadMaterial(q *dto.ReadMaterialRequest, stream MaterialStream
 	}
 	access := materialAccess(r, q.Attempt)
 	access.TaskId = material.TaskId
+	// A later rank/explain attempt reads an already verified output from E.
+	// Asset fences by its producing attempt; current-attempt authorization is
+	// checked above and again for every chunk, using the assignment allowlist.
+	if material.Asset.RunId != "" && material.Asset.AttemptId != "" {
+		access.RunId, access.AttemptId = material.Asset.RunId, material.Asset.AttemptId
+	}
 	input, err := s.asset.ReadAsset(ctx, &dto.ReadAssetRequest{AssetId: material.Asset.Id, Access: access, Offset: q.Offset})
 	if err != nil {
 		return domain.DependencyError(err)

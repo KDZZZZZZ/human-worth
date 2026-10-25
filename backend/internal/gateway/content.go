@@ -57,7 +57,7 @@ func httpDraftNames(raw []byte) bool {
 				if child == nil && k != "category" {
 					return false
 				}
-				if k == "asset_id" || k == "cloud_use" || k == "agent_configuration" {
+				if k == "asset_id" || k == "cloud_use" || k == "agent_configuration" || k == "task_attachments" || k == "cloud_use_allowed" {
 					return false
 				}
 				if k != "parameters" && !walk(child) {
@@ -90,6 +90,9 @@ func (h *Handler) assetActor(w http.ResponseWriter, r *http.Request, operation c
 	return h.actorFor(w, r, operation)
 }
 func hasFileArtifact(input *pb.TaskDraftInput) bool {
+	if len(input.GetTaskAttachments()) > 0 {
+		return true
+	}
 	for _, entry := range input.GetEntries() {
 		for _, artifact := range entry.GetArtifacts() {
 			if artifact.GetKind() == "file" {

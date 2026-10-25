@@ -144,7 +144,7 @@ func TestModerationHTTPOutbox(t *testing.T) {
 		return l.request(t, 0, method, path, cookies, body, h)
 	}
 	draft := func(assetID string) string {
-		return `{"title":"review task","summary":"","description":"body","entries":[{"side":"human","title":"human","source":"self","artifacts":[{"kind":"file","assetId":"` + assetID + `"}],"permissions":{"cloudUse":false}},{"side":"agent","title":"agent","source":"model","artifacts":[{"kind":"link","url":"https://example.com/work"}],"permissions":{"cloudUse":false},"agentConfiguration":{"model":"test"}}]}`
+		return `{"title":"review task","summary":"","description":"body","entries":[{"side":"human","title":"human","source":"self","artifacts":[{"kind":"file","assetId":"` + assetID + `"}],"permissions":{"cloudUse":false}},{"side":"agent","title":"agent","source":"model","artifacts":[{"kind":"text","text":"complete agent work"},{"kind":"link","url":"https://example.com/work"}],"permissions":{"cloudUse":false},"agentConfiguration":{"model":"test"}}]}`
 	}
 	data := []byte("administrator can read only the exact pending snapshot\n")
 	ah["Idempotency-Key"] = "moderation-upload-0001"
@@ -251,7 +251,7 @@ func TestModerationHTTPOutbox(t *testing.T) {
 		grpcCode(t, err, codes.AlreadyExists)
 	})
 	t.Run("concurrent_opposite_first_decisions", func(t *testing.T) {
-		body := strings.ReplaceAll(draft(upload.Asset.ID), `{"kind":"file","assetId":"`+upload.Asset.ID+`"}`, `{"kind":"link","url":"https://example.com/other"}`)
+		body := strings.ReplaceAll(draft(upload.Asset.ID), `{"kind":"file","assetId":"`+upload.Asset.ID+`"}`, `{"kind":"text","text":"alternate human work"}`)
 		ah["Idempotency-Key"] = "review-concurrency-0001"
 		rr := request(alice, "POST", "/api/tasks", body, ah)
 		httpStatus(t, rr, 201)

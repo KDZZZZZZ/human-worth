@@ -20,6 +20,12 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	ContentService_GetVotingCatalogSnapshot_FullMethodName    = "/humanworth.content.v1.ContentService/GetVotingCatalogSnapshot"
+	ContentService_ListComments_FullMethodName                = "/humanworth.content.v1.ContentService/ListComments"
+	ContentService_CreateComment_FullMethodName               = "/humanworth.content.v1.ContentService/CreateComment"
+	ContentService_ListDiscoverableTasks_FullMethodName       = "/humanworth.content.v1.ContentService/ListDiscoverableTasks"
+	ContentService_CheckModerationTarget_FullMethodName       = "/humanworth.content.v1.ContentService/CheckModerationTarget"
+	ContentService_ApplyTakedown_FullMethodName               = "/humanworth.content.v1.ContentService/ApplyTakedown"
+	ContentService_GetVotingCatalog_FullMethodName            = "/humanworth.content.v1.ContentService/GetVotingCatalog"
 	ContentService_GetTask_FullMethodName                     = "/humanworth.content.v1.ContentService/GetTask"
 	ContentService_ListApprovedEntries_FullMethodName         = "/humanworth.content.v1.ContentService/ListApprovedEntries"
 	ContentService_SubmitAdditionalEntry_FullMethodName       = "/humanworth.content.v1.ContentService/SubmitAdditionalEntry"
@@ -56,6 +62,15 @@ const (
 type ContentServiceClient interface {
 	// Voting mTLS only; complete allowlisted snapshot, never browsing pagination.
 	GetVotingCatalogSnapshot(ctx context.Context, in *GetVotingCatalogSnapshotRequest, opts ...grpc.CallOption) (*GetVotingCatalogSnapshotResponse, error)
+	ListComments(ctx context.Context, in *ListCommentsRequest, opts ...grpc.CallOption) (*ListCommentsResponse, error)
+	CreateComment(ctx context.Context, in *CreateCommentRequest, opts ...grpc.CallOption) (*CreateCommentResponse, error)
+	// Discovery-only safe projection, no vote counts or private metadata.
+	ListDiscoverableTasks(ctx context.Context, in *ListDiscoverableTasksRequest, opts ...grpc.CallOption) (*ListDiscoverableTasksResponse, error)
+	// Moderation-only authority; a report does not change visibility.
+	CheckModerationTarget(ctx context.Context, in *CheckModerationTargetRequest, opts ...grpc.CallOption) (*CheckModerationTargetResponse, error)
+	ApplyTakedown(ctx context.Context, in *ApplyTakedownRequest, opts ...grpc.CallOption) (*ApplyTakedownResponse, error)
+	// Voting-only complete approved catalog.
+	GetVotingCatalog(ctx context.Context, in *GetVotingCatalogRequest, opts ...grpc.CallOption) (*GetVotingCatalogResponse, error)
 	// Gateway mTLS + method-bound Identity assertion (anonymous/web/MCP); 2s.
 	GetTask(ctx context.Context, in *GetTaskRequest, opts ...grpc.CallOption) (*GetTaskResponse, error)
 	// Read-only browsing, NOT the complete Voting ballot; 5s, keyset pagination.
@@ -111,6 +126,66 @@ func (c *contentServiceClient) GetVotingCatalogSnapshot(ctx context.Context, in 
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetVotingCatalogSnapshotResponse)
 	err := c.cc.Invoke(ctx, ContentService_GetVotingCatalogSnapshot_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentServiceClient) ListComments(ctx context.Context, in *ListCommentsRequest, opts ...grpc.CallOption) (*ListCommentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListCommentsResponse)
+	err := c.cc.Invoke(ctx, ContentService_ListComments_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentServiceClient) CreateComment(ctx context.Context, in *CreateCommentRequest, opts ...grpc.CallOption) (*CreateCommentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateCommentResponse)
+	err := c.cc.Invoke(ctx, ContentService_CreateComment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentServiceClient) ListDiscoverableTasks(ctx context.Context, in *ListDiscoverableTasksRequest, opts ...grpc.CallOption) (*ListDiscoverableTasksResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListDiscoverableTasksResponse)
+	err := c.cc.Invoke(ctx, ContentService_ListDiscoverableTasks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentServiceClient) CheckModerationTarget(ctx context.Context, in *CheckModerationTargetRequest, opts ...grpc.CallOption) (*CheckModerationTargetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CheckModerationTargetResponse)
+	err := c.cc.Invoke(ctx, ContentService_CheckModerationTarget_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentServiceClient) ApplyTakedown(ctx context.Context, in *ApplyTakedownRequest, opts ...grpc.CallOption) (*ApplyTakedownResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ApplyTakedownResponse)
+	err := c.cc.Invoke(ctx, ContentService_ApplyTakedown_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentServiceClient) GetVotingCatalog(ctx context.Context, in *GetVotingCatalogRequest, opts ...grpc.CallOption) (*GetVotingCatalogResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetVotingCatalogResponse)
+	err := c.cc.Invoke(ctx, ContentService_GetVotingCatalog_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -385,6 +460,15 @@ func (c *contentServiceClient) GetChallengeRegistration(ctx context.Context, in 
 type ContentServiceServer interface {
 	// Voting mTLS only; complete allowlisted snapshot, never browsing pagination.
 	GetVotingCatalogSnapshot(context.Context, *GetVotingCatalogSnapshotRequest) (*GetVotingCatalogSnapshotResponse, error)
+	ListComments(context.Context, *ListCommentsRequest) (*ListCommentsResponse, error)
+	CreateComment(context.Context, *CreateCommentRequest) (*CreateCommentResponse, error)
+	// Discovery-only safe projection, no vote counts or private metadata.
+	ListDiscoverableTasks(context.Context, *ListDiscoverableTasksRequest) (*ListDiscoverableTasksResponse, error)
+	// Moderation-only authority; a report does not change visibility.
+	CheckModerationTarget(context.Context, *CheckModerationTargetRequest) (*CheckModerationTargetResponse, error)
+	ApplyTakedown(context.Context, *ApplyTakedownRequest) (*ApplyTakedownResponse, error)
+	// Voting-only complete approved catalog.
+	GetVotingCatalog(context.Context, *GetVotingCatalogRequest) (*GetVotingCatalogResponse, error)
 	// Gateway mTLS + method-bound Identity assertion (anonymous/web/MCP); 2s.
 	GetTask(context.Context, *GetTaskRequest) (*GetTaskResponse, error)
 	// Read-only browsing, NOT the complete Voting ballot; 5s, keyset pagination.
@@ -438,6 +522,24 @@ type UnimplementedContentServiceServer struct{}
 
 func (UnimplementedContentServiceServer) GetVotingCatalogSnapshot(context.Context, *GetVotingCatalogSnapshotRequest) (*GetVotingCatalogSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetVotingCatalogSnapshot not implemented")
+}
+func (UnimplementedContentServiceServer) ListComments(context.Context, *ListCommentsRequest) (*ListCommentsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListComments not implemented")
+}
+func (UnimplementedContentServiceServer) CreateComment(context.Context, *CreateCommentRequest) (*CreateCommentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateComment not implemented")
+}
+func (UnimplementedContentServiceServer) ListDiscoverableTasks(context.Context, *ListDiscoverableTasksRequest) (*ListDiscoverableTasksResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListDiscoverableTasks not implemented")
+}
+func (UnimplementedContentServiceServer) CheckModerationTarget(context.Context, *CheckModerationTargetRequest) (*CheckModerationTargetResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CheckModerationTarget not implemented")
+}
+func (UnimplementedContentServiceServer) ApplyTakedown(context.Context, *ApplyTakedownRequest) (*ApplyTakedownResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ApplyTakedown not implemented")
+}
+func (UnimplementedContentServiceServer) GetVotingCatalog(context.Context, *GetVotingCatalogRequest) (*GetVotingCatalogResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetVotingCatalog not implemented")
 }
 func (UnimplementedContentServiceServer) GetTask(context.Context, *GetTaskRequest) (*GetTaskResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetTask not implemented")
@@ -552,6 +654,114 @@ func _ContentService_GetVotingCatalogSnapshot_Handler(srv interface{}, ctx conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ContentServiceServer).GetVotingCatalogSnapshot(ctx, req.(*GetVotingCatalogSnapshotRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentService_ListComments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListCommentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).ListComments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_ListComments_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).ListComments(ctx, req.(*ListCommentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentService_CreateComment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateCommentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).CreateComment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_CreateComment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).CreateComment(ctx, req.(*CreateCommentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentService_ListDiscoverableTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListDiscoverableTasksRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).ListDiscoverableTasks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_ListDiscoverableTasks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).ListDiscoverableTasks(ctx, req.(*ListDiscoverableTasksRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentService_CheckModerationTarget_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckModerationTargetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).CheckModerationTarget(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_CheckModerationTarget_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).CheckModerationTarget(ctx, req.(*CheckModerationTargetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentService_ApplyTakedown_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ApplyTakedownRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).ApplyTakedown(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_ApplyTakedown_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).ApplyTakedown(ctx, req.(*ApplyTakedownRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentService_GetVotingCatalog_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVotingCatalogRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).GetVotingCatalog(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_GetVotingCatalog_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).GetVotingCatalog(ctx, req.(*GetVotingCatalogRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1034,6 +1244,30 @@ var ContentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetVotingCatalogSnapshot",
 			Handler:    _ContentService_GetVotingCatalogSnapshot_Handler,
+		},
+		{
+			MethodName: "ListComments",
+			Handler:    _ContentService_ListComments_Handler,
+		},
+		{
+			MethodName: "CreateComment",
+			Handler:    _ContentService_CreateComment_Handler,
+		},
+		{
+			MethodName: "ListDiscoverableTasks",
+			Handler:    _ContentService_ListDiscoverableTasks_Handler,
+		},
+		{
+			MethodName: "CheckModerationTarget",
+			Handler:    _ContentService_CheckModerationTarget_Handler,
+		},
+		{
+			MethodName: "ApplyTakedown",
+			Handler:    _ContentService_ApplyTakedown_Handler,
+		},
+		{
+			MethodName: "GetVotingCatalog",
+			Handler:    _ContentService_GetVotingCatalog_Handler,
 		},
 		{
 			MethodName: "GetTask",

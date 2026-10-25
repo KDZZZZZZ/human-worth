@@ -102,7 +102,7 @@ func (s *Server) GetMyEntrySubmission(ctx context.Context, r *pb.GetMyEntrySubmi
 	if !reviewedEntryPattern.MatchString(r.GetEntryId()) {
 		return nil, status.Error(codes.NotFound, "entry_not_found")
 	}
-	out, err := scanEntrySubmission(s.DB.QueryRow(ctx, `SELECT `+entrySubmissionColumns+` FROM content.entry_submissions s WHERE s.id=$1 AND s.author_id=$2`, r.EntryId, author))
+	out, err := scanEntrySubmission(s.DB.QueryRow(ctx, `SELECT `+entrySubmissionColumns+` FROM content.entry_submissions s WHERE s.id=$1 AND s.author_id=$2 AND s.origin='additional'`, r.EntryId, author))
 	if err != nil {
 		return nil, err
 	}
@@ -152,6 +152,9 @@ func (s *Server) SubmitAdditionalEntry(ctx context.Context, r *pb.SubmitAddition
 	}
 	if !keyPattern.MatchString(r.GetIdempotencyKey()) {
 		return nil, invalid("invalid_idempotency_key")
+	}
+	if err := workBodyRequired(r.Content); err != nil {
+		return nil, err
 	}
 	data, err := validateEntry(r.Content)
 	if err != nil {
@@ -227,6 +230,9 @@ func (s *Server) ResubmitRejectedEntry(ctx context.Context, r *pb.ResubmitReject
 	if r.ExpectedRevision < 1 || r.ExpectedRevision == int64(^uint64(0)>>1) {
 		return nil, invalid("invalid_revision")
 	}
+	if err := workBodyRequired(r.Content); err != nil {
+		return nil, err
+	}
 	data, err := validateEntry(r.Content)
 	if err != nil {
 		return nil, err
@@ -237,7 +243,7 @@ func (s *Server) ResubmitRejectedEntry(ctx context.Context, r *pb.ResubmitReject
 	} else if !errors.Is(e, pgx.ErrNoRows) {
 		return nil, entryRetryError(e)
 	}
-	before, err := scanEntrySubmission(s.DB.QueryRow(ctx, `SELECT `+entrySubmissionColumns+` FROM content.entry_submissions s WHERE s.id=$1 AND s.author_id=$2`, r.EntryId, author))
+	before, err := scanEntrySubmission(s.DB.QueryRow(ctx, `SELECT `+entrySubmissionColumns+` FROM content.entry_submissions s WHERE s.id=$1 AND s.author_id=$2 AND s.origin='additional'`, r.EntryId, author))
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +269,7 @@ func (s *Server) ResubmitRejectedEntry(ctx context.Context, r *pb.ResubmitReject
 	if err = lockEntryParent(ctx, tx, before.TaskId); err != nil {
 		return nil, err
 	}
-	current, err := scanEntrySubmission(tx.QueryRow(ctx, `SELECT `+entrySubmissionColumns+` FROM content.entry_submissions s WHERE s.id=$1 AND s.author_id=$2 FOR UPDATE`, r.EntryId, author))
+	current, err := scanEntrySubmission(tx.QueryRow(ctx, `SELECT `+entrySubmissionColumns+` FROM content.entry_submissions s WHERE s.id=$1 AND s.author_id=$2 AND s.origin='additional' FOR UPDATE`, r.EntryId, author))
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +358,7 @@ func (s *Server) ListMyEntrySubmissions(ctx context.Context, r *pb.ListMyEntrySu
 		return nil, invalid("invalid_request")
 	}
 	scope := ownEntryScope(author, r.State, r.Category)
-	query := `SELECT ` + entrySubmissionColumns + ` FROM content.entry_submissions s JOIN content.reviewed_tasks t ON t.task_id=s.task_id WHERE s.author_id=$1`
+	query := `SELECT ` + entrySubmissionColumns + ` FROM content.entry_submissions s JOIN content.reviewed_tasks t ON t.task_id=s.task_id WHERE s.author_id=$1 AND s.origin='additional'`
 	args := []any{author}
 	if r.State != "" {
 		args = append(args, r.State)

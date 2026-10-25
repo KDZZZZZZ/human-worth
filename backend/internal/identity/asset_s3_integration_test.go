@@ -213,9 +213,9 @@ func serviceTestGRPC(t *testing.T, lab *identityLab, name, caller string, author
 	cert, key, ca := lab.pki.cert(t, name)
 	serverTLS, err := platform.TLS(cert, key, ca, "")
 	must(t, err)
-	streamAuthorize := asset.AuthorizationStream
-	if name == "content" {
-		streamAuthorize = content.AuthorizationStream
+	streamAuthorize := func(server any, stream grpc.ServerStream, info *grpc.StreamServerInfo, next grpc.StreamHandler) error {
+		_, err := authorize(stream.Context(), nil, &grpc.UnaryServerInfo{FullMethod: info.FullMethod}, func(context.Context, any) (any, error) { return nil, next(server, stream) })
+		return err
 	}
 	if name == "voting" {
 		streamAuthorize = voting.AuthorizationStream

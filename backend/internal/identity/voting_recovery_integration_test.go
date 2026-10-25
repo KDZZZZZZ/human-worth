@@ -440,7 +440,13 @@ func TestVotingInternalTrustAndBudget(t *testing.T) {
 		grpcCode(t, err, codes.PermissionDenied)
 		_, err = client.GetHumanPreferenceSnapshot(t.Context(), &votingpb.GetHumanPreferenceSnapshotRequest{})
 		if caller == "challenge" {
-			grpcCode(t, err, codes.Unimplemented)
+			grpcCode(t, err, codes.InvalidArgument)
+		} else {
+			grpcCode(t, err, codes.PermissionDenied)
+		}
+		_, err = client.GetHumanPreferenceSnapshot(t.Context(), &votingpb.GetHumanPreferenceSnapshotRequest{RunId: "run_internal_trust_001", Purpose: "training"})
+		if caller == "challenge" {
+			grpcCode(t, err, codes.FailedPrecondition) // No eligible human votes.
 		} else {
 			grpcCode(t, err, codes.PermissionDenied)
 		}

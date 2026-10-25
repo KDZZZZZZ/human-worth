@@ -3925,6 +3925,210 @@ func (x *SettleModelCallResponse) GetState() string {
 	return ""
 }
 
+type AuditEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ActorId       string                 `protobuf:"bytes,2,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	Action        string                 `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
+	TargetId      string                 `protobuf:"bytes,4,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	Outcome       string                 `protobuf:"bytes,5,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	Reason        string                 `protobuf:"bytes,6,opt,name=reason,proto3" json:"reason,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuditEvent) Reset() {
+	*x = AuditEvent{}
+	mi := &file_humanworth_challenge_v1_challenge_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuditEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuditEvent) ProtoMessage() {}
+
+func (x *AuditEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_challenge_v1_challenge_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuditEvent.ProtoReflect.Descriptor instead.
+func (*AuditEvent) Descriptor() ([]byte, []int) {
+	return file_humanworth_challenge_v1_challenge_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *AuditEvent) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type ListAuditEventsRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ActorAssertion string                 `protobuf:"bytes,1,opt,name=actor_assertion,json=actorAssertion,proto3" json:"actor_assertion,omitempty"`
+	Limit          int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	BeforeTime     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=before_time,json=beforeTime,proto3" json:"before_time,omitempty"`
+	BeforeId       string                 `protobuf:"bytes,4,opt,name=before_id,json=beforeId,proto3" json:"before_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ListAuditEventsRequest) Reset() {
+	*x = ListAuditEventsRequest{}
+	mi := &file_humanworth_challenge_v1_challenge_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAuditEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAuditEventsRequest) ProtoMessage() {}
+
+func (x *ListAuditEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_challenge_v1_challenge_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAuditEventsRequest.ProtoReflect.Descriptor instead.
+func (*ListAuditEventsRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_challenge_v1_challenge_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *ListAuditEventsRequest) GetActorAssertion() string {
+	if x != nil {
+		return x.ActorAssertion
+	}
+	return ""
+}
+
+func (x *ListAuditEventsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListAuditEventsRequest) GetBeforeTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.BeforeTime
+	}
+	return nil
+}
+
+func (x *ListAuditEventsRequest) GetBeforeId() string {
+	if x != nil {
+		return x.BeforeId
+	}
+	return ""
+}
+
+type ListAuditEventsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*AuditEvent          `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAuditEventsResponse) Reset() {
+	*x = ListAuditEventsResponse{}
+	mi := &file_humanworth_challenge_v1_challenge_proto_msgTypes[62]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAuditEventsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAuditEventsResponse) ProtoMessage() {}
+
+func (x *ListAuditEventsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_challenge_v1_challenge_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAuditEventsResponse.ProtoReflect.Descriptor instead.
+func (*ListAuditEventsResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_challenge_v1_challenge_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *ListAuditEventsResponse) GetItems() []*AuditEvent {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
 var File_humanworth_challenge_v1_challenge_proto protoreflect.FileDescriptor
 
 const file_humanworth_challenge_v1_challenge_proto_rawDesc = "" +
@@ -4221,7 +4425,25 @@ const file_humanworth_challenge_v1_challenge_proto_rawDesc = "" +
 	"\x0ereservation_id\x18\x02 \x01(\tR\rreservationId\x12\x18\n" +
 	"\aoutcome\x18\x03 \x01(\tR\aoutcome\"/\n" +
 	"\x17SettleModelCallResponse\x12\x14\n" +
-	"\x05state\x18\x01 \x01(\tR\x05state*\xef\x01\n" +
+	"\x05state\x18\x01 \x01(\tR\x05state\"\xd9\x01\n" +
+	"\n" +
+	"AuditEvent\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
+	"\bactor_id\x18\x02 \x01(\tR\aactorId\x12\x16\n" +
+	"\x06action\x18\x03 \x01(\tR\x06action\x12\x1b\n" +
+	"\ttarget_id\x18\x04 \x01(\tR\btargetId\x12\x18\n" +
+	"\aoutcome\x18\x05 \x01(\tR\aoutcome\x12\x16\n" +
+	"\x06reason\x18\x06 \x01(\tR\x06reason\x129\n" +
+	"\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xb1\x01\n" +
+	"\x16ListAuditEventsRequest\x12'\n" +
+	"\x0factor_assertion\x18\x01 \x01(\tR\x0eactorAssertion\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12;\n" +
+	"\vbefore_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"beforeTime\x12\x1b\n" +
+	"\tbefore_id\x18\x04 \x01(\tR\bbeforeId\"T\n" +
+	"\x17ListAuditEventsResponse\x129\n" +
+	"\x05items\x18\x01 \x03(\v2#.humanworth.challenge.v1.AuditEventR\x05items*\xef\x01\n" +
 	"\bWorkKind\x12\x19\n" +
 	"\x15WORK_KIND_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19WORK_KIND_VALIDATE_RANKER\x10\x01\x12\x1a\n" +
@@ -4230,8 +4452,9 @@ const file_humanworth_challenge_v1_challenge_proto_rawDesc = "" +
 	"\x13WORK_KIND_PACK_TASK\x10\x04\x12\x1d\n" +
 	"\x19WORK_KIND_EXECUTE_PACKAGE\x10\x05\x12\x18\n" +
 	"\x14WORK_KIND_RANK_WORKS\x10\x06\x12\x1e\n" +
-	"\x1aWORK_KIND_EXPLAIN_OWN_WORK\x10\a2\xb1\x0f\n" +
-	"\x10ChallengeService\x12_\n" +
+	"\x1aWORK_KIND_EXPLAIN_OWN_WORK\x10\a2\xa7\x10\n" +
+	"\x10ChallengeService\x12t\n" +
+	"\x0fListAuditEvents\x12/.humanworth.challenge.v1.ListAuditEventsRequest\x1a0.humanworth.challenge.v1.ListAuditEventsResponse\x12_\n" +
 	"\bStartRun\x12(.humanworth.challenge.v1.StartRunRequest\x1a).humanworth.challenge.v1.StartRunResponse\x12Y\n" +
 	"\x06GetRun\x12&.humanworth.challenge.v1.GetRunRequest\x1a'.humanworth.challenge.v1.GetRunResponse\x12_\n" +
 	"\bListRuns\x12(.humanworth.challenge.v1.ListRunsRequest\x1a).humanworth.challenge.v1.ListRunsResponse\x12n\n" +
@@ -4266,7 +4489,7 @@ func file_humanworth_challenge_v1_challenge_proto_rawDescGZIP() []byte {
 }
 
 var file_humanworth_challenge_v1_challenge_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_humanworth_challenge_v1_challenge_proto_msgTypes = make([]protoimpl.MessageInfo, 61)
+var file_humanworth_challenge_v1_challenge_proto_msgTypes = make([]protoimpl.MessageInfo, 64)
 var file_humanworth_challenge_v1_challenge_proto_goTypes = []any{
 	(WorkKind)(0),                     // 0: humanworth.challenge.v1.WorkKind
 	(*InitialTaskPackage)(nil),        // 1: humanworth.challenge.v1.InitialTaskPackage
@@ -4329,30 +4552,33 @@ var file_humanworth_challenge_v1_challenge_proto_goTypes = []any{
 	(*ReserveModelCallResponse)(nil),  // 58: humanworth.challenge.v1.ReserveModelCallResponse
 	(*SettleModelCallRequest)(nil),    // 59: humanworth.challenge.v1.SettleModelCallRequest
 	(*SettleModelCallResponse)(nil),   // 60: humanworth.challenge.v1.SettleModelCallResponse
-	nil,                               // 61: humanworth.challenge.v1.TrainingSample.HumanCountsEntry
-	(*structpb.Struct)(nil),           // 62: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil),     // 63: google.protobuf.Timestamp
-	(*v1.RegistrationReceipt)(nil),    // 64: humanworth.content.v1.RegistrationReceipt
-	(*v1.TaskDescription)(nil),        // 65: humanworth.content.v1.TaskDescription
-	(*v1.Work)(nil),                   // 66: humanworth.content.v1.Work
-	(*v1.Comment)(nil),                // 67: humanworth.content.v1.Comment
-	(*v11.Asset)(nil),                 // 68: humanworth.asset.v1.Asset
+	(*AuditEvent)(nil),                // 61: humanworth.challenge.v1.AuditEvent
+	(*ListAuditEventsRequest)(nil),    // 62: humanworth.challenge.v1.ListAuditEventsRequest
+	(*ListAuditEventsResponse)(nil),   // 63: humanworth.challenge.v1.ListAuditEventsResponse
+	nil,                               // 64: humanworth.challenge.v1.TrainingSample.HumanCountsEntry
+	(*structpb.Struct)(nil),           // 65: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),     // 66: google.protobuf.Timestamp
+	(*v1.RegistrationReceipt)(nil),    // 67: humanworth.content.v1.RegistrationReceipt
+	(*v1.TaskDescription)(nil),        // 68: humanworth.content.v1.TaskDescription
+	(*v1.Work)(nil),                   // 69: humanworth.content.v1.Work
+	(*v1.Comment)(nil),                // 70: humanworth.content.v1.Comment
+	(*v11.Asset)(nil),                 // 71: humanworth.asset.v1.Asset
 }
 var file_humanworth_challenge_v1_challenge_proto_depIdxs = []int32{
-	62, // 0: humanworth.challenge.v1.ModelConfiguration.parameters:type_name -> google.protobuf.Struct
-	62, // 1: humanworth.challenge.v1.ExecutorConfiguration.parameters:type_name -> google.protobuf.Struct
+	65, // 0: humanworth.challenge.v1.ModelConfiguration.parameters:type_name -> google.protobuf.Struct
+	65, // 1: humanworth.challenge.v1.ExecutorConfiguration.parameters:type_name -> google.protobuf.Struct
 	1,  // 2: humanworth.challenge.v1.RunConfiguration.initial_task_package:type_name -> humanworth.challenge.v1.InitialTaskPackage
 	2,  // 3: humanworth.challenge.v1.RunConfiguration.packer:type_name -> humanworth.challenge.v1.ModelConfiguration
 	3,  // 4: humanworth.challenge.v1.RunConfiguration.executor:type_name -> humanworth.challenge.v1.ExecutorConfiguration
 	2,  // 5: humanworth.challenge.v1.RunConfiguration.ranker:type_name -> humanworth.challenge.v1.ModelConfiguration
 	4,  // 6: humanworth.challenge.v1.RunConfiguration.budget:type_name -> humanworth.challenge.v1.Budget
-	63, // 7: humanworth.challenge.v1.RankerFit.evaluated_at:type_name -> google.protobuf.Timestamp
+	66, // 7: humanworth.challenge.v1.RankerFit.evaluated_at:type_name -> google.protobuf.Timestamp
 	6,  // 8: humanworth.challenge.v1.Run.ranker_fit:type_name -> humanworth.challenge.v1.RankerFit
 	5,  // 9: humanworth.challenge.v1.Run.configuration:type_name -> humanworth.challenge.v1.RunConfiguration
 	7,  // 10: humanworth.challenge.v1.Run.candidates:type_name -> humanworth.challenge.v1.Candidate
-	63, // 11: humanworth.challenge.v1.Run.created_at:type_name -> google.protobuf.Timestamp
-	63, // 12: humanworth.challenge.v1.Run.updated_at:type_name -> google.protobuf.Timestamp
-	63, // 13: humanworth.challenge.v1.Run.ended_at:type_name -> google.protobuf.Timestamp
+	66, // 11: humanworth.challenge.v1.Run.created_at:type_name -> google.protobuf.Timestamp
+	66, // 12: humanworth.challenge.v1.Run.updated_at:type_name -> google.protobuf.Timestamp
+	66, // 13: humanworth.challenge.v1.Run.ended_at:type_name -> google.protobuf.Timestamp
 	5,  // 14: humanworth.challenge.v1.StartRunRequest.configuration:type_name -> humanworth.challenge.v1.RunConfiguration
 	8,  // 15: humanworth.challenge.v1.StartRunResponse.run:type_name -> humanworth.challenge.v1.Run
 	8,  // 16: humanworth.challenge.v1.GetRunResponse.run:type_name -> humanworth.challenge.v1.Run
@@ -4360,33 +4586,33 @@ var file_humanworth_challenge_v1_challenge_proto_depIdxs = []int32{
 	8,  // 18: humanworth.challenge.v1.CancelRunResponse.run:type_name -> humanworth.challenge.v1.Run
 	5,  // 19: humanworth.challenge.v1.RestartRunRequest.configuration:type_name -> humanworth.challenge.v1.RunConfiguration
 	8,  // 20: humanworth.challenge.v1.RestartRunResponse.run:type_name -> humanworth.challenge.v1.Run
-	64, // 21: humanworth.challenge.v1.RegisterCandidateResponse.receipt:type_name -> humanworth.content.v1.RegistrationReceipt
+	67, // 21: humanworth.challenge.v1.RegisterCandidateResponse.receipt:type_name -> humanworth.content.v1.RegistrationReceipt
 	24, // 22: humanworth.challenge.v1.Ranking.judgments:type_name -> humanworth.challenge.v1.Judgment
 	25, // 23: humanworth.challenge.v1.Rankings.items:type_name -> humanworth.challenge.v1.Ranking
-	65, // 24: humanworth.challenge.v1.RankingSample.task:type_name -> humanworth.content.v1.TaskDescription
-	66, // 25: humanworth.challenge.v1.RankingSample.works:type_name -> humanworth.content.v1.Work
-	67, // 26: humanworth.challenge.v1.RankingSample.comments:type_name -> humanworth.content.v1.Comment
+	68, // 24: humanworth.challenge.v1.RankingSample.task:type_name -> humanworth.content.v1.TaskDescription
+	69, // 25: humanworth.challenge.v1.RankingSample.works:type_name -> humanworth.content.v1.Work
+	70, // 26: humanworth.challenge.v1.RankingSample.comments:type_name -> humanworth.content.v1.Comment
 	27, // 27: humanworth.challenge.v1.RankInput.samples:type_name -> humanworth.challenge.v1.RankingSample
 	27, // 28: humanworth.challenge.v1.TrainingSample.sample:type_name -> humanworth.challenge.v1.RankingSample
 	25, // 29: humanworth.challenge.v1.TrainingSample.ranking:type_name -> humanworth.challenge.v1.Ranking
-	61, // 30: humanworth.challenge.v1.TrainingSample.human_counts:type_name -> humanworth.challenge.v1.TrainingSample.HumanCountsEntry
+	64, // 30: humanworth.challenge.v1.TrainingSample.human_counts:type_name -> humanworth.challenge.v1.TrainingSample.HumanCountsEntry
 	29, // 31: humanworth.challenge.v1.RefineRankerInput.samples:type_name -> humanworth.challenge.v1.TrainingSample
 	27, // 32: humanworth.challenge.v1.RefineRankerInput.target:type_name -> humanworth.challenge.v1.RankingSample
 	1,  // 33: humanworth.challenge.v1.RefineRankerInput.initial:type_name -> humanworth.challenge.v1.InitialTaskPackage
-	66, // 34: humanworth.challenge.v1.OwnFeedback.work:type_name -> humanworth.content.v1.Work
+	69, // 34: humanworth.challenge.v1.OwnFeedback.work:type_name -> humanworth.content.v1.Work
 	24, // 35: humanworth.challenge.v1.OwnFeedback.judgment:type_name -> humanworth.challenge.v1.Judgment
 	1,  // 36: humanworth.challenge.v1.PackInput.initial:type_name -> humanworth.challenge.v1.InitialTaskPackage
 	31, // 37: humanworth.challenge.v1.PackInput.feedback:type_name -> humanworth.challenge.v1.OwnFeedback
 	1,  // 38: humanworth.challenge.v1.ExecuteInput.initial:type_name -> humanworth.challenge.v1.InitialTaskPackage
-	66, // 39: humanworth.challenge.v1.ExplainInput.own_work:type_name -> humanworth.content.v1.Work
-	68, // 40: humanworth.challenge.v1.Material.asset:type_name -> humanworth.asset.v1.Asset
+	69, // 39: humanworth.challenge.v1.ExplainInput.own_work:type_name -> humanworth.content.v1.Work
+	71, // 40: humanworth.challenge.v1.Material.asset:type_name -> humanworth.asset.v1.Asset
 	23, // 41: humanworth.challenge.v1.Assignment.attempt:type_name -> humanworth.challenge.v1.AttemptRef
 	0,  // 42: humanworth.challenge.v1.Assignment.kind:type_name -> humanworth.challenge.v1.WorkKind
 	2,  // 43: humanworth.challenge.v1.Assignment.model:type_name -> humanworth.challenge.v1.ModelConfiguration
 	3,  // 44: humanworth.challenge.v1.Assignment.executor:type_name -> humanworth.challenge.v1.ExecutorConfiguration
 	35, // 45: humanworth.challenge.v1.Assignment.materials:type_name -> humanworth.challenge.v1.Material
-	63, // 46: humanworth.challenge.v1.Assignment.lease_expires_at:type_name -> google.protobuf.Timestamp
-	63, // 47: humanworth.challenge.v1.Assignment.deadline:type_name -> google.protobuf.Timestamp
+	66, // 46: humanworth.challenge.v1.Assignment.lease_expires_at:type_name -> google.protobuf.Timestamp
+	66, // 47: humanworth.challenge.v1.Assignment.deadline:type_name -> google.protobuf.Timestamp
 	28, // 48: humanworth.challenge.v1.Assignment.rank:type_name -> humanworth.challenge.v1.RankInput
 	30, // 49: humanworth.challenge.v1.Assignment.refine:type_name -> humanworth.challenge.v1.RefineRankerInput
 	32, // 50: humanworth.challenge.v1.Assignment.pack:type_name -> humanworth.challenge.v1.PackInput
@@ -4395,12 +4621,12 @@ var file_humanworth_challenge_v1_challenge_proto_depIdxs = []int32{
 	0,  // 53: humanworth.challenge.v1.ClaimWorkRequest.capabilities:type_name -> humanworth.challenge.v1.WorkKind
 	36, // 54: humanworth.challenge.v1.ClaimWorkResponse.assignment:type_name -> humanworth.challenge.v1.Assignment
 	23, // 55: humanworth.challenge.v1.RenewLeaseRequest.attempt:type_name -> humanworth.challenge.v1.AttemptRef
-	63, // 56: humanworth.challenge.v1.RenewLeaseResponse.expires_at:type_name -> google.protobuf.Timestamp
+	66, // 56: humanworth.challenge.v1.RenewLeaseResponse.expires_at:type_name -> google.protobuf.Timestamp
 	23, // 57: humanworth.challenge.v1.ReportProgressRequest.attempt:type_name -> humanworth.challenge.v1.AttemptRef
 	23, // 58: humanworth.challenge.v1.ReadMaterialRequest.attempt:type_name -> humanworth.challenge.v1.AttemptRef
 	23, // 59: humanworth.challenge.v1.UploadArtifactRequest.attempt:type_name -> humanworth.challenge.v1.AttemptRef
-	68, // 60: humanworth.challenge.v1.UploadArtifactResponse.asset:type_name -> humanworth.asset.v1.Asset
-	66, // 61: humanworth.challenge.v1.GeneratedWork.work:type_name -> humanworth.content.v1.Work
+	71, // 60: humanworth.challenge.v1.UploadArtifactResponse.asset:type_name -> humanworth.asset.v1.Asset
+	69, // 61: humanworth.challenge.v1.GeneratedWork.work:type_name -> humanworth.content.v1.Work
 	23, // 62: humanworth.challenge.v1.CompleteWorkRequest.attempt:type_name -> humanworth.challenge.v1.AttemptRef
 	47, // 63: humanworth.challenge.v1.CompleteWorkRequest.prompt:type_name -> humanworth.challenge.v1.PromptResult
 	26, // 64: humanworth.challenge.v1.CompleteWorkRequest.rankings:type_name -> humanworth.challenge.v1.Rankings
@@ -4408,52 +4634,57 @@ var file_humanworth_challenge_v1_challenge_proto_depIdxs = []int32{
 	24, // 66: humanworth.challenge.v1.CompleteWorkRequest.judgment:type_name -> humanworth.challenge.v1.Judgment
 	23, // 67: humanworth.challenge.v1.FailWorkRequest.attempt:type_name -> humanworth.challenge.v1.AttemptRef
 	23, // 68: humanworth.challenge.v1.ActivateAttemptRequest.attempt:type_name -> humanworth.challenge.v1.AttemptRef
-	63, // 69: humanworth.challenge.v1.ActivateAttemptResponse.expires_at:type_name -> google.protobuf.Timestamp
+	66, // 69: humanworth.challenge.v1.ActivateAttemptResponse.expires_at:type_name -> google.protobuf.Timestamp
 	23, // 70: humanworth.challenge.v1.CheckTaskAccessRequest.attempt:type_name -> humanworth.challenge.v1.AttemptRef
-	63, // 71: humanworth.challenge.v1.CheckTaskAccessResponse.expires_at:type_name -> google.protobuf.Timestamp
+	66, // 71: humanworth.challenge.v1.CheckTaskAccessResponse.expires_at:type_name -> google.protobuf.Timestamp
 	23, // 72: humanworth.challenge.v1.ReserveModelCallRequest.attempt:type_name -> humanworth.challenge.v1.AttemptRef
 	23, // 73: humanworth.challenge.v1.SettleModelCallRequest.attempt:type_name -> humanworth.challenge.v1.AttemptRef
-	9,  // 74: humanworth.challenge.v1.ChallengeService.StartRun:input_type -> humanworth.challenge.v1.StartRunRequest
-	11, // 75: humanworth.challenge.v1.ChallengeService.GetRun:input_type -> humanworth.challenge.v1.GetRunRequest
-	13, // 76: humanworth.challenge.v1.ChallengeService.ListRuns:input_type -> humanworth.challenge.v1.ListRunsRequest
-	15, // 77: humanworth.challenge.v1.ChallengeService.GetRunSummary:input_type -> humanworth.challenge.v1.GetRunSummaryRequest
-	17, // 78: humanworth.challenge.v1.ChallengeService.CancelRun:input_type -> humanworth.challenge.v1.CancelRunRequest
-	19, // 79: humanworth.challenge.v1.ChallengeService.RestartRun:input_type -> humanworth.challenge.v1.RestartRunRequest
-	21, // 80: humanworth.challenge.v1.ChallengeService.RegisterCandidate:input_type -> humanworth.challenge.v1.RegisterCandidateRequest
-	37, // 81: humanworth.challenge.v1.ChallengeService.ClaimWork:input_type -> humanworth.challenge.v1.ClaimWorkRequest
-	39, // 82: humanworth.challenge.v1.ChallengeService.RenewLease:input_type -> humanworth.challenge.v1.RenewLeaseRequest
-	41, // 83: humanworth.challenge.v1.ChallengeService.ReportProgress:input_type -> humanworth.challenge.v1.ReportProgressRequest
-	43, // 84: humanworth.challenge.v1.ChallengeService.ReadMaterial:input_type -> humanworth.challenge.v1.ReadMaterialRequest
-	45, // 85: humanworth.challenge.v1.ChallengeService.UploadArtifact:input_type -> humanworth.challenge.v1.UploadArtifactRequest
-	49, // 86: humanworth.challenge.v1.ChallengeService.CompleteWork:input_type -> humanworth.challenge.v1.CompleteWorkRequest
-	51, // 87: humanworth.challenge.v1.ChallengeService.FailWork:input_type -> humanworth.challenge.v1.FailWorkRequest
-	53, // 88: humanworth.challenge.v1.ChallengeService.ActivateAttempt:input_type -> humanworth.challenge.v1.ActivateAttemptRequest
-	55, // 89: humanworth.challenge.v1.ChallengeService.CheckTaskAccess:input_type -> humanworth.challenge.v1.CheckTaskAccessRequest
-	57, // 90: humanworth.challenge.v1.ChallengeService.ReserveModelCall:input_type -> humanworth.challenge.v1.ReserveModelCallRequest
-	59, // 91: humanworth.challenge.v1.ChallengeService.SettleModelCall:input_type -> humanworth.challenge.v1.SettleModelCallRequest
-	10, // 92: humanworth.challenge.v1.ChallengeService.StartRun:output_type -> humanworth.challenge.v1.StartRunResponse
-	12, // 93: humanworth.challenge.v1.ChallengeService.GetRun:output_type -> humanworth.challenge.v1.GetRunResponse
-	14, // 94: humanworth.challenge.v1.ChallengeService.ListRuns:output_type -> humanworth.challenge.v1.ListRunsResponse
-	16, // 95: humanworth.challenge.v1.ChallengeService.GetRunSummary:output_type -> humanworth.challenge.v1.GetRunSummaryResponse
-	18, // 96: humanworth.challenge.v1.ChallengeService.CancelRun:output_type -> humanworth.challenge.v1.CancelRunResponse
-	20, // 97: humanworth.challenge.v1.ChallengeService.RestartRun:output_type -> humanworth.challenge.v1.RestartRunResponse
-	22, // 98: humanworth.challenge.v1.ChallengeService.RegisterCandidate:output_type -> humanworth.challenge.v1.RegisterCandidateResponse
-	38, // 99: humanworth.challenge.v1.ChallengeService.ClaimWork:output_type -> humanworth.challenge.v1.ClaimWorkResponse
-	40, // 100: humanworth.challenge.v1.ChallengeService.RenewLease:output_type -> humanworth.challenge.v1.RenewLeaseResponse
-	42, // 101: humanworth.challenge.v1.ChallengeService.ReportProgress:output_type -> humanworth.challenge.v1.ReportProgressResponse
-	44, // 102: humanworth.challenge.v1.ChallengeService.ReadMaterial:output_type -> humanworth.challenge.v1.ReadMaterialResponse
-	46, // 103: humanworth.challenge.v1.ChallengeService.UploadArtifact:output_type -> humanworth.challenge.v1.UploadArtifactResponse
-	50, // 104: humanworth.challenge.v1.ChallengeService.CompleteWork:output_type -> humanworth.challenge.v1.CompleteWorkResponse
-	52, // 105: humanworth.challenge.v1.ChallengeService.FailWork:output_type -> humanworth.challenge.v1.FailWorkResponse
-	54, // 106: humanworth.challenge.v1.ChallengeService.ActivateAttempt:output_type -> humanworth.challenge.v1.ActivateAttemptResponse
-	56, // 107: humanworth.challenge.v1.ChallengeService.CheckTaskAccess:output_type -> humanworth.challenge.v1.CheckTaskAccessResponse
-	58, // 108: humanworth.challenge.v1.ChallengeService.ReserveModelCall:output_type -> humanworth.challenge.v1.ReserveModelCallResponse
-	60, // 109: humanworth.challenge.v1.ChallengeService.SettleModelCall:output_type -> humanworth.challenge.v1.SettleModelCallResponse
-	92, // [92:110] is the sub-list for method output_type
-	74, // [74:92] is the sub-list for method input_type
-	74, // [74:74] is the sub-list for extension type_name
-	74, // [74:74] is the sub-list for extension extendee
-	0,  // [0:74] is the sub-list for field type_name
+	66, // 74: humanworth.challenge.v1.AuditEvent.created_at:type_name -> google.protobuf.Timestamp
+	66, // 75: humanworth.challenge.v1.ListAuditEventsRequest.before_time:type_name -> google.protobuf.Timestamp
+	61, // 76: humanworth.challenge.v1.ListAuditEventsResponse.items:type_name -> humanworth.challenge.v1.AuditEvent
+	62, // 77: humanworth.challenge.v1.ChallengeService.ListAuditEvents:input_type -> humanworth.challenge.v1.ListAuditEventsRequest
+	9,  // 78: humanworth.challenge.v1.ChallengeService.StartRun:input_type -> humanworth.challenge.v1.StartRunRequest
+	11, // 79: humanworth.challenge.v1.ChallengeService.GetRun:input_type -> humanworth.challenge.v1.GetRunRequest
+	13, // 80: humanworth.challenge.v1.ChallengeService.ListRuns:input_type -> humanworth.challenge.v1.ListRunsRequest
+	15, // 81: humanworth.challenge.v1.ChallengeService.GetRunSummary:input_type -> humanworth.challenge.v1.GetRunSummaryRequest
+	17, // 82: humanworth.challenge.v1.ChallengeService.CancelRun:input_type -> humanworth.challenge.v1.CancelRunRequest
+	19, // 83: humanworth.challenge.v1.ChallengeService.RestartRun:input_type -> humanworth.challenge.v1.RestartRunRequest
+	21, // 84: humanworth.challenge.v1.ChallengeService.RegisterCandidate:input_type -> humanworth.challenge.v1.RegisterCandidateRequest
+	37, // 85: humanworth.challenge.v1.ChallengeService.ClaimWork:input_type -> humanworth.challenge.v1.ClaimWorkRequest
+	39, // 86: humanworth.challenge.v1.ChallengeService.RenewLease:input_type -> humanworth.challenge.v1.RenewLeaseRequest
+	41, // 87: humanworth.challenge.v1.ChallengeService.ReportProgress:input_type -> humanworth.challenge.v1.ReportProgressRequest
+	43, // 88: humanworth.challenge.v1.ChallengeService.ReadMaterial:input_type -> humanworth.challenge.v1.ReadMaterialRequest
+	45, // 89: humanworth.challenge.v1.ChallengeService.UploadArtifact:input_type -> humanworth.challenge.v1.UploadArtifactRequest
+	49, // 90: humanworth.challenge.v1.ChallengeService.CompleteWork:input_type -> humanworth.challenge.v1.CompleteWorkRequest
+	51, // 91: humanworth.challenge.v1.ChallengeService.FailWork:input_type -> humanworth.challenge.v1.FailWorkRequest
+	53, // 92: humanworth.challenge.v1.ChallengeService.ActivateAttempt:input_type -> humanworth.challenge.v1.ActivateAttemptRequest
+	55, // 93: humanworth.challenge.v1.ChallengeService.CheckTaskAccess:input_type -> humanworth.challenge.v1.CheckTaskAccessRequest
+	57, // 94: humanworth.challenge.v1.ChallengeService.ReserveModelCall:input_type -> humanworth.challenge.v1.ReserveModelCallRequest
+	59, // 95: humanworth.challenge.v1.ChallengeService.SettleModelCall:input_type -> humanworth.challenge.v1.SettleModelCallRequest
+	63, // 96: humanworth.challenge.v1.ChallengeService.ListAuditEvents:output_type -> humanworth.challenge.v1.ListAuditEventsResponse
+	10, // 97: humanworth.challenge.v1.ChallengeService.StartRun:output_type -> humanworth.challenge.v1.StartRunResponse
+	12, // 98: humanworth.challenge.v1.ChallengeService.GetRun:output_type -> humanworth.challenge.v1.GetRunResponse
+	14, // 99: humanworth.challenge.v1.ChallengeService.ListRuns:output_type -> humanworth.challenge.v1.ListRunsResponse
+	16, // 100: humanworth.challenge.v1.ChallengeService.GetRunSummary:output_type -> humanworth.challenge.v1.GetRunSummaryResponse
+	18, // 101: humanworth.challenge.v1.ChallengeService.CancelRun:output_type -> humanworth.challenge.v1.CancelRunResponse
+	20, // 102: humanworth.challenge.v1.ChallengeService.RestartRun:output_type -> humanworth.challenge.v1.RestartRunResponse
+	22, // 103: humanworth.challenge.v1.ChallengeService.RegisterCandidate:output_type -> humanworth.challenge.v1.RegisterCandidateResponse
+	38, // 104: humanworth.challenge.v1.ChallengeService.ClaimWork:output_type -> humanworth.challenge.v1.ClaimWorkResponse
+	40, // 105: humanworth.challenge.v1.ChallengeService.RenewLease:output_type -> humanworth.challenge.v1.RenewLeaseResponse
+	42, // 106: humanworth.challenge.v1.ChallengeService.ReportProgress:output_type -> humanworth.challenge.v1.ReportProgressResponse
+	44, // 107: humanworth.challenge.v1.ChallengeService.ReadMaterial:output_type -> humanworth.challenge.v1.ReadMaterialResponse
+	46, // 108: humanworth.challenge.v1.ChallengeService.UploadArtifact:output_type -> humanworth.challenge.v1.UploadArtifactResponse
+	50, // 109: humanworth.challenge.v1.ChallengeService.CompleteWork:output_type -> humanworth.challenge.v1.CompleteWorkResponse
+	52, // 110: humanworth.challenge.v1.ChallengeService.FailWork:output_type -> humanworth.challenge.v1.FailWorkResponse
+	54, // 111: humanworth.challenge.v1.ChallengeService.ActivateAttempt:output_type -> humanworth.challenge.v1.ActivateAttemptResponse
+	56, // 112: humanworth.challenge.v1.ChallengeService.CheckTaskAccess:output_type -> humanworth.challenge.v1.CheckTaskAccessResponse
+	58, // 113: humanworth.challenge.v1.ChallengeService.ReserveModelCall:output_type -> humanworth.challenge.v1.ReserveModelCallResponse
+	60, // 114: humanworth.challenge.v1.ChallengeService.SettleModelCall:output_type -> humanworth.challenge.v1.SettleModelCallResponse
+	96, // [96:115] is the sub-list for method output_type
+	77, // [77:96] is the sub-list for method input_type
+	77, // [77:77] is the sub-list for extension type_name
+	77, // [77:77] is the sub-list for extension extendee
+	0,  // [0:77] is the sub-list for field type_name
 }
 
 func init() { file_humanworth_challenge_v1_challenge_proto_init() }
@@ -4481,7 +4712,7 @@ func file_humanworth_challenge_v1_challenge_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_humanworth_challenge_v1_challenge_proto_rawDesc), len(file_humanworth_challenge_v1_challenge_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   61,
+			NumMessages:   64,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

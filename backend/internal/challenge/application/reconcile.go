@@ -60,7 +60,7 @@ func (s *Service) reconcileOne(ctx context.Context, runID string) error {
 	switch r.Pending {
 	case "open":
 		var response *dto.OpenRunRegistrationResponse
-		response, err = s.content.OpenRunRegistration(ctx, &dto.OpenRunRegistrationRequest{RunId: runID, TaskId: r.Run.TaskId})
+		response, err = s.content.OpenRunRegistration(ctx, &dto.OpenRunRegistrationRequest{RunId: runID, TaskId: r.Run.TaskId, AdministratorId: r.Run.AdministratorId, ExecutorModel: r.Run.Configuration.Executor.Model})
 		if err == nil {
 			if response.State != "open" {
 				err = domain.Conflict("registration_closed")

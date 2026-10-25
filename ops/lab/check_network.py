@@ -24,7 +24,7 @@ def main():
         (temp/'Dockerfile').write_text('FROM scratch\nCOPY probe /probe\nCOPY ca-certificates.crt /etc/ssl/certs/ca-certificates.crt\nUSER 65532:65532\nENTRYPOINT ["/probe"]\n')
         run('docker','build','--provenance=false','--sbom=false','-t',image,str(temp))
     run('kind','load','docker-image','--name','lab',image)
-    for caller in ['identity','content','asset','moderation','voting','gateway','untrusted']:
+    for caller in ['identity','content','asset','moderation','voting','discovery','challenge','challenge-worker','gateway','untrusted']:
         name='network-probe-'+caller
         # Matching real policy labels is intentional. A failing readiness probe
         # prevents these test Pods from ever entering application Service endpoints.
@@ -35,6 +35,11 @@ def main():
                 'securityContext':{'allowPrivilegeEscalation':False,'readOnlyRootFilesystem':True,'capabilities':{'drop':['ALL']}},
                 'resources':{'requests':{'cpu':'25m','memory':'16Mi'},'limits':{'cpu':'100m','memory':'32Mi'}},
                 'readinessProbe':{'exec':{'command':['/probe','not-ready']},'periodSeconds':1}}]}}
+        if caller=='challenge-worker':
+            proxy=json.loads(kube('-n','human-worth','get','configmap','model-egress','-o','json',capture=True).stdout)
+            hosts=[line.split()[3:] for line in proxy['data']['squid.conf'].splitlines() if line.strip().startswith('acl model_hosts dstdomain ')]
+            if len(hosts)!=1 or len(hosts[0])!=1:raise RuntimeError('Expected exactly one configured model host')
+            pod['spec']['containers'][0]['env']=[{'name':'MODEL_TEST_HOST','value':hosts[0][0]}]
         kube('delete','pod',name,'-n','human-worth','--ignore-not-found','--wait=true')
         apply(json.dumps(pod))
         try:

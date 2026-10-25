@@ -9,6 +9,7 @@ option go_package = "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/voti
 
 // VotingService 的机器监督接口仅允许 Challenge，不能映射为网站或 MCP 统计旁路。
 service VotingService {
+  rpc GetPublicConclusions(GetPublicConclusionsRequest) returns (GetPublicConclusionsResponse);
   // Gateway mTLS + current method-bound assertion. No anonymous callers.
   rpc GetVotingEligibility(GetVotingEligibilityRequest) returns (GetVotingEligibilityResponse);
   rpc GetBallot(GetBallotRequest) returns (GetBallotResponse);
@@ -75,10 +76,20 @@ message Ballot {
   int64 generation = 6;
   google.protobuf.Timestamp expires_at = 7;
 }
-message GetVotingEligibilityRequest { string actor_assertion = 1; string task_id = 2; }
-message GetVotingEligibilityResponse { VotingEligibility eligibility = 1; }
-message GetBallotRequest { string actor_assertion = 1; string task_id = 2; }
-message GetBallotResponse { Ballot ballot = 1; }
+message GetVotingEligibilityRequest {
+  string actor_assertion = 1;
+  string task_id = 2;
+}
+message GetVotingEligibilityResponse {
+  VotingEligibility eligibility = 1;
+}
+message GetBallotRequest {
+  string actor_assertion = 1;
+  string task_id = 2;
+}
+message GetBallotResponse {
+  Ballot ballot = 1;
+}
 message CastVoteRequest {
   string actor_assertion = 1;
   string task_id = 2;
@@ -86,9 +97,20 @@ message CastVoteRequest {
   string entry_id = 4;
   int64 expected_vote_revision = 5;
 }
-message CastVoteResponse { Vote vote = 1; }
-message ViewTaskStatisticsRequest { string actor_assertion = 1; string task_id = 2; bool permanently_close_voting = 3; }
-message EntryVoteCount { string entry_id = 1; string side = 2; int64 votes = 3; optional double vote_share = 4; }
+message CastVoteResponse {
+  Vote vote = 1;
+}
+message ViewTaskStatisticsRequest {
+  string actor_assertion = 1;
+  string task_id = 2;
+  bool permanently_close_voting = 3;
+}
+message EntryVoteCount {
+  string entry_id = 1;
+  string side = 2;
+  int64 votes = 3;
+  optional double vote_share = 4;
+}
 message TaskStatistics {
   string task_id = 1;
   VotingEligibility eligibility = 2;
@@ -101,9 +123,18 @@ message TaskStatistics {
   int64 catalog_revision = 9;
   string conclusion = 10;
   google.protobuf.Timestamp computed_at = 11;
+  int64 flip_count = 12;
+  google.protobuf.Timestamp last_flip_at = 13;
 }
-message ViewTaskStatisticsResponse { TaskStatistics statistics = 1; }
-message PrepareCatalogChangeRequest { string change_id = 1; string task_id = 2; int64 expected_generation = 3; int64 generation = 4; }
+message ViewTaskStatisticsResponse {
+  TaskStatistics statistics = 1;
+}
+message PrepareCatalogChangeRequest {
+  string change_id = 1;
+  string task_id = 2;
+  int64 expected_generation = 3;
+  int64 generation = 4;
+}
 message CatalogTransition {
   string change_id = 1;
   string task_id = 2;
@@ -111,8 +142,26 @@ message CatalogTransition {
   string phase = 4;
   string sha256 = 5;
 }
-message PrepareCatalogChangeResponse { CatalogTransition transition = 1; }
-message ActivateCatalogSnapshotRequest { string change_id = 1; humanworth.content.v1.VotingCatalogSnapshot catalog = 2; }
-message ActivateCatalogSnapshotResponse { CatalogTransition transition = 1; }
-message GetCatalogTransitionRequest { string change_id = 1; }
-message GetCatalogTransitionResponse { CatalogTransition transition = 1; }
+message PrepareCatalogChangeResponse {
+  CatalogTransition transition = 1;
+}
+message ActivateCatalogSnapshotRequest {
+  string change_id = 1;
+  humanworth.content.v1.VotingCatalogSnapshot catalog = 2;
+}
+message ActivateCatalogSnapshotResponse {
+  CatalogTransition transition = 1;
+}
+message GetCatalogTransitionRequest {
+  string change_id = 1;
+}
+message GetCatalogTransitionResponse {
+  CatalogTransition transition = 1;
+}
+
+message GetPublicConclusionsRequest {
+  repeated string task_ids = 1;
+}
+message GetPublicConclusionsResponse {
+  map<string, string> conclusions = 1;
+}

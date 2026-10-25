@@ -19,6 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	ModerationService_CreateReport_FullMethodName          = "/humanworth.moderation.v1.ModerationService/CreateReport"
+	ModerationService_ListReports_FullMethodName           = "/humanworth.moderation.v1.ModerationService/ListReports"
+	ModerationService_ResolveReport_FullMethodName         = "/humanworth.moderation.v1.ModerationService/ResolveReport"
+	ModerationService_TakeDownContent_FullMethodName       = "/humanworth.moderation.v1.ModerationService/TakeDownContent"
+	ModerationService_GetDashboard_FullMethodName          = "/humanworth.moderation.v1.ModerationService/GetDashboard"
+	ModerationService_ListAuditEvents_FullMethodName       = "/humanworth.moderation.v1.ModerationService/ListAuditEvents"
 	ModerationService_CreateReviewCase_FullMethodName      = "/humanworth.moderation.v1.ModerationService/CreateReviewCase"
 	ModerationService_CreateEntryReviewCase_FullMethodName = "/humanworth.moderation.v1.ModerationService/CreateEntryReviewCase"
 	ModerationService_ListReviews_FullMethodName           = "/humanworth.moderation.v1.ModerationService/ListReviews"
@@ -30,8 +36,14 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Only initial task bundles in phase 4; no reports/audit platform.
+// Durable review, reporting and administrator action workflows.
 type ModerationServiceClient interface {
+	CreateReport(ctx context.Context, in *CreateReportRequest, opts ...grpc.CallOption) (*CreateReportResponse, error)
+	ListReports(ctx context.Context, in *ListReportsRequest, opts ...grpc.CallOption) (*ListReportsResponse, error)
+	ResolveReport(ctx context.Context, in *ResolveReportRequest, opts ...grpc.CallOption) (*ResolveReportResponse, error)
+	TakeDownContent(ctx context.Context, in *TakeDownContentRequest, opts ...grpc.CallOption) (*TakeDownContentResponse, error)
+	GetDashboard(ctx context.Context, in *GetDashboardRequest, opts ...grpc.CallOption) (*GetDashboardResponse, error)
+	ListAuditEvents(ctx context.Context, in *ListAuditEventsRequest, opts ...grpc.CallOption) (*ListAuditEventsResponse, error)
 	// content mTLS only; review ID + task/revision idempotent, payload mismatch
 	// AlreadyExists. 5s; safe identical retry. No transaction waits for RPC.
 	CreateReviewCase(ctx context.Context, in *CreateReviewCaseRequest, opts ...grpc.CallOption) (*CreateReviewCaseResponse, error)
@@ -53,6 +65,66 @@ type moderationServiceClient struct {
 
 func NewModerationServiceClient(cc grpc.ClientConnInterface) ModerationServiceClient {
 	return &moderationServiceClient{cc}
+}
+
+func (c *moderationServiceClient) CreateReport(ctx context.Context, in *CreateReportRequest, opts ...grpc.CallOption) (*CreateReportResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateReportResponse)
+	err := c.cc.Invoke(ctx, ModerationService_CreateReport_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *moderationServiceClient) ListReports(ctx context.Context, in *ListReportsRequest, opts ...grpc.CallOption) (*ListReportsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListReportsResponse)
+	err := c.cc.Invoke(ctx, ModerationService_ListReports_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *moderationServiceClient) ResolveReport(ctx context.Context, in *ResolveReportRequest, opts ...grpc.CallOption) (*ResolveReportResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResolveReportResponse)
+	err := c.cc.Invoke(ctx, ModerationService_ResolveReport_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *moderationServiceClient) TakeDownContent(ctx context.Context, in *TakeDownContentRequest, opts ...grpc.CallOption) (*TakeDownContentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TakeDownContentResponse)
+	err := c.cc.Invoke(ctx, ModerationService_TakeDownContent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *moderationServiceClient) GetDashboard(ctx context.Context, in *GetDashboardRequest, opts ...grpc.CallOption) (*GetDashboardResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDashboardResponse)
+	err := c.cc.Invoke(ctx, ModerationService_GetDashboard_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *moderationServiceClient) ListAuditEvents(ctx context.Context, in *ListAuditEventsRequest, opts ...grpc.CallOption) (*ListAuditEventsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAuditEventsResponse)
+	err := c.cc.Invoke(ctx, ModerationService_ListAuditEvents_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *moderationServiceClient) CreateReviewCase(ctx context.Context, in *CreateReviewCaseRequest, opts ...grpc.CallOption) (*CreateReviewCaseResponse, error) {
@@ -109,8 +181,14 @@ func (c *moderationServiceClient) DecideReview(ctx context.Context, in *DecideRe
 // All implementations must embed UnimplementedModerationServiceServer
 // for forward compatibility.
 //
-// Only initial task bundles in phase 4; no reports/audit platform.
+// Durable review, reporting and administrator action workflows.
 type ModerationServiceServer interface {
+	CreateReport(context.Context, *CreateReportRequest) (*CreateReportResponse, error)
+	ListReports(context.Context, *ListReportsRequest) (*ListReportsResponse, error)
+	ResolveReport(context.Context, *ResolveReportRequest) (*ResolveReportResponse, error)
+	TakeDownContent(context.Context, *TakeDownContentRequest) (*TakeDownContentResponse, error)
+	GetDashboard(context.Context, *GetDashboardRequest) (*GetDashboardResponse, error)
+	ListAuditEvents(context.Context, *ListAuditEventsRequest) (*ListAuditEventsResponse, error)
 	// content mTLS only; review ID + task/revision idempotent, payload mismatch
 	// AlreadyExists. 5s; safe identical retry. No transaction waits for RPC.
 	CreateReviewCase(context.Context, *CreateReviewCaseRequest) (*CreateReviewCaseResponse, error)
@@ -134,6 +212,24 @@ type ModerationServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedModerationServiceServer struct{}
 
+func (UnimplementedModerationServiceServer) CreateReport(context.Context, *CreateReportRequest) (*CreateReportResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateReport not implemented")
+}
+func (UnimplementedModerationServiceServer) ListReports(context.Context, *ListReportsRequest) (*ListReportsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListReports not implemented")
+}
+func (UnimplementedModerationServiceServer) ResolveReport(context.Context, *ResolveReportRequest) (*ResolveReportResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ResolveReport not implemented")
+}
+func (UnimplementedModerationServiceServer) TakeDownContent(context.Context, *TakeDownContentRequest) (*TakeDownContentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method TakeDownContent not implemented")
+}
+func (UnimplementedModerationServiceServer) GetDashboard(context.Context, *GetDashboardRequest) (*GetDashboardResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDashboard not implemented")
+}
+func (UnimplementedModerationServiceServer) ListAuditEvents(context.Context, *ListAuditEventsRequest) (*ListAuditEventsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAuditEvents not implemented")
+}
 func (UnimplementedModerationServiceServer) CreateReviewCase(context.Context, *CreateReviewCaseRequest) (*CreateReviewCaseResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateReviewCase not implemented")
 }
@@ -168,6 +264,114 @@ func RegisterModerationServiceServer(s grpc.ServiceRegistrar, srv ModerationServ
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&ModerationService_ServiceDesc, srv)
+}
+
+func _ModerationService_CreateReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateReportRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModerationServiceServer).CreateReport(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModerationService_CreateReport_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModerationServiceServer).CreateReport(ctx, req.(*CreateReportRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ModerationService_ListReports_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListReportsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModerationServiceServer).ListReports(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModerationService_ListReports_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModerationServiceServer).ListReports(ctx, req.(*ListReportsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ModerationService_ResolveReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResolveReportRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModerationServiceServer).ResolveReport(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModerationService_ResolveReport_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModerationServiceServer).ResolveReport(ctx, req.(*ResolveReportRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ModerationService_TakeDownContent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TakeDownContentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModerationServiceServer).TakeDownContent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModerationService_TakeDownContent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModerationServiceServer).TakeDownContent(ctx, req.(*TakeDownContentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ModerationService_GetDashboard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDashboardRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModerationServiceServer).GetDashboard(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModerationService_GetDashboard_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModerationServiceServer).GetDashboard(ctx, req.(*GetDashboardRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ModerationService_ListAuditEvents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAuditEventsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModerationServiceServer).ListAuditEvents(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModerationService_ListAuditEvents_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModerationServiceServer).ListAuditEvents(ctx, req.(*ListAuditEventsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _ModerationService_CreateReviewCase_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -267,6 +471,30 @@ var ModerationService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "humanworth.moderation.v1.ModerationService",
 	HandlerType: (*ModerationServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CreateReport",
+			Handler:    _ModerationService_CreateReport_Handler,
+		},
+		{
+			MethodName: "ListReports",
+			Handler:    _ModerationService_ListReports_Handler,
+		},
+		{
+			MethodName: "ResolveReport",
+			Handler:    _ModerationService_ResolveReport_Handler,
+		},
+		{
+			MethodName: "TakeDownContent",
+			Handler:    _ModerationService_TakeDownContent_Handler,
+		},
+		{
+			MethodName: "GetDashboard",
+			Handler:    _ModerationService_GetDashboard_Handler,
+		},
+		{
+			MethodName: "ListAuditEvents",
+			Handler:    _ModerationService_ListAuditEvents_Handler,
+		},
 		{
 			MethodName: "CreateReviewCase",
 			Handler:    _ModerationService_CreateReviewCase_Handler,

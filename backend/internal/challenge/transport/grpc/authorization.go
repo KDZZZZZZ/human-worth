@@ -12,7 +12,8 @@ import (
 )
 
 var adminMethods = map[string]bool{
-	pb.ChallengeService_StartRun_FullMethodName: true, pb.ChallengeService_GetRun_FullMethodName: true,
+	pb.ChallengeService_ListAuditEvents_FullMethodName: true,
+	pb.ChallengeService_StartRun_FullMethodName:        true, pb.ChallengeService_GetRun_FullMethodName: true,
 	pb.ChallengeService_ListRuns_FullMethodName: true, pb.ChallengeService_GetRunSummary_FullMethodName: true,
 	pb.ChallengeService_CancelRun_FullMethodName: true, pb.ChallengeService_RestartRun_FullMethodName: true,
 	pb.ChallengeService_RegisterCandidate_FullMethodName: true,

@@ -13,7 +13,7 @@ import (
 
 func validateEntrySnapshot(snap *contentpb.EntryReviewSnapshot) error {
 	sub := snap.GetSubmission()
-	if !reviewPattern.MatchString(snap.GetReviewId()) || !entryPattern.MatchString(sub.GetId()) || !taskPattern.MatchString(sub.GetTaskId()) || sub.GetAuthorId() == "" || sub.GetRevision() < 1 || sub.GetOrigin() != "additional" || sub.GetState() != "pending_review" || sub.GetReviewId() != snap.GetReviewId() || sub.GetContent() == nil || (sub.Content.Side != "human" && sub.Content.Side != "agent") || sub.RejectionReason != nil || sub.ApprovedAt != nil || proto.Size(snap) > 512<<10 {
+	if !reviewPattern.MatchString(snap.GetReviewId()) || !entryPattern.MatchString(sub.GetId()) || !taskPattern.MatchString(sub.GetTaskId()) || sub.GetAuthorId() == "" || sub.GetRevision() < 1 || (sub.GetOrigin() != "additional" && sub.GetOrigin() != "cloud") || sub.GetState() != "pending_review" || sub.GetReviewId() != snap.GetReviewId() || sub.GetContent() == nil || (sub.Content.Side != "human" && sub.Content.Side != "agent") || sub.RejectionReason != nil || sub.ApprovedAt != nil || proto.Size(snap) > 512<<10 {
 		return invalid("invalid_review_snapshot")
 	}
 	if snap.CreatedAt == nil || snap.CreatedAt.CheckValid() != nil {

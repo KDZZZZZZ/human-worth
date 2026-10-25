@@ -1,0 +1,41 @@
+syntax = "proto3";
+package humanworth.discovery.v1;
+
+import "google/protobuf/timestamp.proto";
+import "humanworth/content/v1/content.proto";
+
+option go_package = "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/discovery/v1;discoveryv1";
+service DiscoveryService {
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+  rpc GetPublicBoard(GetPublicBoardRequest) returns (GetPublicBoardResponse);
+}
+message ListTasksRequest {
+  string actor_assertion = 1;
+  string order = 2;
+  optional string category = 3;
+  int32 limit = 4;
+  string cursor = 5;
+  optional string query = 6;
+}
+message ListTasksResponse {
+  repeated humanworth.content.v1.PublicTask items = 1;
+  string next_cursor = 2;
+}
+message BoardGroup {
+  int64 published_tasks = 1;
+  int64 undetermined_tasks = 2;
+  int64 human_leading_tasks = 3;
+  int64 agent_leading_tasks = 4;
+}
+message CategorySummary {
+  optional string category = 1;
+  BoardGroup summary = 2;
+}
+message GetPublicBoardRequest {
+  string actor_assertion = 1;
+}
+message GetPublicBoardResponse {
+  BoardGroup overall = 1;
+  repeated CategorySummary categories = 2;
+  google.protobuf.Timestamp computed_at = 3;
+}

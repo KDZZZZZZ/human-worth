@@ -20,6 +20,7 @@ import (
 	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/rpc"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/agent"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/platform"
+	"google.golang.org/grpc/connectivity"
 )
 
 func main() {
@@ -60,6 +61,14 @@ func run() error {
 		profile, err := execution.LoadExecutorProfile(path)
 		if err != nil {
 			return err
+		}
+		// A relay session belongs to this worker process. A headless Service can
+		// resolve to another replica, which must never receive this attempt.
+		if ip := os.Getenv("POD_IP"); ip != "" {
+			if net.ParseIP(ip) == nil {
+				return errors.New("invalid worker Pod IP")
+			}
+			profile.RelayURL = "https://" + net.JoinHostPort(ip, "9443")
 		}
 		// E 默认复用 P/R 的 Completion 服务，只在明确配置时选择另一份模型文件。
 		executorProvider := provider
@@ -106,6 +115,24 @@ func run() error {
 	if w.Provider == nil && w.Executor == nil {
 		return errors.New("worker model or executor required")
 	}
+	conn.Connect()
+	runtime := platform.NewRuntime("challenge-worker")
+	probe := runtime.Health(platform.Value("HEALTH_LISTEN", ":8081"), func(context.Context) error {
+		if conn.GetState() != connectivity.Ready {
+			return errors.New("challenge unavailable")
+		}
+		return nil
+	})
+	go func() {
+		if probe.ListenAndServe() != http.ErrServerClosed {
+			cancel()
+		}
+	}()
+	defer func() {
+		c, done := context.WithTimeout(context.Background(), 5*time.Second)
+		defer done()
+		probe.Shutdown(c)
+	}()
 	slog.Info("worker started", "revision", platform.BuildVersion())
 	for ctx.Err() == nil {
 		worked, err := w.RunOnce(ctx)

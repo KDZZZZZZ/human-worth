@@ -1,6 +1,6 @@
 # 部署与实验计划
 
-**公网已连接本机 kind lab 的 gateway、Identity、Content 双副本及 PostgreSQL 一主两备。** 用户已确认真人 Google 登录成功，Content 的三个本人草稿接口已通过公网验收。Node.js 基座保留作旧 IP 入口和回退链路；其余业务模块仍是计划。
+**当前版本的九模块发布流程见[后端补全与发布](#backend-completion-deployment)，功能与验收范围见[后端补全记录](backend-completion.md)。** 下文保留早期逐模块发布时的环境、状态及验收记录；其中“当前／未实现／未发布”仅描述对应历史阶段。公网实际版本以 `/api/health` 为准。Node.js 基座保留作旧 IP 入口和回退链路。
 
 | 要了解什么 | 阅读位置 | 状态 |
 | --- | --- | --- |
@@ -640,3 +640,36 @@ Identity 的公网迁移已完成；后续模块通过真实联调后再逐项�
 **发布前置条件**：上述门禁位于仓库外安装的可信 `app.py/release.py` 控制器，必须先按本文控制器安装流程更新并核对文件，再激活首次Voting版本；只合入业务代码不会自动替换已安装控制器。本轮只在隔离namespace验证仓库版本，没有安装常驻控制器或发布公网。
 
 回滚先关闭投票新写入、排空在途并核对持久frozen/active意图，不允许直接回滚到绕过栅栏的旧Content；不能删除永久禁投或以清空gate解除阻塞。blocked需要诊断修复后原命令恢复，不属于自动开放机制。限流/内存和S3生产HA仍需生产容量方案。完整隔离validator新增真实双Voting Pod业务、NodePort故障及恢复；执行结果以[Voting本轮记录](backend-voting.md)为准，不以YAML、编译或历史阶段结果声称部署通过；本轮未部署公网。
+
+<a id="backend-completion-deployment"></a>
+## 九模块后端补全与发布（2026-10-25）
+
+本次升级前公网 dev 为 `1fe4d3f`，已有 Identity、Asset、Voting、Content、Moderation、gateway。本版本新增 Discovery、Challenge、challenge-worker 与必要接口；[模块清单](../ops/lab/services.json) 包含九项，gateway 最后开放。人类已授权本次 PR、CI 通过后合并及部署；最终版本以公网 `/api/health` 的 revision 与九模块完成标记为准。此前按日期记录的三／四／五模块范围仅属于历史版本。功能、迁移、验证结果与限制见 [补全记录](backend-completion.md)。
+
+除原有数据库／S3／TLS 基础设施，新增前提如下：
+
+1. 在选定 kind 节点安装固定 gVisor 完整 bundle，核对 SHA-512 和 `RuntimeClass gvisor` 的 `handler=runsc`：`python3 ops/lab/execution.py`。独立测试集群可指定 `--cluster human-worth-backend-check --kubeconfig /path/to/kubeconfig`；脚本拒绝其他集群名，且核对 kind 容器与 kubeconfig 节点一致，不修改宿主机 Docker 默认运行时。
+2. 将 HTTPS Completion 配置放在仓库外权限 0600 的文件。设置控制器进程 `CHALLENGE_MODEL_CONFIG_FILE`；未显式配置时读取私有 lab 状态目录同级 `challenge-model.json`。JSON 字段为 `base_url`、`model`、`protocol: completion`、`api_key`，不把值写进 Git 或命令行。当前每组 worker 对应同一个模型配置。
+3. 本轮可信运维代码需要按原安装流程人工安装更新的控制器、模板和 `ops/challenge/execution-isolation.yaml`。在暂停 timer、等待正在进行的发布结束后，用下列命令替换旧流程中安装 lab 文件的一步，不能遗漏新引入的 `challenge_runtime.py` 和隔离清单：
+
+```sh
+sudo install -d -m 0755 /usr/local/lib/human-worth/challenge
+sudo install -m 0644 ops/lab/app.py ops/lab/release.py ops/lab/services.py \
+  ops/lab/infra.py ops/lab/object_store.py ops/lab/challenge_runtime.py \
+  ops/lab/postgres.yaml ops/lab/namespace.yaml ops/lab/egress.yaml ops/lab/asset-store.yaml \
+  ops/lab/versions.json /usr/local/lib/human-worth/lab/
+sudo install -m 0644 ops/challenge/execution-isolation.yaml \
+  /usr/local/lib/human-worth/challenge/execution-isolation.yaml
+```
+
+其余步骤沿用既有控制器安装流程；不把已通过 CI 的应用归档当成可执行运维脚本。配置及 gVisor 检查在开始应用滚动前失败，不能悄悄跳过 worker 或降级 E 沙箱。
+
+控制器复用固定 `backend/Dockerfile`，普通服务使用 `service` target，worker 使用包含固定 kubectl 的 `worker` target。E 使用固定 Python 3.14 基础镜像构建独立 executor，加载到全部 kind 节点后核对 manifest digest，相同 digest 才生成 worker profile。Go 构建缓存通过 BuildKit cache mount 共享，不为每个服务镜像重复保留一套标准库编译层。
+
+worker 的唯一 Kubernetes 凭据是自身受限 ServiceAccount 的短期投影 token（3600 秒）和 CA；自动默认挂载关闭，模块验证器拒绝额外凭据投影。它只能在独立 execution namespace 创建／观察／清理固定 Job／Secret；不能读业务 Secret。E 没有 token、业务证书或供应商密钥，非 root、只读根目录、独立临时卷、gVisor、限时命令及进程组清理，网络只通本次 worker 的 HTTPS 中继与 DNS。
+
+供应商网络经独立 `model-egress` 代理，仅允许配置的主机；API egress 根据 Kubernetes 的真实 endpoint 精确放行。每个 worker 的 relay URL 使用自身 Pod IP，TLS 仍验证 `challenge-worker` 服务身份，避免多副本 Service 将一次 E 的内存会话发给另一实例。模型 Secret 投影允许只读原子符号链接和 fsGroup 组读权限，禁止组写／执行或世界可读。
+
+本轮 namespace 配额提高到 36 Pod、14 CPU limits、8 GiB memory limits，以容纳九模块双副本、两个 egress、共享 S3 和滚动窗口；这是 lab 额度，不是容量验收。CloudNativePG 和 SeaweedFS 的生产高可用、备份恢复与容量规划仍需独立运维验收。
+
+临时集群验收会先执行已有的真实 v6→目录协议升级与禁止回退回归，然后执行九模块发布、全部真实 kind 业务与网络测试。新迁移只追加，不改 Content 007／Voting 001，不清空永久禁投。新代码未合入 dev、没有匹配成功 CI 时不得更新公网完成标记。

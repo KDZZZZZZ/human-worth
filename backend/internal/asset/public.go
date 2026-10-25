@@ -25,7 +25,7 @@ func (s *Server) publicAsset(ctx context.Context, ref *pb.PublicAssetReference) 
 	if err := assetPeer(ctx, pb.AssetService_DownloadPublicAsset_FullMethodName); err != nil {
 		return assetRow{}, err
 	}
-	if !assetPattern.MatchString(ref.GetAssetId()) || !publicTaskPattern.MatchString(ref.GetTaskId()) || !publicEntryPattern.MatchString(ref.GetEntryId()) {
+	if !assetPattern.MatchString(ref.GetAssetId()) || !publicTaskPattern.MatchString(ref.GetTaskId()) || (ref.GetEntryId() != "" && !publicEntryPattern.MatchString(ref.GetEntryId())) {
 		return assetRow{}, status.Error(codes.NotFound, "asset_not_found")
 	}
 	if s.Content == nil {

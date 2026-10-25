@@ -504,6 +504,7 @@ func (s *Server) deliverDecision(ctx context.Context) (platform.OutboxResult, er
 	return result, nil
 }
 func (s *Server) RunDelivery(ctx context.Context, logger *slog.Logger) {
+	go s.RunActionDelivery(ctx, logger)
 	platform.RunOutbox(ctx, logger, "moderation_to_content", func(call context.Context) (platform.OutboxResult, error) {
 		return s.deliverDecision(call)
 	})

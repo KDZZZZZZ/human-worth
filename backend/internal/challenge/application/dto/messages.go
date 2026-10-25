@@ -345,8 +345,10 @@ type CheckChallengeMaterialsResponse struct {
 }
 
 type OpenRunRegistrationRequest struct {
-	RunId  string
-	TaskId string
+	AdministratorId string
+	ExecutorModel   string
+	RunId           string
+	TaskId          string
 }
 
 func (v *OpenRunRegistrationRequest) GetTaskId() string {
@@ -501,4 +503,9 @@ func (v *CheckHumanPreferenceSnapshotRequest) GetPolicyVersion() string {
 
 type CheckHumanPreferenceSnapshotResponse struct {
 	Valid bool
+}
+
+type AuditEvent struct {
+	ID, ActorID, Action, TargetID, Outcome, Reason string
+	CreatedAt                                      time.Time
 }

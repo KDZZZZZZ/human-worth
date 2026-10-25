@@ -49,7 +49,14 @@ func newKindLab(t *testing.T) *kindLab {
 }
 
 func (l *kindLab) command(ctx context.Context, input string, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, "kubectl", append([]string{"--kubeconfig", l.config, "--context", "kind-lab", "-n", l.namespace}, args...)...)
+	kubeContext := os.Getenv("HUMAN_WORTH_VERIFY_CONTEXT")
+	if kubeContext == "" {
+		kubeContext = "kind-lab"
+	}
+	if kubeContext != "kind-lab" && kubeContext != "kind-human-worth-backend-check" {
+		l.t.Fatal("isolated test cluster required")
+	}
+	cmd := exec.CommandContext(ctx, "kubectl", append([]string{"--kubeconfig", l.config, "--context", kubeContext, "-n", l.namespace}, args...)...)
 	cmd.Stdin = strings.NewReader(input)
 	return cmd
 }

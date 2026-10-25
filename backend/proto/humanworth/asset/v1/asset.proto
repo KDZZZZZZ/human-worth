@@ -153,25 +153,33 @@ message CompleteUploadRequest {
   string upload_session_id = 2;
   string asset_id = 3;
 }
-message CompleteUploadResponse { AssetMetadata asset = 1; }
+message CompleteUploadResponse {
+  AssetMetadata asset = 1;
+}
 
 message AbortUploadRequest {
   string actor_assertion = 1;
   string upload_session_id = 2;
 }
-message AbortUploadResponse { UploadSession upload_session = 1; }
+message AbortUploadResponse {
+  UploadSession upload_session = 1;
+}
 
 message GetUploadSessionRequest {
   string actor_assertion = 1;
   string upload_session_id = 2;
 }
-message GetUploadSessionResponse { UploadSession upload_session = 1; }
+message GetUploadSessionResponse {
+  UploadSession upload_session = 1;
+}
 
 message GetAssetMetadataRequest {
   string actor_assertion = 1;
   string asset_id = 2;
 }
-message GetAssetMetadataResponse { AssetMetadata asset = 1; }
+message GetAssetMetadataResponse {
+  AssetMetadata asset = 1;
+}
 
 message ListMyAssetsRequest {
   string actor_assertion = 1;
@@ -187,7 +195,9 @@ message CheckAssetOwnershipRequest {
   string actor_assertion = 1;
   repeated string asset_ids = 2;
 }
-message CheckAssetOwnershipResponse { repeated AssetMetadata assets = 1; }
+message CheckAssetOwnershipResponse {
+  repeated AssetMetadata assets = 1;
+}
 
 message DownloadAssetRequest {
   string actor_assertion = 1;

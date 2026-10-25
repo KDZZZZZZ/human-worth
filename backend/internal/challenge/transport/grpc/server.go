@@ -2,6 +2,8 @@ package grpc
 
 import (
 	"context"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"time"
 
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/challenge/adapter/protobuf"
@@ -177,4 +179,29 @@ func (s *Server) UploadArtifact(stream grpc.ClientStreamingServer[pb.UploadArtif
 		return err
 	}
 	return protobuf.Error(s.service.UploadArtifact(uploadStream{ClientStreamingServer: stream, ctx: ctx}))
+}
+
+func (s *Server) ListAuditEvents(ctx context.Context, q *pb.ListAuditEventsRequest) (*pb.ListAuditEventsResponse, error) {
+	before := time.Now().Add(time.Second)
+	id := "~"
+	if q.BeforeTime != nil {
+		if q.BeforeTime.CheckValid() != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid_cursor")
+		}
+		before = q.BeforeTime.AsTime()
+		id = q.BeforeId
+	}
+	limit := q.Limit
+	if limit == 0 {
+		limit = 21
+	}
+	events, e := s.service.ListAuditEvents(ctx, q.ActorAssertion, before, id, limit)
+	if e != nil {
+		return nil, protobuf.Error(e)
+	}
+	out := &pb.ListAuditEventsResponse{}
+	for _, v := range events {
+		out.Items = append(out.Items, &pb.AuditEvent{Id: v.ID, ActorId: v.ActorID, Action: v.Action, TargetId: v.TargetID, Outcome: v.Outcome, Reason: v.Reason, CreatedAt: timestamppb.New(v.CreatedAt)})
+	}
+	return out, nil
 }

@@ -123,7 +123,7 @@ func TestContentDraftHTTPGRPCPersistence(t *testing.T) {
 	var migrationCount, indexCount int
 	must(t, ownerDB.QueryRow(ctx, `SELECT count(*) FROM content.schema_migrations`).Scan(&migrationCount))
 	must(t, ownerDB.QueryRow(ctx, `SELECT count(*) FROM pg_indexes WHERE schemaname='content' AND indexname='task_drafts_author_created_id'`).Scan(&indexCount))
-	if migrationCount != 7 || indexCount != 1 {
+	if migrationCount != 8 || indexCount != 1 {
 		t.Fatalf("Content list migration missing: migrations=%d indexes=%d", migrationCount, indexCount)
 	}
 	for _, row := range legacyRows {
@@ -400,7 +400,7 @@ func TestContentDraftHTTPGRPCPersistence(t *testing.T) {
 	check(request(1, "GET", path, "", bob, "", ""), 404)
 	check(request(1, "PUT", path, `{"expectedRevision":1,"content":`+initial+`}`, bob, bobSession.CsrfToken, ""), 404)
 	check(request(0, "GET", "/api/tasks/"+draft.ID, "", alice, "", ""), 404)
-	check(request(0, "GET", "/api/tasks", "", alice, "", ""), 405)
+	check(request(0, "GET", "/api/tasks", "", alice, "", ""), 503)
 	check(request(0, "POST", "/api/tasks", strings.Replace(initial, "private draft", "different", 1), alice, aliceSession.CsrfToken, createKey), 409)
 	// Same key belongs to another author's namespace, without access to Alice's row.
 	response = request(1, "POST", "/api/tasks", initial, bob, bobSession.CsrfToken, createKey)

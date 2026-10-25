@@ -122,7 +122,7 @@ def certificates(services):
 def source_hash():
     h=hashlib.sha256()
     for path in sorted((REPO/'backend').rglob('*')):
-        if path.is_file() and not path.name.endswith('_test.go') and (path.parts[-1] in ['go.mod','go.sum','Dockerfile'] or any(part in ['cmd','internal','gen'] for part in path.relative_to(REPO/'backend').parts)):
+        if path.is_file() and not path.name.endswith('_test.go') and (path.parts[-1] in ['go.mod','go.sum','Dockerfile','Dockerfile.executor'] or any(part in ['cmd','internal','gen'] for part in path.relative_to(REPO/'backend').parts)):
             h.update(str(path.relative_to(REPO)).encode());h.update(path.read_bytes())
     h.update((REPO/'public/brand/logo.png').read_bytes())
     h.update((REPO/'.dockerignore').read_bytes())
@@ -136,9 +136,24 @@ def build_images(revision=None, services=None):
     result={'sourceHash':digest,'baseRevision':revision or run('git','-C',str(REPO),'rev-parse','HEAD',capture=True).stdout.strip(),'images':{}}
     for name in [*services, 'identity-admin']:
         image='human-worth/'+name+':'+version
-        run('docker','build','--provenance=false','--sbom=false','--network=host','--build-arg','HTTP_PROXY','--build-arg','HTTPS_PROXY','--build-arg','SERVICE='+name,'--build-arg','REVISION='+version,'-f',str(REPO/'backend/Dockerfile'),'-t',image,str(REPO))
+        target=['--target','worker' if name=='challenge-worker' else 'service'] if ' AS service' in (REPO/'backend/Dockerfile').read_text() else []
+        run('docker','build',*target,'--provenance=false','--sbom=false','--network=host','--build-arg','HTTP_PROXY','--build-arg','HTTPS_PROXY','--build-arg','SERVICE='+name,'--build-arg','REVISION='+version,'-f',str(REPO/'backend/Dockerfile'),'-t',image,str(REPO))
         run('kind','load','docker-image','--name','lab',image)
         result['images'][name]={'tag':image,'id':run('docker','image','inspect',image,'--format','{{.Id}}',capture=True).stdout.strip()}
+    if 'challenge-worker' in services:
+        image='human-worth/challenge-executor:'+version
+        run('docker','build','--provenance=false','--sbom=false','--network=host','--build-arg','HTTP_PROXY','--build-arg','HTTPS_PROXY','-f',str(REPO/'backend/Dockerfile.executor'),'-t',image,str(REPO))
+        run('kind','load','docker-image','--name','lab',image)
+        pinned=None
+        for node in run('kind','get','nodes','--name','lab',capture=True).stdout.splitlines():
+            rows=run('docker','exec',node,'ctr','-n','k8s.io','images','ls',capture=True).stdout.splitlines()
+            matches=[r.split()[2] for r in rows if r.split() and r.split()[0]=='docker.io/'+image]
+            if len(matches)!=1 or not re.fullmatch('sha256:[a-f0-9]{64}',matches[0]):raise RuntimeError('Executor manifest digest unavailable')
+            current='docker.io/human-worth/challenge-executor@'+matches[0]
+            if pinned and pinned!=current:raise RuntimeError('Executor image differs across nodes')
+            pinned=current
+            run('docker','exec',node,'ctr','-n','k8s.io','images','tag','--force','docker.io/'+image,pinned,capture=True)
+        result['executorImage']=pinned
     if source_hash()!=digest: raise RuntimeError('Source changed while building; rerun after edits finish')
     (STATE/'build.json').write_text(json.dumps(result,indent=2)+'\n')
     return result
@@ -168,7 +183,7 @@ def object_storage_config(state=None):
         raise RuntimeError('Asset requires a private, complete asset-s3.json and a pre-provisioned S3 bucket') from None
 
 
-def database_secrets(services, storage=None):
+def database_secrets(services, storage=None, challenge_model=None):
     for name, spec in services.items():
         if not spec['database']: continue
         for role in (['owner','runtime','operator'] if name == 'identity' else ['owner','runtime']):
@@ -179,6 +194,9 @@ def database_secrets(services, storage=None):
             if name == 'asset' and role == 'runtime':
                 if storage is None: raise RuntimeError('Asset S3 configuration missing')
                 values.update({'s3-'+key.replace('_','-'): (str(value).lower() if isinstance(value,bool) else value) for key,value in storage.items()})
+            if name == 'challenge' and role == 'runtime':
+                if challenge_model is None:raise RuntimeError('Challenge model configuration missing')
+                values['models']=challenge_model['model']
             if name == 'identity' and role=='runtime':
                 for purpose in ['encryption','signing']:
                     ring=json.dumps({'active':'key1','keys':{'key1':base64.b64encode(secrets.token_bytes(32)).decode()}})
@@ -278,6 +296,11 @@ def main(revision=None, before_activation=None):
     services=load_services(REPO)
     if catalog_enabled() and 'voting' not in services:
         raise RuntimeError('Catalog-v1 enabled; refusing activation without Voting')
+    challenge_model=None
+    if 'challenge-worker' in services:
+        from challenge_runtime import model_configuration, preflight, install as install_challenge_runtime
+        challenge_model=model_configuration(STATE,REPO)
+        preflight(kube)
     # Asset's private lab store is an explicit module dependency. It creates no
     # public endpoint and has no filesystem fallback; installation is idempotent.
     storage=None
@@ -294,7 +317,7 @@ def main(revision=None, before_activation=None):
             raise RuntimeError('Content image lacks verified catalog-v1 capability')
     if before_activation: before_activation()
     if install_asset_storage: install_asset_storage()
-    database_secrets(services,storage)
+    database_secrets(services,storage,challenge_model)
     apply(database_manifest(services))
     kube('-n','human-worth','wait','--for=condition=Ready','cluster/database','--timeout=900s')
     primary=database_primary(services)
@@ -331,6 +354,8 @@ def main(revision=None, before_activation=None):
     apply(egress)
     kube('-n','human-worth','rollout','status','deployment/google-egress','--timeout=180s')
     prepare_catalog_activation(workloads)
+    if challenge_model is not None:
+        install_challenge_runtime(STATE,REPO,challenge_model,images['executorImage'],secret,kube,workloads)
     # Install all peer policies before waiting for a newly added dependency.
     for objects in workloads.values():
         for obj in objects:
@@ -344,6 +369,9 @@ def main(revision=None, before_activation=None):
         fingerprint=hashlib.sha256((STATE/(name+'.crt')).read_bytes())
         if spec['database']: fingerprint.update((STATE/(name+'-runtime.password')).read_bytes())
         if name=='asset': fingerprint.update(json.dumps(storage,sort_keys=True).encode())
+        if name in ['challenge','challenge-worker']:
+            fingerprint.update(json.dumps(challenge_model,sort_keys=True).encode())
+            fingerprint.update(images['executorImage'].encode())
         if name=='identity':
             fingerprint.update((STATE/'encryption-keys.json').read_bytes());fingerprint.update((STATE/'signing-keys.json').read_bytes())
             if google.exists(): fingerprint.update(google.read_bytes())

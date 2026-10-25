@@ -237,7 +237,7 @@ type PublicTask struct {
 	Author      *PublicAuthor          `protobuf:"bytes,7,opt,name=author,proto3" json:"author,omitempty"`
 	Heat        *float64               `protobuf:"fixed64,8,opt,name=heat,proto3,oneof" json:"heat,omitempty"`
 	PublishedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
-	// Current frozen task model has no task-level attachments; always empty.
+	// Explicit task-level files; never inferred from an entry.
 	TaskAttachments []*v1.Asset `protobuf:"bytes,10,rep,name=task_attachments,json=taskAttachments,proto3" json:"task_attachments,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -672,6 +672,7 @@ type ArtifactInput struct {
 	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
 	AssetId       *string                `protobuf:"bytes,2,opt,name=asset_id,json=assetId,proto3,oneof" json:"asset_id,omitempty"`
 	Url           *string                `protobuf:"bytes,3,opt,name=url,proto3,oneof" json:"url,omitempty"`
+	Text          *string                `protobuf:"bytes,4,opt,name=text,proto3,oneof" json:"text,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -723,6 +724,13 @@ func (x *ArtifactInput) GetAssetId() string {
 func (x *ArtifactInput) GetUrl() string {
 	if x != nil && x.Url != nil {
 		return *x.Url
+	}
+	return ""
+}
+
+func (x *ArtifactInput) GetText() string {
+	if x != nil && x.Text != nil {
+		return *x.Text
 	}
 	return ""
 }
@@ -956,9 +964,10 @@ type TaskDraftInput struct {
 	Description *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	Category    *string                `protobuf:"bytes,4,opt,name=category,proto3,oneof" json:"category,omitempty"`
 	// Initial drafts are ordered components of this aggregate, not public entries.
-	Entries       []*EntryInput `protobuf:"bytes,5,rep,name=entries,proto3" json:"entries,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Entries         []*EntryInput          `protobuf:"bytes,5,rep,name=entries,proto3" json:"entries,omitempty"`
+	TaskAttachments []*TaskAttachmentInput `protobuf:"bytes,6,rep,name=task_attachments,json=taskAttachments,proto3" json:"task_attachments,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *TaskDraftInput) Reset() {
@@ -1022,6 +1031,13 @@ func (x *TaskDraftInput) GetCategory() string {
 func (x *TaskDraftInput) GetEntries() []*EntryInput {
 	if x != nil {
 		return x.Entries
+	}
+	return nil
+}
+
+func (x *TaskDraftInput) GetTaskAttachments() []*TaskAttachmentInput {
+	if x != nil {
+		return x.TaskAttachments
 	}
 	return nil
 }
@@ -2455,11 +2471,13 @@ func (x *CheckChallengeMaterialsResponse) GetAuthorizationVersion() string {
 }
 
 type OpenRunRegistrationRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	RunId           string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	TaskId          string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	AdministratorId string                 `protobuf:"bytes,3,opt,name=administrator_id,json=administratorId,proto3" json:"administrator_id,omitempty"`
+	ExecutorModel   string                 `protobuf:"bytes,4,opt,name=executor_model,json=executorModel,proto3" json:"executor_model,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *OpenRunRegistrationRequest) Reset() {
@@ -2502,6 +2520,20 @@ func (x *OpenRunRegistrationRequest) GetRunId() string {
 func (x *OpenRunRegistrationRequest) GetTaskId() string {
 	if x != nil {
 		return x.TaskId
+	}
+	return ""
+}
+
+func (x *OpenRunRegistrationRequest) GetAdministratorId() string {
+	if x != nil {
+		return x.AdministratorId
+	}
+	return ""
+}
+
+func (x *OpenRunRegistrationRequest) GetExecutorModel() string {
+	if x != nil {
+		return x.ExecutorModel
 	}
 	return ""
 }
@@ -4985,6 +5017,1145 @@ func (x *GetVotingCatalogSnapshotResponse) GetCatalog() *VotingCatalogSnapshot {
 	return nil
 }
 
+type VotingAuthor struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VotingAuthor) Reset() {
+	*x = VotingAuthor{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[77]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VotingAuthor) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VotingAuthor) ProtoMessage() {}
+
+func (x *VotingAuthor) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[77]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VotingAuthor.ProtoReflect.Descriptor instead.
+func (*VotingAuthor) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{77}
+}
+
+func (x *VotingAuthor) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *VotingAuthor) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+type VotingArtifact struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	AssetId       string                 `protobuf:"bytes,2,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	Url           string                 `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
+	Text          string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VotingArtifact) Reset() {
+	*x = VotingArtifact{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[78]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VotingArtifact) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VotingArtifact) ProtoMessage() {}
+
+func (x *VotingArtifact) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[78]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VotingArtifact.ProtoReflect.Descriptor instead.
+func (*VotingArtifact) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{78}
+}
+
+func (x *VotingArtifact) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *VotingArtifact) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *VotingArtifact) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *VotingArtifact) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+type VotingEntry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Side          string                 `protobuf:"bytes,3,opt,name=side,proto3" json:"side,omitempty"`
+	Title         string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	Description   string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
+	Source        string                 `protobuf:"bytes,6,opt,name=source,proto3" json:"source,omitempty"`
+	Artifacts     []*VotingArtifact      `protobuf:"bytes,7,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	Author        *VotingAuthor          `protobuf:"bytes,8,opt,name=author,proto3" json:"author,omitempty"`
+	ApprovedAt    *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=approved_at,json=approvedAt,proto3" json:"approved_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VotingEntry) Reset() {
+	*x = VotingEntry{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[79]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VotingEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VotingEntry) ProtoMessage() {}
+
+func (x *VotingEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[79]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VotingEntry.ProtoReflect.Descriptor instead.
+func (*VotingEntry) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{79}
+}
+
+func (x *VotingEntry) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *VotingEntry) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *VotingEntry) GetSide() string {
+	if x != nil {
+		return x.Side
+	}
+	return ""
+}
+
+func (x *VotingEntry) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *VotingEntry) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *VotingEntry) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *VotingEntry) GetArtifacts() []*VotingArtifact {
+	if x != nil {
+		return x.Artifacts
+	}
+	return nil
+}
+
+func (x *VotingEntry) GetAuthor() *VotingAuthor {
+	if x != nil {
+		return x.Author
+	}
+	return nil
+}
+
+func (x *VotingEntry) GetApprovedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ApprovedAt
+	}
+	return nil
+}
+
+type VotingCatalog struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	TaskId          string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	TaskRevision    int64                  `protobuf:"varint,2,opt,name=task_revision,json=taskRevision,proto3" json:"task_revision,omitempty"`
+	CatalogRevision int64                  `protobuf:"varint,3,opt,name=catalog_revision,json=catalogRevision,proto3" json:"catalog_revision,omitempty"`
+	Visible         bool                   `protobuf:"varint,4,opt,name=visible,proto3" json:"visible,omitempty"`
+	Entries         []*VotingEntry         `protobuf:"bytes,5,rep,name=entries,proto3" json:"entries,omitempty"`
+	// SHA-256 of sorted entry IDs joined by newline; content is version-bound.
+	WorkSetHash   string `protobuf:"bytes,6,opt,name=work_set_hash,json=workSetHash,proto3" json:"work_set_hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VotingCatalog) Reset() {
+	*x = VotingCatalog{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[80]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VotingCatalog) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VotingCatalog) ProtoMessage() {}
+
+func (x *VotingCatalog) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[80]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VotingCatalog.ProtoReflect.Descriptor instead.
+func (*VotingCatalog) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{80}
+}
+
+func (x *VotingCatalog) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *VotingCatalog) GetTaskRevision() int64 {
+	if x != nil {
+		return x.TaskRevision
+	}
+	return 0
+}
+
+func (x *VotingCatalog) GetCatalogRevision() int64 {
+	if x != nil {
+		return x.CatalogRevision
+	}
+	return 0
+}
+
+func (x *VotingCatalog) GetVisible() bool {
+	if x != nil {
+		return x.Visible
+	}
+	return false
+}
+
+func (x *VotingCatalog) GetEntries() []*VotingEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+func (x *VotingCatalog) GetWorkSetHash() string {
+	if x != nil {
+		return x.WorkSetHash
+	}
+	return ""
+}
+
+type GetVotingCatalogRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	TaskId string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	// public or preference. Preference requires current cloud-use authorization
+	// and recoverable material/comment versions for the exact snapshot below.
+	Purpose       string       `protobuf:"bytes,2,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	Snapshot      *SnapshotRef `protobuf:"bytes,3,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	RunId         string       `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetVotingCatalogRequest) Reset() {
+	*x = GetVotingCatalogRequest{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[81]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetVotingCatalogRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetVotingCatalogRequest) ProtoMessage() {}
+
+func (x *GetVotingCatalogRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[81]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetVotingCatalogRequest.ProtoReflect.Descriptor instead.
+func (*GetVotingCatalogRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{81}
+}
+
+func (x *GetVotingCatalogRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *GetVotingCatalogRequest) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *GetVotingCatalogRequest) GetSnapshot() *SnapshotRef {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
+func (x *GetVotingCatalogRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+type GetVotingCatalogResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Catalog           *VotingCatalog         `protobuf:"bytes,1,opt,name=catalog,proto3" json:"catalog,omitempty"`
+	PreferenceAllowed bool                   `protobuf:"varint,2,opt,name=preference_allowed,json=preferenceAllowed,proto3" json:"preference_allowed,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GetVotingCatalogResponse) Reset() {
+	*x = GetVotingCatalogResponse{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetVotingCatalogResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetVotingCatalogResponse) ProtoMessage() {}
+
+func (x *GetVotingCatalogResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetVotingCatalogResponse.ProtoReflect.Descriptor instead.
+func (*GetVotingCatalogResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *GetVotingCatalogResponse) GetCatalog() *VotingCatalog {
+	if x != nil {
+		return x.Catalog
+	}
+	return nil
+}
+
+func (x *GetVotingCatalogResponse) GetPreferenceAllowed() bool {
+	if x != nil {
+		return x.PreferenceAllowed
+	}
+	return false
+}
+
+type TaskAttachmentInput struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	AssetId         string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	CloudUseAllowed *bool                  `protobuf:"varint,2,opt,name=cloud_use_allowed,json=cloudUseAllowed,proto3,oneof" json:"cloud_use_allowed,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *TaskAttachmentInput) Reset() {
+	*x = TaskAttachmentInput{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[83]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskAttachmentInput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskAttachmentInput) ProtoMessage() {}
+
+func (x *TaskAttachmentInput) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[83]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskAttachmentInput.ProtoReflect.Descriptor instead.
+func (*TaskAttachmentInput) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{83}
+}
+
+func (x *TaskAttachmentInput) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *TaskAttachmentInput) GetCloudUseAllowed() bool {
+	if x != nil && x.CloudUseAllowed != nil {
+		return *x.CloudUseAllowed
+	}
+	return false
+}
+
+type PublicComment struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Author        *PublicAuthor          `protobuf:"bytes,3,opt,name=author,proto3" json:"author,omitempty"`
+	Body          string                 `protobuf:"bytes,4,opt,name=body,proto3" json:"body,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PublicComment) Reset() {
+	*x = PublicComment{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[84]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublicComment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublicComment) ProtoMessage() {}
+
+func (x *PublicComment) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[84]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublicComment.ProtoReflect.Descriptor instead.
+func (*PublicComment) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{84}
+}
+
+func (x *PublicComment) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *PublicComment) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *PublicComment) GetAuthor() *PublicAuthor {
+	if x != nil {
+		return x.Author
+	}
+	return nil
+}
+
+func (x *PublicComment) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *PublicComment) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type ListCommentsRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ActorAssertion string                 `protobuf:"bytes,1,opt,name=actor_assertion,json=actorAssertion,proto3" json:"actor_assertion,omitempty"`
+	TaskId         string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Limit          int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	Cursor         string                 `protobuf:"bytes,4,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ListCommentsRequest) Reset() {
+	*x = ListCommentsRequest{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCommentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCommentsRequest) ProtoMessage() {}
+
+func (x *ListCommentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCommentsRequest.ProtoReflect.Descriptor instead.
+func (*ListCommentsRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *ListCommentsRequest) GetActorAssertion() string {
+	if x != nil {
+		return x.ActorAssertion
+	}
+	return ""
+}
+
+func (x *ListCommentsRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *ListCommentsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListCommentsRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+type ListCommentsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*PublicComment       `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	NextCursor    string                 `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCommentsResponse) Reset() {
+	*x = ListCommentsResponse{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[86]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCommentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCommentsResponse) ProtoMessage() {}
+
+func (x *ListCommentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[86]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCommentsResponse.ProtoReflect.Descriptor instead.
+func (*ListCommentsResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{86}
+}
+
+func (x *ListCommentsResponse) GetItems() []*PublicComment {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListCommentsResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
+type CreateCommentRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ActorAssertion string                 `protobuf:"bytes,1,opt,name=actor_assertion,json=actorAssertion,proto3" json:"actor_assertion,omitempty"`
+	TaskId         string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Body           string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	IdempotencyKey string                 `protobuf:"bytes,4,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CreateCommentRequest) Reset() {
+	*x = CreateCommentRequest{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[87]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateCommentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateCommentRequest) ProtoMessage() {}
+
+func (x *CreateCommentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[87]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateCommentRequest.ProtoReflect.Descriptor instead.
+func (*CreateCommentRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{87}
+}
+
+func (x *CreateCommentRequest) GetActorAssertion() string {
+	if x != nil {
+		return x.ActorAssertion
+	}
+	return ""
+}
+
+func (x *CreateCommentRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *CreateCommentRequest) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *CreateCommentRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+type CreateCommentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Comment       *PublicComment         `protobuf:"bytes,1,opt,name=comment,proto3" json:"comment,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateCommentResponse) Reset() {
+	*x = CreateCommentResponse{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[88]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateCommentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateCommentResponse) ProtoMessage() {}
+
+func (x *CreateCommentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[88]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateCommentResponse.ProtoReflect.Descriptor instead.
+func (*CreateCommentResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{88}
+}
+
+func (x *CreateCommentResponse) GetComment() *PublicComment {
+	if x != nil {
+		return x.Comment
+	}
+	return nil
+}
+
+type ListDiscoverableTasksRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Order         string                 `protobuf:"bytes,1,opt,name=order,proto3" json:"order,omitempty"`
+	Category      *string                `protobuf:"bytes,2,opt,name=category,proto3,oneof" json:"category,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	Cursor        string                 `protobuf:"bytes,4,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Query         *string                `protobuf:"bytes,5,opt,name=query,proto3,oneof" json:"query,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDiscoverableTasksRequest) Reset() {
+	*x = ListDiscoverableTasksRequest{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDiscoverableTasksRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDiscoverableTasksRequest) ProtoMessage() {}
+
+func (x *ListDiscoverableTasksRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDiscoverableTasksRequest.ProtoReflect.Descriptor instead.
+func (*ListDiscoverableTasksRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *ListDiscoverableTasksRequest) GetOrder() string {
+	if x != nil {
+		return x.Order
+	}
+	return ""
+}
+
+func (x *ListDiscoverableTasksRequest) GetCategory() string {
+	if x != nil && x.Category != nil {
+		return *x.Category
+	}
+	return ""
+}
+
+func (x *ListDiscoverableTasksRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListDiscoverableTasksRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+func (x *ListDiscoverableTasksRequest) GetQuery() string {
+	if x != nil && x.Query != nil {
+		return *x.Query
+	}
+	return ""
+}
+
+type ListDiscoverableTasksResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*PublicTask          `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	NextCursor    string                 `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDiscoverableTasksResponse) Reset() {
+	*x = ListDiscoverableTasksResponse{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[90]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDiscoverableTasksResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDiscoverableTasksResponse) ProtoMessage() {}
+
+func (x *ListDiscoverableTasksResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[90]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDiscoverableTasksResponse.ProtoReflect.Descriptor instead.
+func (*ListDiscoverableTasksResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{90}
+}
+
+func (x *ListDiscoverableTasksResponse) GetItems() []*PublicTask {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListDiscoverableTasksResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
+type CheckModerationTargetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TargetKind    string                 `protobuf:"bytes,1,opt,name=target_kind,json=targetKind,proto3" json:"target_kind,omitempty"`
+	TargetId      string                 `protobuf:"bytes,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CheckModerationTargetRequest) Reset() {
+	*x = CheckModerationTargetRequest{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[91]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckModerationTargetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckModerationTargetRequest) ProtoMessage() {}
+
+func (x *CheckModerationTargetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[91]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckModerationTargetRequest.ProtoReflect.Descriptor instead.
+func (*CheckModerationTargetRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{91}
+}
+
+func (x *CheckModerationTargetRequest) GetTargetKind() string {
+	if x != nil {
+		return x.TargetKind
+	}
+	return ""
+}
+
+func (x *CheckModerationTargetRequest) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+type CheckModerationTargetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Visible       bool                   `protobuf:"varint,1,opt,name=visible,proto3" json:"visible,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CheckModerationTargetResponse) Reset() {
+	*x = CheckModerationTargetResponse{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[92]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckModerationTargetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckModerationTargetResponse) ProtoMessage() {}
+
+func (x *CheckModerationTargetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[92]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckModerationTargetResponse.ProtoReflect.Descriptor instead.
+func (*CheckModerationTargetResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{92}
+}
+
+func (x *CheckModerationTargetResponse) GetVisible() bool {
+	if x != nil {
+		return x.Visible
+	}
+	return false
+}
+
+func (x *CheckModerationTargetResponse) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+type ApplyTakedownRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DecisionId    string                 `protobuf:"bytes,1,opt,name=decision_id,json=decisionId,proto3" json:"decision_id,omitempty"`
+	TargetKind    string                 `protobuf:"bytes,2,opt,name=target_kind,json=targetKind,proto3" json:"target_kind,omitempty"`
+	TargetId      string                 `protobuf:"bytes,3,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApplyTakedownRequest) Reset() {
+	*x = ApplyTakedownRequest{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[93]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplyTakedownRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplyTakedownRequest) ProtoMessage() {}
+
+func (x *ApplyTakedownRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[93]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplyTakedownRequest.ProtoReflect.Descriptor instead.
+func (*ApplyTakedownRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{93}
+}
+
+func (x *ApplyTakedownRequest) GetDecisionId() string {
+	if x != nil {
+		return x.DecisionId
+	}
+	return ""
+}
+
+func (x *ApplyTakedownRequest) GetTargetKind() string {
+	if x != nil {
+		return x.TargetKind
+	}
+	return ""
+}
+
+func (x *ApplyTakedownRequest) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+type ApplyTakedownResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DecisionId    string                 `protobuf:"bytes,1,opt,name=decision_id,json=decisionId,proto3" json:"decision_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApplyTakedownResponse) Reset() {
+	*x = ApplyTakedownResponse{}
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[94]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplyTakedownResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplyTakedownResponse) ProtoMessage() {}
+
+func (x *ApplyTakedownResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_content_v1_content_proto_msgTypes[94]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplyTakedownResponse.ProtoReflect.Descriptor instead.
+func (*ApplyTakedownResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_content_v1_content_proto_rawDescGZIP(), []int{94}
+}
+
+func (x *ApplyTakedownResponse) GetDecisionId() string {
+	if x != nil {
+		return x.DecisionId
+	}
+	return ""
+}
+
+func (x *ApplyTakedownResponse) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
 var File_humanworth_content_v1_content_proto protoreflect.FileDescriptor
 
 const file_humanworth_content_v1_content_proto_rawDesc = "" +
@@ -5033,13 +6204,15 @@ const file_humanworth_content_v1_content_proto_rawDesc = "" +
 	"\x1bListApprovedEntriesResponse\x12:\n" +
 	"\x05items\x18\x01 \x03(\v2$.humanworth.content.v1.ApprovedEntryR\x05items\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
-	"nextCursor\"o\n" +
+	"nextCursor\"\x91\x01\n" +
 	"\rArtifactInput\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x1e\n" +
 	"\basset_id\x18\x02 \x01(\tH\x00R\aassetId\x88\x01\x01\x12\x15\n" +
-	"\x03url\x18\x03 \x01(\tH\x01R\x03url\x88\x01\x01B\v\n" +
+	"\x03url\x18\x03 \x01(\tH\x01R\x03url\x88\x01\x01\x12\x17\n" +
+	"\x04text\x18\x04 \x01(\tH\x02R\x04text\x88\x01\x01B\v\n" +
 	"\t_asset_idB\x06\n" +
-	"\x04_url\"s\n" +
+	"\x04_urlB\a\n" +
+	"\x05_text\"s\n" +
 	"\x10PermissionsInput\x12 \n" +
 	"\tcloud_use\x18\x01 \x01(\bH\x00R\bcloudUse\x88\x01\x01\x12!\n" +
 	"\tstatement\x18\x02 \x01(\tH\x01R\tstatement\x88\x01\x01B\f\n" +
@@ -5067,13 +6240,14 @@ const file_humanworth_content_v1_content_proto_rawDesc = "" +
 	"\tartifacts\x18\x05 \x03(\v2$.humanworth.content.v1.ArtifactInputR\tartifacts\x12I\n" +
 	"\vpermissions\x18\x06 \x01(\v2'.humanworth.content.v1.PermissionsInputR\vpermissions\x12_\n" +
 	"\x13agent_configuration\x18\a \x01(\v2..humanworth.content.v1.AgentConfigurationInputR\x12agentConfigurationB\x0e\n" +
-	"\f_description\"\xf3\x01\n" +
+	"\f_description\"\xca\x02\n" +
 	"\x0eTaskDraftInput\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12\x1d\n" +
 	"\asummary\x18\x02 \x01(\tH\x00R\asummary\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1f\n" +
 	"\bcategory\x18\x04 \x01(\tH\x02R\bcategory\x88\x01\x01\x12;\n" +
-	"\aentries\x18\x05 \x03(\v2!.humanworth.content.v1.EntryInputR\aentriesB\n" +
+	"\aentries\x18\x05 \x03(\v2!.humanworth.content.v1.EntryInputR\aentries\x12U\n" +
+	"\x10task_attachments\x18\x06 \x03(\v2*.humanworth.content.v1.TaskAttachmentInputR\x0ftaskAttachmentsB\n" +
 	"\n" +
 	"\b_summaryB\x0e\n" +
 	"\f_descriptionB\v\n" +
@@ -5179,10 +6353,12 @@ const file_humanworth_content_v1_content_proto_rawDesc = "" +
 	"\tmaterials\x18\x05 \x03(\v2\".humanworth.content.v1.MaterialRefR\tmaterials\"p\n" +
 	"\x1fCheckChallengeMaterialsResponse\x12\x18\n" +
 	"\aallowed\x18\x01 \x01(\bR\aallowed\x123\n" +
-	"\x15authorization_version\x18\x02 \x01(\tR\x14authorizationVersion\"L\n" +
+	"\x15authorization_version\x18\x02 \x01(\tR\x14authorizationVersion\"\x9e\x01\n" +
 	"\x1aOpenRunRegistrationRequest\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x17\n" +
-	"\atask_id\x18\x02 \x01(\tR\x06taskId\"3\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12)\n" +
+	"\x10administrator_id\x18\x03 \x01(\tR\x0fadministratorId\x12%\n" +
+	"\x0eexecutor_model\x18\x04 \x01(\tR\rexecutorModel\"3\n" +
 	"\x1bOpenRunRegistrationResponse\x12\x14\n" +
 	"\x05state\x18\x01 \x01(\tR\x05state\"M\n" +
 	"\x1bCloseRunRegistrationRequest\x12\x15\n" +
@@ -5379,7 +6555,97 @@ const file_humanworth_content_v1_content_proto_rawDesc = "" +
 	"\x1fGetVotingCatalogSnapshotRequest\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\"j\n" +
 	" GetVotingCatalogSnapshotResponse\x12F\n" +
-	"\acatalog\x18\x01 \x01(\v2,.humanworth.content.v1.VotingCatalogSnapshotR\acatalog*\x7f\n" +
+	"\acatalog\x18\x01 \x01(\v2,.humanworth.content.v1.VotingCatalogSnapshotR\acatalog\"A\n" +
+	"\fVotingAuthor\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\"e\n" +
+	"\x0eVotingArtifact\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x19\n" +
+	"\basset_id\x18\x02 \x01(\tR\aassetId\x12\x10\n" +
+	"\x03url\x18\x03 \x01(\tR\x03url\x12\x12\n" +
+	"\x04text\x18\x04 \x01(\tR\x04text\"\xd9\x02\n" +
+	"\vVotingEntry\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x12\n" +
+	"\x04side\x18\x03 \x01(\tR\x04side\x12\x14\n" +
+	"\x05title\x18\x04 \x01(\tR\x05title\x12 \n" +
+	"\vdescription\x18\x05 \x01(\tR\vdescription\x12\x16\n" +
+	"\x06source\x18\x06 \x01(\tR\x06source\x12C\n" +
+	"\tartifacts\x18\a \x03(\v2%.humanworth.content.v1.VotingArtifactR\tartifacts\x12;\n" +
+	"\x06author\x18\b \x01(\v2#.humanworth.content.v1.VotingAuthorR\x06author\x12;\n" +
+	"\vapproved_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"approvedAt\"\xf4\x01\n" +
+	"\rVotingCatalog\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12#\n" +
+	"\rtask_revision\x18\x02 \x01(\x03R\ftaskRevision\x12)\n" +
+	"\x10catalog_revision\x18\x03 \x01(\x03R\x0fcatalogRevision\x12\x18\n" +
+	"\avisible\x18\x04 \x01(\bR\avisible\x12<\n" +
+	"\aentries\x18\x05 \x03(\v2\".humanworth.content.v1.VotingEntryR\aentries\x12\"\n" +
+	"\rwork_set_hash\x18\x06 \x01(\tR\vworkSetHash\"\xa3\x01\n" +
+	"\x17GetVotingCatalogRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x18\n" +
+	"\apurpose\x18\x02 \x01(\tR\apurpose\x12>\n" +
+	"\bsnapshot\x18\x03 \x01(\v2\".humanworth.content.v1.SnapshotRefR\bsnapshot\x12\x15\n" +
+	"\x06run_id\x18\x04 \x01(\tR\x05runId\"\x89\x01\n" +
+	"\x18GetVotingCatalogResponse\x12>\n" +
+	"\acatalog\x18\x01 \x01(\v2$.humanworth.content.v1.VotingCatalogR\acatalog\x12-\n" +
+	"\x12preference_allowed\x18\x02 \x01(\bR\x11preferenceAllowed\"w\n" +
+	"\x13TaskAttachmentInput\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12/\n" +
+	"\x11cloud_use_allowed\x18\x02 \x01(\bH\x00R\x0fcloudUseAllowed\x88\x01\x01B\x14\n" +
+	"\x12_cloud_use_allowed\"\xc4\x01\n" +
+	"\rPublicComment\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12;\n" +
+	"\x06author\x18\x03 \x01(\v2#.humanworth.content.v1.PublicAuthorR\x06author\x12\x12\n" +
+	"\x04body\x18\x04 \x01(\tR\x04body\x129\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x85\x01\n" +
+	"\x13ListCommentsRequest\x12'\n" +
+	"\x0factor_assertion\x18\x01 \x01(\tR\x0eactorAssertion\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06cursor\x18\x04 \x01(\tR\x06cursor\"s\n" +
+	"\x14ListCommentsResponse\x12:\n" +
+	"\x05items\x18\x01 \x03(\v2$.humanworth.content.v1.PublicCommentR\x05items\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor\"\x95\x01\n" +
+	"\x14CreateCommentRequest\x12'\n" +
+	"\x0factor_assertion\x18\x01 \x01(\tR\x0eactorAssertion\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x12\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\x12'\n" +
+	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\"W\n" +
+	"\x15CreateCommentResponse\x12>\n" +
+	"\acomment\x18\x01 \x01(\v2$.humanworth.content.v1.PublicCommentR\acomment\"\xb5\x01\n" +
+	"\x1cListDiscoverableTasksRequest\x12\x14\n" +
+	"\x05order\x18\x01 \x01(\tR\x05order\x12\x1f\n" +
+	"\bcategory\x18\x02 \x01(\tH\x00R\bcategory\x88\x01\x01\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06cursor\x18\x04 \x01(\tR\x06cursor\x12\x19\n" +
+	"\x05query\x18\x05 \x01(\tH\x01R\x05query\x88\x01\x01B\v\n" +
+	"\t_categoryB\b\n" +
+	"\x06_query\"y\n" +
+	"\x1dListDiscoverableTasksResponse\x127\n" +
+	"\x05items\x18\x01 \x03(\v2!.humanworth.content.v1.PublicTaskR\x05items\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor\"\\\n" +
+	"\x1cCheckModerationTargetRequest\x12\x1f\n" +
+	"\vtarget_kind\x18\x01 \x01(\tR\n" +
+	"targetKind\x12\x1b\n" +
+	"\ttarget_id\x18\x02 \x01(\tR\btargetId\"R\n" +
+	"\x1dCheckModerationTargetResponse\x12\x18\n" +
+	"\avisible\x18\x01 \x01(\bR\avisible\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\"u\n" +
+	"\x14ApplyTakedownRequest\x12\x1f\n" +
+	"\vdecision_id\x18\x01 \x01(\tR\n" +
+	"decisionId\x12\x1f\n" +
+	"\vtarget_kind\x18\x02 \x01(\tR\n" +
+	"targetKind\x12\x1b\n" +
+	"\ttarget_id\x18\x03 \x01(\tR\btargetId\"Q\n" +
+	"\x15ApplyTakedownResponse\x12\x1f\n" +
+	"\vdecision_id\x18\x01 \x01(\tR\n" +
+	"decisionId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId*\x7f\n" +
 	"\x11ReviewedTaskState\x12#\n" +
 	"\x1fREVIEWED_TASK_STATE_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dREVIEWED_TASK_STATE_PUBLISHED\x10\x01\x12\"\n" +
@@ -5391,9 +6657,15 @@ const file_humanworth_content_v1_content_proto_rawDesc = "" +
 	"\rReviewOutcome\x12\x1e\n" +
 	"\x1aREVIEW_OUTCOME_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16REVIEW_OUTCOME_APPROVE\x10\x01\x12\x19\n" +
-	"\x15REVIEW_OUTCOME_REJECT\x10\x022\x9f\x1b\n" +
+	"\x15REVIEW_OUTCOME_REJECT\x10\x022\xdf \n" +
 	"\x0eContentService\x12\x8b\x01\n" +
-	"\x18GetVotingCatalogSnapshot\x126.humanworth.content.v1.GetVotingCatalogSnapshotRequest\x1a7.humanworth.content.v1.GetVotingCatalogSnapshotResponse\x12X\n" +
+	"\x18GetVotingCatalogSnapshot\x126.humanworth.content.v1.GetVotingCatalogSnapshotRequest\x1a7.humanworth.content.v1.GetVotingCatalogSnapshotResponse\x12g\n" +
+	"\fListComments\x12*.humanworth.content.v1.ListCommentsRequest\x1a+.humanworth.content.v1.ListCommentsResponse\x12j\n" +
+	"\rCreateComment\x12+.humanworth.content.v1.CreateCommentRequest\x1a,.humanworth.content.v1.CreateCommentResponse\x12\x82\x01\n" +
+	"\x15ListDiscoverableTasks\x123.humanworth.content.v1.ListDiscoverableTasksRequest\x1a4.humanworth.content.v1.ListDiscoverableTasksResponse\x12\x82\x01\n" +
+	"\x15CheckModerationTarget\x123.humanworth.content.v1.CheckModerationTargetRequest\x1a4.humanworth.content.v1.CheckModerationTargetResponse\x12j\n" +
+	"\rApplyTakedown\x12+.humanworth.content.v1.ApplyTakedownRequest\x1a,.humanworth.content.v1.ApplyTakedownResponse\x12s\n" +
+	"\x10GetVotingCatalog\x12..humanworth.content.v1.GetVotingCatalogRequest\x1a/.humanworth.content.v1.GetVotingCatalogResponse\x12X\n" +
 	"\aGetTask\x12%.humanworth.content.v1.GetTaskRequest\x1a&.humanworth.content.v1.GetTaskResponse\x12|\n" +
 	"\x13ListApprovedEntries\x121.humanworth.content.v1.ListApprovedEntriesRequest\x1a2.humanworth.content.v1.ListApprovedEntriesResponse\x12\x82\x01\n" +
 	"\x15SubmitAdditionalEntry\x123.humanworth.content.v1.SubmitAdditionalEntryRequest\x1a4.humanworth.content.v1.SubmitAdditionalEntryResponse\x12\x7f\n" +
@@ -5434,7 +6706,7 @@ func file_humanworth_content_v1_content_proto_rawDescGZIP() []byte {
 }
 
 var file_humanworth_content_v1_content_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_humanworth_content_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 77)
+var file_humanworth_content_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 95)
 var file_humanworth_content_v1_content_proto_goTypes = []any{
 	(ReviewedTaskState)(0),                      // 0: humanworth.content.v1.ReviewedTaskState
 	(ReviewedEntryState)(0),                     // 1: humanworth.content.v1.ReviewedEntryState
@@ -5516,136 +6788,178 @@ var file_humanworth_content_v1_content_proto_goTypes = []any{
 	(*VotingCatalogSnapshot)(nil),               // 77: humanworth.content.v1.VotingCatalogSnapshot
 	(*GetVotingCatalogSnapshotRequest)(nil),     // 78: humanworth.content.v1.GetVotingCatalogSnapshotRequest
 	(*GetVotingCatalogSnapshotResponse)(nil),    // 79: humanworth.content.v1.GetVotingCatalogSnapshotResponse
-	(*timestamppb.Timestamp)(nil),               // 80: google.protobuf.Timestamp
-	(*v1.Asset)(nil),                            // 81: humanworth.asset.v1.Asset
-	(*structpb.Struct)(nil),                     // 82: google.protobuf.Struct
-	(*v1.PublicAssetReference)(nil),             // 83: humanworth.asset.v1.PublicAssetReference
+	(*VotingAuthor)(nil),                        // 80: humanworth.content.v1.VotingAuthor
+	(*VotingArtifact)(nil),                      // 81: humanworth.content.v1.VotingArtifact
+	(*VotingEntry)(nil),                         // 82: humanworth.content.v1.VotingEntry
+	(*VotingCatalog)(nil),                       // 83: humanworth.content.v1.VotingCatalog
+	(*GetVotingCatalogRequest)(nil),             // 84: humanworth.content.v1.GetVotingCatalogRequest
+	(*GetVotingCatalogResponse)(nil),            // 85: humanworth.content.v1.GetVotingCatalogResponse
+	(*TaskAttachmentInput)(nil),                 // 86: humanworth.content.v1.TaskAttachmentInput
+	(*PublicComment)(nil),                       // 87: humanworth.content.v1.PublicComment
+	(*ListCommentsRequest)(nil),                 // 88: humanworth.content.v1.ListCommentsRequest
+	(*ListCommentsResponse)(nil),                // 89: humanworth.content.v1.ListCommentsResponse
+	(*CreateCommentRequest)(nil),                // 90: humanworth.content.v1.CreateCommentRequest
+	(*CreateCommentResponse)(nil),               // 91: humanworth.content.v1.CreateCommentResponse
+	(*ListDiscoverableTasksRequest)(nil),        // 92: humanworth.content.v1.ListDiscoverableTasksRequest
+	(*ListDiscoverableTasksResponse)(nil),       // 93: humanworth.content.v1.ListDiscoverableTasksResponse
+	(*CheckModerationTargetRequest)(nil),        // 94: humanworth.content.v1.CheckModerationTargetRequest
+	(*CheckModerationTargetResponse)(nil),       // 95: humanworth.content.v1.CheckModerationTargetResponse
+	(*ApplyTakedownRequest)(nil),                // 96: humanworth.content.v1.ApplyTakedownRequest
+	(*ApplyTakedownResponse)(nil),               // 97: humanworth.content.v1.ApplyTakedownResponse
+	(*timestamppb.Timestamp)(nil),               // 98: google.protobuf.Timestamp
+	(*v1.Asset)(nil),                            // 99: humanworth.asset.v1.Asset
+	(*structpb.Struct)(nil),                     // 100: google.protobuf.Struct
+	(*v1.PublicAssetReference)(nil),             // 101: humanworth.asset.v1.PublicAssetReference
 }
 var file_humanworth_content_v1_content_proto_depIdxs = []int32{
-	3,  // 0: humanworth.content.v1.PublicTask.author:type_name -> humanworth.content.v1.PublicAuthor
-	80, // 1: humanworth.content.v1.PublicTask.published_at:type_name -> google.protobuf.Timestamp
-	81, // 2: humanworth.content.v1.PublicTask.task_attachments:type_name -> humanworth.asset.v1.Asset
-	10, // 3: humanworth.content.v1.ApprovedEntry.artifacts:type_name -> humanworth.content.v1.ArtifactInput
-	3,  // 4: humanworth.content.v1.ApprovedEntry.author:type_name -> humanworth.content.v1.PublicAuthor
-	80, // 5: humanworth.content.v1.ApprovedEntry.approved_at:type_name -> google.protobuf.Timestamp
-	4,  // 6: humanworth.content.v1.GetTaskResponse.task:type_name -> humanworth.content.v1.PublicTask
-	5,  // 7: humanworth.content.v1.ListApprovedEntriesResponse.items:type_name -> humanworth.content.v1.ApprovedEntry
-	82, // 8: humanworth.content.v1.AgentConfigurationInput.parameters:type_name -> google.protobuf.Struct
-	10, // 9: humanworth.content.v1.EntryInput.artifacts:type_name -> humanworth.content.v1.ArtifactInput
-	11, // 10: humanworth.content.v1.EntryInput.permissions:type_name -> humanworth.content.v1.PermissionsInput
-	12, // 11: humanworth.content.v1.EntryInput.agent_configuration:type_name -> humanworth.content.v1.AgentConfigurationInput
-	13, // 12: humanworth.content.v1.TaskDraftInput.entries:type_name -> humanworth.content.v1.EntryInput
-	14, // 13: humanworth.content.v1.TaskSubmission.content:type_name -> humanworth.content.v1.TaskDraftInput
-	14, // 14: humanworth.content.v1.CreateTaskDraftRequest.content:type_name -> humanworth.content.v1.TaskDraftInput
-	15, // 15: humanworth.content.v1.CreateTaskDraftResponse.submission:type_name -> humanworth.content.v1.TaskSubmission
-	15, // 16: humanworth.content.v1.GetMyTaskSubmissionResponse.submission:type_name -> humanworth.content.v1.TaskSubmission
-	15, // 17: humanworth.content.v1.ListMySubmissionsResponse.items:type_name -> humanworth.content.v1.TaskSubmission
-	14, // 18: humanworth.content.v1.ReplaceTaskDraftRequest.content:type_name -> humanworth.content.v1.TaskDraftInput
-	15, // 19: humanworth.content.v1.ReplaceTaskDraftResponse.submission:type_name -> humanworth.content.v1.TaskSubmission
-	81, // 20: humanworth.content.v1.Artifact.file:type_name -> humanworth.asset.v1.Asset
-	24, // 21: humanworth.content.v1.Work.artifacts:type_name -> humanworth.content.v1.Artifact
-	81, // 22: humanworth.content.v1.TaskAttachment.asset:type_name -> humanworth.asset.v1.Asset
-	26, // 23: humanworth.content.v1.TaskDescription.attachments:type_name -> humanworth.content.v1.TaskAttachment
-	80, // 24: humanworth.content.v1.SnapshotRef.comment_cutoff:type_name -> google.protobuf.Timestamp
-	29, // 25: humanworth.content.v1.GetChallengeTaskDescriptionRequest.snapshot:type_name -> humanworth.content.v1.SnapshotRef
-	27, // 26: humanworth.content.v1.GetChallengeTaskDescriptionResponse.task:type_name -> humanworth.content.v1.TaskDescription
-	29, // 27: humanworth.content.v1.ListChallengeWorksRequest.snapshot:type_name -> humanworth.content.v1.SnapshotRef
-	25, // 28: humanworth.content.v1.ListChallengeWorksResponse.works:type_name -> humanworth.content.v1.Work
-	29, // 29: humanworth.content.v1.ListChallengeCommentsRequest.snapshot:type_name -> humanworth.content.v1.SnapshotRef
-	28, // 30: humanworth.content.v1.ListChallengeCommentsResponse.comments:type_name -> humanworth.content.v1.Comment
-	80, // 31: humanworth.content.v1.ListChallengeCommentsResponse.cutoff_at:type_name -> google.protobuf.Timestamp
-	29, // 32: humanworth.content.v1.CheckChallengeMaterialsRequest.snapshot:type_name -> humanworth.content.v1.SnapshotRef
-	36, // 33: humanworth.content.v1.CheckChallengeMaterialsRequest.materials:type_name -> humanworth.content.v1.MaterialRef
-	25, // 34: humanworth.content.v1.RegisterChallengeCandidateRequest.work:type_name -> humanworth.content.v1.Work
-	43, // 35: humanworth.content.v1.RegisterChallengeCandidateResponse.receipt:type_name -> humanworth.content.v1.RegistrationReceipt
-	43, // 36: humanworth.content.v1.GetChallengeRegistrationResponse.receipt:type_name -> humanworth.content.v1.RegistrationReceipt
-	1,  // 37: humanworth.content.v1.EntryAssetReview.state:type_name -> humanworth.content.v1.ReviewedEntryState
-	0,  // 38: humanworth.content.v1.ApplyAssetReviewRequest.task_state:type_name -> humanworth.content.v1.ReviewedTaskState
-	48, // 39: humanworth.content.v1.ApplyAssetReviewRequest.entry_review:type_name -> humanworth.content.v1.EntryAssetReview
-	1,  // 40: humanworth.content.v1.ReviewedEntry.state:type_name -> humanworth.content.v1.ReviewedEntryState
-	50, // 41: humanworth.content.v1.ApplyAssetReviewResponse.entries:type_name -> humanworth.content.v1.ReviewedEntry
-	83, // 42: humanworth.content.v1.CheckAssetAccessRequest.reference:type_name -> humanworth.asset.v1.PublicAssetReference
-	15, // 43: humanworth.content.v1.ReviewSnapshot.submission:type_name -> humanworth.content.v1.TaskSubmission
-	80, // 44: humanworth.content.v1.ReviewSnapshot.created_at:type_name -> google.protobuf.Timestamp
-	15, // 45: humanworth.content.v1.RequestTaskReviewResponse.submission:type_name -> humanworth.content.v1.TaskSubmission
-	54, // 46: humanworth.content.v1.GetReviewSnapshotResponse.snapshot:type_name -> humanworth.content.v1.ReviewSnapshot
-	2,  // 47: humanworth.content.v1.ApplyReviewDecisionRequest.outcome:type_name -> humanworth.content.v1.ReviewOutcome
-	50, // 48: humanworth.content.v1.ApplyReviewDecisionResponse.entries:type_name -> humanworth.content.v1.ReviewedEntry
-	13, // 49: humanworth.content.v1.EntrySubmission.content:type_name -> humanworth.content.v1.EntryInput
-	80, // 50: humanworth.content.v1.EntrySubmission.created_at:type_name -> google.protobuf.Timestamp
-	80, // 51: humanworth.content.v1.EntrySubmission.updated_at:type_name -> google.protobuf.Timestamp
-	80, // 52: humanworth.content.v1.EntrySubmission.approved_at:type_name -> google.protobuf.Timestamp
-	13, // 53: humanworth.content.v1.SubmitAdditionalEntryRequest.content:type_name -> humanworth.content.v1.EntryInput
-	63, // 54: humanworth.content.v1.SubmitAdditionalEntryResponse.submission:type_name -> humanworth.content.v1.EntrySubmission
-	63, // 55: humanworth.content.v1.GetMyEntrySubmissionResponse.submission:type_name -> humanworth.content.v1.EntrySubmission
-	13, // 56: humanworth.content.v1.ResubmitRejectedEntryRequest.content:type_name -> humanworth.content.v1.EntryInput
-	63, // 57: humanworth.content.v1.ResubmitRejectedEntryResponse.submission:type_name -> humanworth.content.v1.EntrySubmission
-	63, // 58: humanworth.content.v1.ListMyEntrySubmissionsResponse.items:type_name -> humanworth.content.v1.EntrySubmission
-	63, // 59: humanworth.content.v1.EntryReviewSnapshot.submission:type_name -> humanworth.content.v1.EntrySubmission
-	80, // 60: humanworth.content.v1.EntryReviewSnapshot.created_at:type_name -> google.protobuf.Timestamp
-	72, // 61: humanworth.content.v1.GetEntryReviewSnapshotResponse.snapshot:type_name -> humanworth.content.v1.EntryReviewSnapshot
-	2,  // 62: humanworth.content.v1.ApplyEntryReviewDecisionRequest.outcome:type_name -> humanworth.content.v1.ReviewOutcome
-	5,  // 63: humanworth.content.v1.VotingCatalogSnapshot.entries:type_name -> humanworth.content.v1.ApprovedEntry
-	77, // 64: humanworth.content.v1.GetVotingCatalogSnapshotResponse.catalog:type_name -> humanworth.content.v1.VotingCatalogSnapshot
-	78, // 65: humanworth.content.v1.ContentService.GetVotingCatalogSnapshot:input_type -> humanworth.content.v1.GetVotingCatalogSnapshotRequest
-	6,  // 66: humanworth.content.v1.ContentService.GetTask:input_type -> humanworth.content.v1.GetTaskRequest
-	8,  // 67: humanworth.content.v1.ContentService.ListApprovedEntries:input_type -> humanworth.content.v1.ListApprovedEntriesRequest
-	64, // 68: humanworth.content.v1.ContentService.SubmitAdditionalEntry:input_type -> humanworth.content.v1.SubmitAdditionalEntryRequest
-	66, // 69: humanworth.content.v1.ContentService.GetMyEntrySubmission:input_type -> humanworth.content.v1.GetMyEntrySubmissionRequest
-	68, // 70: humanworth.content.v1.ContentService.ResubmitRejectedEntry:input_type -> humanworth.content.v1.ResubmitRejectedEntryRequest
-	70, // 71: humanworth.content.v1.ContentService.ListMyEntrySubmissions:input_type -> humanworth.content.v1.ListMyEntrySubmissionsRequest
-	73, // 72: humanworth.content.v1.ContentService.GetEntryReviewSnapshot:input_type -> humanworth.content.v1.GetEntryReviewSnapshotRequest
-	75, // 73: humanworth.content.v1.ContentService.ApplyEntryReviewDecision:input_type -> humanworth.content.v1.ApplyEntryReviewDecisionRequest
-	16, // 74: humanworth.content.v1.ContentService.CreateTaskDraft:input_type -> humanworth.content.v1.CreateTaskDraftRequest
-	18, // 75: humanworth.content.v1.ContentService.GetMyTaskSubmission:input_type -> humanworth.content.v1.GetMyTaskSubmissionRequest
-	20, // 76: humanworth.content.v1.ContentService.ListMySubmissions:input_type -> humanworth.content.v1.ListMySubmissionsRequest
-	22, // 77: humanworth.content.v1.ContentService.ReplaceTaskDraft:input_type -> humanworth.content.v1.ReplaceTaskDraftRequest
-	55, // 78: humanworth.content.v1.ContentService.RequestTaskReview:input_type -> humanworth.content.v1.RequestTaskReviewRequest
-	57, // 79: humanworth.content.v1.ContentService.GetReviewSnapshot:input_type -> humanworth.content.v1.GetReviewSnapshotRequest
-	59, // 80: humanworth.content.v1.ContentService.ApplyReviewDecision:input_type -> humanworth.content.v1.ApplyReviewDecisionRequest
-	61, // 81: humanworth.content.v1.ContentService.CheckReviewAssetAccess:input_type -> humanworth.content.v1.CheckReviewAssetAccessRequest
-	52, // 82: humanworth.content.v1.ContentService.CheckAssetAccess:input_type -> humanworth.content.v1.CheckAssetAccessRequest
-	49, // 83: humanworth.content.v1.ContentService.ApplyAssetReview:input_type -> humanworth.content.v1.ApplyAssetReviewRequest
-	30, // 84: humanworth.content.v1.ContentService.GetChallengeTaskDescription:input_type -> humanworth.content.v1.GetChallengeTaskDescriptionRequest
-	32, // 85: humanworth.content.v1.ContentService.ListChallengeWorks:input_type -> humanworth.content.v1.ListChallengeWorksRequest
-	34, // 86: humanworth.content.v1.ContentService.ListChallengeComments:input_type -> humanworth.content.v1.ListChallengeCommentsRequest
-	37, // 87: humanworth.content.v1.ContentService.CheckChallengeMaterials:input_type -> humanworth.content.v1.CheckChallengeMaterialsRequest
-	39, // 88: humanworth.content.v1.ContentService.OpenRunRegistration:input_type -> humanworth.content.v1.OpenRunRegistrationRequest
-	41, // 89: humanworth.content.v1.ContentService.CloseRunRegistration:input_type -> humanworth.content.v1.CloseRunRegistrationRequest
-	44, // 90: humanworth.content.v1.ContentService.RegisterChallengeCandidate:input_type -> humanworth.content.v1.RegisterChallengeCandidateRequest
-	46, // 91: humanworth.content.v1.ContentService.GetChallengeRegistration:input_type -> humanworth.content.v1.GetChallengeRegistrationRequest
-	79, // 92: humanworth.content.v1.ContentService.GetVotingCatalogSnapshot:output_type -> humanworth.content.v1.GetVotingCatalogSnapshotResponse
-	7,  // 93: humanworth.content.v1.ContentService.GetTask:output_type -> humanworth.content.v1.GetTaskResponse
-	9,  // 94: humanworth.content.v1.ContentService.ListApprovedEntries:output_type -> humanworth.content.v1.ListApprovedEntriesResponse
-	65, // 95: humanworth.content.v1.ContentService.SubmitAdditionalEntry:output_type -> humanworth.content.v1.SubmitAdditionalEntryResponse
-	67, // 96: humanworth.content.v1.ContentService.GetMyEntrySubmission:output_type -> humanworth.content.v1.GetMyEntrySubmissionResponse
-	69, // 97: humanworth.content.v1.ContentService.ResubmitRejectedEntry:output_type -> humanworth.content.v1.ResubmitRejectedEntryResponse
-	71, // 98: humanworth.content.v1.ContentService.ListMyEntrySubmissions:output_type -> humanworth.content.v1.ListMyEntrySubmissionsResponse
-	74, // 99: humanworth.content.v1.ContentService.GetEntryReviewSnapshot:output_type -> humanworth.content.v1.GetEntryReviewSnapshotResponse
-	76, // 100: humanworth.content.v1.ContentService.ApplyEntryReviewDecision:output_type -> humanworth.content.v1.ApplyEntryReviewDecisionResponse
-	17, // 101: humanworth.content.v1.ContentService.CreateTaskDraft:output_type -> humanworth.content.v1.CreateTaskDraftResponse
-	19, // 102: humanworth.content.v1.ContentService.GetMyTaskSubmission:output_type -> humanworth.content.v1.GetMyTaskSubmissionResponse
-	21, // 103: humanworth.content.v1.ContentService.ListMySubmissions:output_type -> humanworth.content.v1.ListMySubmissionsResponse
-	23, // 104: humanworth.content.v1.ContentService.ReplaceTaskDraft:output_type -> humanworth.content.v1.ReplaceTaskDraftResponse
-	56, // 105: humanworth.content.v1.ContentService.RequestTaskReview:output_type -> humanworth.content.v1.RequestTaskReviewResponse
-	58, // 106: humanworth.content.v1.ContentService.GetReviewSnapshot:output_type -> humanworth.content.v1.GetReviewSnapshotResponse
-	60, // 107: humanworth.content.v1.ContentService.ApplyReviewDecision:output_type -> humanworth.content.v1.ApplyReviewDecisionResponse
-	62, // 108: humanworth.content.v1.ContentService.CheckReviewAssetAccess:output_type -> humanworth.content.v1.CheckReviewAssetAccessResponse
-	53, // 109: humanworth.content.v1.ContentService.CheckAssetAccess:output_type -> humanworth.content.v1.CheckAssetAccessResponse
-	51, // 110: humanworth.content.v1.ContentService.ApplyAssetReview:output_type -> humanworth.content.v1.ApplyAssetReviewResponse
-	31, // 111: humanworth.content.v1.ContentService.GetChallengeTaskDescription:output_type -> humanworth.content.v1.GetChallengeTaskDescriptionResponse
-	33, // 112: humanworth.content.v1.ContentService.ListChallengeWorks:output_type -> humanworth.content.v1.ListChallengeWorksResponse
-	35, // 113: humanworth.content.v1.ContentService.ListChallengeComments:output_type -> humanworth.content.v1.ListChallengeCommentsResponse
-	38, // 114: humanworth.content.v1.ContentService.CheckChallengeMaterials:output_type -> humanworth.content.v1.CheckChallengeMaterialsResponse
-	40, // 115: humanworth.content.v1.ContentService.OpenRunRegistration:output_type -> humanworth.content.v1.OpenRunRegistrationResponse
-	42, // 116: humanworth.content.v1.ContentService.CloseRunRegistration:output_type -> humanworth.content.v1.CloseRunRegistrationResponse
-	45, // 117: humanworth.content.v1.ContentService.RegisterChallengeCandidate:output_type -> humanworth.content.v1.RegisterChallengeCandidateResponse
-	47, // 118: humanworth.content.v1.ContentService.GetChallengeRegistration:output_type -> humanworth.content.v1.GetChallengeRegistrationResponse
-	92, // [92:119] is the sub-list for method output_type
-	65, // [65:92] is the sub-list for method input_type
-	65, // [65:65] is the sub-list for extension type_name
-	65, // [65:65] is the sub-list for extension extendee
-	0,  // [0:65] is the sub-list for field type_name
+	3,   // 0: humanworth.content.v1.PublicTask.author:type_name -> humanworth.content.v1.PublicAuthor
+	98,  // 1: humanworth.content.v1.PublicTask.published_at:type_name -> google.protobuf.Timestamp
+	99,  // 2: humanworth.content.v1.PublicTask.task_attachments:type_name -> humanworth.asset.v1.Asset
+	10,  // 3: humanworth.content.v1.ApprovedEntry.artifacts:type_name -> humanworth.content.v1.ArtifactInput
+	3,   // 4: humanworth.content.v1.ApprovedEntry.author:type_name -> humanworth.content.v1.PublicAuthor
+	98,  // 5: humanworth.content.v1.ApprovedEntry.approved_at:type_name -> google.protobuf.Timestamp
+	4,   // 6: humanworth.content.v1.GetTaskResponse.task:type_name -> humanworth.content.v1.PublicTask
+	5,   // 7: humanworth.content.v1.ListApprovedEntriesResponse.items:type_name -> humanworth.content.v1.ApprovedEntry
+	100, // 8: humanworth.content.v1.AgentConfigurationInput.parameters:type_name -> google.protobuf.Struct
+	10,  // 9: humanworth.content.v1.EntryInput.artifacts:type_name -> humanworth.content.v1.ArtifactInput
+	11,  // 10: humanworth.content.v1.EntryInput.permissions:type_name -> humanworth.content.v1.PermissionsInput
+	12,  // 11: humanworth.content.v1.EntryInput.agent_configuration:type_name -> humanworth.content.v1.AgentConfigurationInput
+	13,  // 12: humanworth.content.v1.TaskDraftInput.entries:type_name -> humanworth.content.v1.EntryInput
+	86,  // 13: humanworth.content.v1.TaskDraftInput.task_attachments:type_name -> humanworth.content.v1.TaskAttachmentInput
+	14,  // 14: humanworth.content.v1.TaskSubmission.content:type_name -> humanworth.content.v1.TaskDraftInput
+	14,  // 15: humanworth.content.v1.CreateTaskDraftRequest.content:type_name -> humanworth.content.v1.TaskDraftInput
+	15,  // 16: humanworth.content.v1.CreateTaskDraftResponse.submission:type_name -> humanworth.content.v1.TaskSubmission
+	15,  // 17: humanworth.content.v1.GetMyTaskSubmissionResponse.submission:type_name -> humanworth.content.v1.TaskSubmission
+	15,  // 18: humanworth.content.v1.ListMySubmissionsResponse.items:type_name -> humanworth.content.v1.TaskSubmission
+	14,  // 19: humanworth.content.v1.ReplaceTaskDraftRequest.content:type_name -> humanworth.content.v1.TaskDraftInput
+	15,  // 20: humanworth.content.v1.ReplaceTaskDraftResponse.submission:type_name -> humanworth.content.v1.TaskSubmission
+	99,  // 21: humanworth.content.v1.Artifact.file:type_name -> humanworth.asset.v1.Asset
+	24,  // 22: humanworth.content.v1.Work.artifacts:type_name -> humanworth.content.v1.Artifact
+	99,  // 23: humanworth.content.v1.TaskAttachment.asset:type_name -> humanworth.asset.v1.Asset
+	26,  // 24: humanworth.content.v1.TaskDescription.attachments:type_name -> humanworth.content.v1.TaskAttachment
+	98,  // 25: humanworth.content.v1.SnapshotRef.comment_cutoff:type_name -> google.protobuf.Timestamp
+	29,  // 26: humanworth.content.v1.GetChallengeTaskDescriptionRequest.snapshot:type_name -> humanworth.content.v1.SnapshotRef
+	27,  // 27: humanworth.content.v1.GetChallengeTaskDescriptionResponse.task:type_name -> humanworth.content.v1.TaskDescription
+	29,  // 28: humanworth.content.v1.ListChallengeWorksRequest.snapshot:type_name -> humanworth.content.v1.SnapshotRef
+	25,  // 29: humanworth.content.v1.ListChallengeWorksResponse.works:type_name -> humanworth.content.v1.Work
+	29,  // 30: humanworth.content.v1.ListChallengeCommentsRequest.snapshot:type_name -> humanworth.content.v1.SnapshotRef
+	28,  // 31: humanworth.content.v1.ListChallengeCommentsResponse.comments:type_name -> humanworth.content.v1.Comment
+	98,  // 32: humanworth.content.v1.ListChallengeCommentsResponse.cutoff_at:type_name -> google.protobuf.Timestamp
+	29,  // 33: humanworth.content.v1.CheckChallengeMaterialsRequest.snapshot:type_name -> humanworth.content.v1.SnapshotRef
+	36,  // 34: humanworth.content.v1.CheckChallengeMaterialsRequest.materials:type_name -> humanworth.content.v1.MaterialRef
+	25,  // 35: humanworth.content.v1.RegisterChallengeCandidateRequest.work:type_name -> humanworth.content.v1.Work
+	43,  // 36: humanworth.content.v1.RegisterChallengeCandidateResponse.receipt:type_name -> humanworth.content.v1.RegistrationReceipt
+	43,  // 37: humanworth.content.v1.GetChallengeRegistrationResponse.receipt:type_name -> humanworth.content.v1.RegistrationReceipt
+	1,   // 38: humanworth.content.v1.EntryAssetReview.state:type_name -> humanworth.content.v1.ReviewedEntryState
+	0,   // 39: humanworth.content.v1.ApplyAssetReviewRequest.task_state:type_name -> humanworth.content.v1.ReviewedTaskState
+	48,  // 40: humanworth.content.v1.ApplyAssetReviewRequest.entry_review:type_name -> humanworth.content.v1.EntryAssetReview
+	1,   // 41: humanworth.content.v1.ReviewedEntry.state:type_name -> humanworth.content.v1.ReviewedEntryState
+	50,  // 42: humanworth.content.v1.ApplyAssetReviewResponse.entries:type_name -> humanworth.content.v1.ReviewedEntry
+	101, // 43: humanworth.content.v1.CheckAssetAccessRequest.reference:type_name -> humanworth.asset.v1.PublicAssetReference
+	15,  // 44: humanworth.content.v1.ReviewSnapshot.submission:type_name -> humanworth.content.v1.TaskSubmission
+	98,  // 45: humanworth.content.v1.ReviewSnapshot.created_at:type_name -> google.protobuf.Timestamp
+	15,  // 46: humanworth.content.v1.RequestTaskReviewResponse.submission:type_name -> humanworth.content.v1.TaskSubmission
+	54,  // 47: humanworth.content.v1.GetReviewSnapshotResponse.snapshot:type_name -> humanworth.content.v1.ReviewSnapshot
+	2,   // 48: humanworth.content.v1.ApplyReviewDecisionRequest.outcome:type_name -> humanworth.content.v1.ReviewOutcome
+	50,  // 49: humanworth.content.v1.ApplyReviewDecisionResponse.entries:type_name -> humanworth.content.v1.ReviewedEntry
+	13,  // 50: humanworth.content.v1.EntrySubmission.content:type_name -> humanworth.content.v1.EntryInput
+	98,  // 51: humanworth.content.v1.EntrySubmission.created_at:type_name -> google.protobuf.Timestamp
+	98,  // 52: humanworth.content.v1.EntrySubmission.updated_at:type_name -> google.protobuf.Timestamp
+	98,  // 53: humanworth.content.v1.EntrySubmission.approved_at:type_name -> google.protobuf.Timestamp
+	13,  // 54: humanworth.content.v1.SubmitAdditionalEntryRequest.content:type_name -> humanworth.content.v1.EntryInput
+	63,  // 55: humanworth.content.v1.SubmitAdditionalEntryResponse.submission:type_name -> humanworth.content.v1.EntrySubmission
+	63,  // 56: humanworth.content.v1.GetMyEntrySubmissionResponse.submission:type_name -> humanworth.content.v1.EntrySubmission
+	13,  // 57: humanworth.content.v1.ResubmitRejectedEntryRequest.content:type_name -> humanworth.content.v1.EntryInput
+	63,  // 58: humanworth.content.v1.ResubmitRejectedEntryResponse.submission:type_name -> humanworth.content.v1.EntrySubmission
+	63,  // 59: humanworth.content.v1.ListMyEntrySubmissionsResponse.items:type_name -> humanworth.content.v1.EntrySubmission
+	63,  // 60: humanworth.content.v1.EntryReviewSnapshot.submission:type_name -> humanworth.content.v1.EntrySubmission
+	98,  // 61: humanworth.content.v1.EntryReviewSnapshot.created_at:type_name -> google.protobuf.Timestamp
+	72,  // 62: humanworth.content.v1.GetEntryReviewSnapshotResponse.snapshot:type_name -> humanworth.content.v1.EntryReviewSnapshot
+	2,   // 63: humanworth.content.v1.ApplyEntryReviewDecisionRequest.outcome:type_name -> humanworth.content.v1.ReviewOutcome
+	5,   // 64: humanworth.content.v1.VotingCatalogSnapshot.entries:type_name -> humanworth.content.v1.ApprovedEntry
+	77,  // 65: humanworth.content.v1.GetVotingCatalogSnapshotResponse.catalog:type_name -> humanworth.content.v1.VotingCatalogSnapshot
+	81,  // 66: humanworth.content.v1.VotingEntry.artifacts:type_name -> humanworth.content.v1.VotingArtifact
+	80,  // 67: humanworth.content.v1.VotingEntry.author:type_name -> humanworth.content.v1.VotingAuthor
+	98,  // 68: humanworth.content.v1.VotingEntry.approved_at:type_name -> google.protobuf.Timestamp
+	82,  // 69: humanworth.content.v1.VotingCatalog.entries:type_name -> humanworth.content.v1.VotingEntry
+	29,  // 70: humanworth.content.v1.GetVotingCatalogRequest.snapshot:type_name -> humanworth.content.v1.SnapshotRef
+	83,  // 71: humanworth.content.v1.GetVotingCatalogResponse.catalog:type_name -> humanworth.content.v1.VotingCatalog
+	3,   // 72: humanworth.content.v1.PublicComment.author:type_name -> humanworth.content.v1.PublicAuthor
+	98,  // 73: humanworth.content.v1.PublicComment.created_at:type_name -> google.protobuf.Timestamp
+	87,  // 74: humanworth.content.v1.ListCommentsResponse.items:type_name -> humanworth.content.v1.PublicComment
+	87,  // 75: humanworth.content.v1.CreateCommentResponse.comment:type_name -> humanworth.content.v1.PublicComment
+	4,   // 76: humanworth.content.v1.ListDiscoverableTasksResponse.items:type_name -> humanworth.content.v1.PublicTask
+	78,  // 77: humanworth.content.v1.ContentService.GetVotingCatalogSnapshot:input_type -> humanworth.content.v1.GetVotingCatalogSnapshotRequest
+	88,  // 78: humanworth.content.v1.ContentService.ListComments:input_type -> humanworth.content.v1.ListCommentsRequest
+	90,  // 79: humanworth.content.v1.ContentService.CreateComment:input_type -> humanworth.content.v1.CreateCommentRequest
+	92,  // 80: humanworth.content.v1.ContentService.ListDiscoverableTasks:input_type -> humanworth.content.v1.ListDiscoverableTasksRequest
+	94,  // 81: humanworth.content.v1.ContentService.CheckModerationTarget:input_type -> humanworth.content.v1.CheckModerationTargetRequest
+	96,  // 82: humanworth.content.v1.ContentService.ApplyTakedown:input_type -> humanworth.content.v1.ApplyTakedownRequest
+	84,  // 83: humanworth.content.v1.ContentService.GetVotingCatalog:input_type -> humanworth.content.v1.GetVotingCatalogRequest
+	6,   // 84: humanworth.content.v1.ContentService.GetTask:input_type -> humanworth.content.v1.GetTaskRequest
+	8,   // 85: humanworth.content.v1.ContentService.ListApprovedEntries:input_type -> humanworth.content.v1.ListApprovedEntriesRequest
+	64,  // 86: humanworth.content.v1.ContentService.SubmitAdditionalEntry:input_type -> humanworth.content.v1.SubmitAdditionalEntryRequest
+	66,  // 87: humanworth.content.v1.ContentService.GetMyEntrySubmission:input_type -> humanworth.content.v1.GetMyEntrySubmissionRequest
+	68,  // 88: humanworth.content.v1.ContentService.ResubmitRejectedEntry:input_type -> humanworth.content.v1.ResubmitRejectedEntryRequest
+	70,  // 89: humanworth.content.v1.ContentService.ListMyEntrySubmissions:input_type -> humanworth.content.v1.ListMyEntrySubmissionsRequest
+	73,  // 90: humanworth.content.v1.ContentService.GetEntryReviewSnapshot:input_type -> humanworth.content.v1.GetEntryReviewSnapshotRequest
+	75,  // 91: humanworth.content.v1.ContentService.ApplyEntryReviewDecision:input_type -> humanworth.content.v1.ApplyEntryReviewDecisionRequest
+	16,  // 92: humanworth.content.v1.ContentService.CreateTaskDraft:input_type -> humanworth.content.v1.CreateTaskDraftRequest
+	18,  // 93: humanworth.content.v1.ContentService.GetMyTaskSubmission:input_type -> humanworth.content.v1.GetMyTaskSubmissionRequest
+	20,  // 94: humanworth.content.v1.ContentService.ListMySubmissions:input_type -> humanworth.content.v1.ListMySubmissionsRequest
+	22,  // 95: humanworth.content.v1.ContentService.ReplaceTaskDraft:input_type -> humanworth.content.v1.ReplaceTaskDraftRequest
+	55,  // 96: humanworth.content.v1.ContentService.RequestTaskReview:input_type -> humanworth.content.v1.RequestTaskReviewRequest
+	57,  // 97: humanworth.content.v1.ContentService.GetReviewSnapshot:input_type -> humanworth.content.v1.GetReviewSnapshotRequest
+	59,  // 98: humanworth.content.v1.ContentService.ApplyReviewDecision:input_type -> humanworth.content.v1.ApplyReviewDecisionRequest
+	61,  // 99: humanworth.content.v1.ContentService.CheckReviewAssetAccess:input_type -> humanworth.content.v1.CheckReviewAssetAccessRequest
+	52,  // 100: humanworth.content.v1.ContentService.CheckAssetAccess:input_type -> humanworth.content.v1.CheckAssetAccessRequest
+	49,  // 101: humanworth.content.v1.ContentService.ApplyAssetReview:input_type -> humanworth.content.v1.ApplyAssetReviewRequest
+	30,  // 102: humanworth.content.v1.ContentService.GetChallengeTaskDescription:input_type -> humanworth.content.v1.GetChallengeTaskDescriptionRequest
+	32,  // 103: humanworth.content.v1.ContentService.ListChallengeWorks:input_type -> humanworth.content.v1.ListChallengeWorksRequest
+	34,  // 104: humanworth.content.v1.ContentService.ListChallengeComments:input_type -> humanworth.content.v1.ListChallengeCommentsRequest
+	37,  // 105: humanworth.content.v1.ContentService.CheckChallengeMaterials:input_type -> humanworth.content.v1.CheckChallengeMaterialsRequest
+	39,  // 106: humanworth.content.v1.ContentService.OpenRunRegistration:input_type -> humanworth.content.v1.OpenRunRegistrationRequest
+	41,  // 107: humanworth.content.v1.ContentService.CloseRunRegistration:input_type -> humanworth.content.v1.CloseRunRegistrationRequest
+	44,  // 108: humanworth.content.v1.ContentService.RegisterChallengeCandidate:input_type -> humanworth.content.v1.RegisterChallengeCandidateRequest
+	46,  // 109: humanworth.content.v1.ContentService.GetChallengeRegistration:input_type -> humanworth.content.v1.GetChallengeRegistrationRequest
+	79,  // 110: humanworth.content.v1.ContentService.GetVotingCatalogSnapshot:output_type -> humanworth.content.v1.GetVotingCatalogSnapshotResponse
+	89,  // 111: humanworth.content.v1.ContentService.ListComments:output_type -> humanworth.content.v1.ListCommentsResponse
+	91,  // 112: humanworth.content.v1.ContentService.CreateComment:output_type -> humanworth.content.v1.CreateCommentResponse
+	93,  // 113: humanworth.content.v1.ContentService.ListDiscoverableTasks:output_type -> humanworth.content.v1.ListDiscoverableTasksResponse
+	95,  // 114: humanworth.content.v1.ContentService.CheckModerationTarget:output_type -> humanworth.content.v1.CheckModerationTargetResponse
+	97,  // 115: humanworth.content.v1.ContentService.ApplyTakedown:output_type -> humanworth.content.v1.ApplyTakedownResponse
+	85,  // 116: humanworth.content.v1.ContentService.GetVotingCatalog:output_type -> humanworth.content.v1.GetVotingCatalogResponse
+	7,   // 117: humanworth.content.v1.ContentService.GetTask:output_type -> humanworth.content.v1.GetTaskResponse
+	9,   // 118: humanworth.content.v1.ContentService.ListApprovedEntries:output_type -> humanworth.content.v1.ListApprovedEntriesResponse
+	65,  // 119: humanworth.content.v1.ContentService.SubmitAdditionalEntry:output_type -> humanworth.content.v1.SubmitAdditionalEntryResponse
+	67,  // 120: humanworth.content.v1.ContentService.GetMyEntrySubmission:output_type -> humanworth.content.v1.GetMyEntrySubmissionResponse
+	69,  // 121: humanworth.content.v1.ContentService.ResubmitRejectedEntry:output_type -> humanworth.content.v1.ResubmitRejectedEntryResponse
+	71,  // 122: humanworth.content.v1.ContentService.ListMyEntrySubmissions:output_type -> humanworth.content.v1.ListMyEntrySubmissionsResponse
+	74,  // 123: humanworth.content.v1.ContentService.GetEntryReviewSnapshot:output_type -> humanworth.content.v1.GetEntryReviewSnapshotResponse
+	76,  // 124: humanworth.content.v1.ContentService.ApplyEntryReviewDecision:output_type -> humanworth.content.v1.ApplyEntryReviewDecisionResponse
+	17,  // 125: humanworth.content.v1.ContentService.CreateTaskDraft:output_type -> humanworth.content.v1.CreateTaskDraftResponse
+	19,  // 126: humanworth.content.v1.ContentService.GetMyTaskSubmission:output_type -> humanworth.content.v1.GetMyTaskSubmissionResponse
+	21,  // 127: humanworth.content.v1.ContentService.ListMySubmissions:output_type -> humanworth.content.v1.ListMySubmissionsResponse
+	23,  // 128: humanworth.content.v1.ContentService.ReplaceTaskDraft:output_type -> humanworth.content.v1.ReplaceTaskDraftResponse
+	56,  // 129: humanworth.content.v1.ContentService.RequestTaskReview:output_type -> humanworth.content.v1.RequestTaskReviewResponse
+	58,  // 130: humanworth.content.v1.ContentService.GetReviewSnapshot:output_type -> humanworth.content.v1.GetReviewSnapshotResponse
+	60,  // 131: humanworth.content.v1.ContentService.ApplyReviewDecision:output_type -> humanworth.content.v1.ApplyReviewDecisionResponse
+	62,  // 132: humanworth.content.v1.ContentService.CheckReviewAssetAccess:output_type -> humanworth.content.v1.CheckReviewAssetAccessResponse
+	53,  // 133: humanworth.content.v1.ContentService.CheckAssetAccess:output_type -> humanworth.content.v1.CheckAssetAccessResponse
+	51,  // 134: humanworth.content.v1.ContentService.ApplyAssetReview:output_type -> humanworth.content.v1.ApplyAssetReviewResponse
+	31,  // 135: humanworth.content.v1.ContentService.GetChallengeTaskDescription:output_type -> humanworth.content.v1.GetChallengeTaskDescriptionResponse
+	33,  // 136: humanworth.content.v1.ContentService.ListChallengeWorks:output_type -> humanworth.content.v1.ListChallengeWorksResponse
+	35,  // 137: humanworth.content.v1.ContentService.ListChallengeComments:output_type -> humanworth.content.v1.ListChallengeCommentsResponse
+	38,  // 138: humanworth.content.v1.ContentService.CheckChallengeMaterials:output_type -> humanworth.content.v1.CheckChallengeMaterialsResponse
+	40,  // 139: humanworth.content.v1.ContentService.OpenRunRegistration:output_type -> humanworth.content.v1.OpenRunRegistrationResponse
+	42,  // 140: humanworth.content.v1.ContentService.CloseRunRegistration:output_type -> humanworth.content.v1.CloseRunRegistrationResponse
+	45,  // 141: humanworth.content.v1.ContentService.RegisterChallengeCandidate:output_type -> humanworth.content.v1.RegisterChallengeCandidateResponse
+	47,  // 142: humanworth.content.v1.ContentService.GetChallengeRegistration:output_type -> humanworth.content.v1.GetChallengeRegistrationResponse
+	110, // [110:143] is the sub-list for method output_type
+	77,  // [77:110] is the sub-list for method input_type
+	77,  // [77:77] is the sub-list for extension type_name
+	77,  // [77:77] is the sub-list for extension extendee
+	0,   // [0:77] is the sub-list for field type_name
 }
 
 func init() { file_humanworth_content_v1_content_proto_init() }
@@ -5675,13 +6989,15 @@ func file_humanworth_content_v1_content_proto_init() {
 	file_humanworth_content_v1_content_proto_msgTypes[60].OneofWrappers = []any{}
 	file_humanworth_content_v1_content_proto_msgTypes[67].OneofWrappers = []any{}
 	file_humanworth_content_v1_content_proto_msgTypes[72].OneofWrappers = []any{}
+	file_humanworth_content_v1_content_proto_msgTypes[83].OneofWrappers = []any{}
+	file_humanworth_content_v1_content_proto_msgTypes[89].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_humanworth_content_v1_content_proto_rawDesc), len(file_humanworth_content_v1_content_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   77,
+			NumMessages:   95,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

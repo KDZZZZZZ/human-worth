@@ -148,6 +148,21 @@ class ModuleDeployTest(unittest.TestCase):
             changed=copy.deepcopy(objects);mutation(changed)
             with self.assertRaises(ValueError): services.validate_manifest(changed,'content',image)
 
+    def test_worker_token_projection_cannot_expand_to_other_credentials(self):
+        image='human-worth/challenge-worker:'+'a'*40
+        pod={'serviceAccountName':'challenge-worker','automountServiceAccountToken':False,'containers':[{'name':'challenge-worker','image':image,'startupProbe':{'test':True},'livenessProbe':{'test':True},'readinessProbe':{'test':True}}],
+             'volumes':[{'name':'api','projected':{'defaultMode':0o440,'sources':[{'serviceAccountToken':{'path':'token','expirationSeconds':3600}},{'configMap':{'name':'kube-root-ca.crt','items':[{'key':'ca.crt','path':'ca.crt'}]}}]}}]}
+        objects=[{'kind':kind,'metadata':{'name':'challenge-worker','namespace':'human-worth'}} for kind in ['Deployment','ServiceAccount','NetworkPolicy']]
+        objects[0]['spec']={'replicas':2,'selector':{'matchLabels':{'app':'challenge-worker'}},'template':{'metadata':{'labels':{'app':'challenge-worker'}},'spec':pod}}
+        objects[1]['automountServiceAccountToken']=False
+        objects[2]['spec']={'podSelector':{'matchLabels':{'app':'challenge-worker'}}}
+        services.validate_manifest(objects,'challenge-worker',image)
+        for mutate in [lambda p:p.update(automountServiceAccountToken=True),
+                       lambda p:p['volumes'][0]['projected']['sources'].append({'secret':{'name':'identity-runtime'}}),
+                       lambda p:p['volumes'][0]['projected']['sources'][0]['serviceAccountToken'].update(expirationSeconds=86400)]:
+            changed=copy.deepcopy(objects);mutate(changed[0]['spec']['template']['spec'])
+            with self.assertRaises(ValueError):services.validate_manifest(changed,'challenge-worker',image)
+
     def test_public_gate_rejects_missing_content_wrong_revision_and_transient_failure(self):
         sha='a'*40
         ready=(200, {'status':'ok','service':'human-worth','revision':sha})
@@ -179,6 +194,8 @@ class ModuleDeployTest(unittest.TestCase):
                 return ready
             if path.endswith('/voting-eligibility'):
                 return 401, {'code':'unauthenticated'}
+            if path in ('/api/tasks','/api/board'):return 200, {}
+            if path.endswith('/ballot'):return 401, {'code':'unauthenticated'}
             if path.startswith('/api/tasks/'):
                 return 404, {'code':'asset_not_found' if path.endswith('/content') else 'task_not_found'}
             return 401, {'code':'unauthenticated'}
@@ -224,7 +241,8 @@ class ModuleDeployTest(unittest.TestCase):
         self.assertEqual(actual['asset']['dependencies'], ['identity'])
         self.assertIn('asset',actual['content']['dependencies'])
         self.assertIn('asset',actual['gateway']['dependencies'])
-        self.assertNotIn('challenge',actual)
+        self.assertIn('challenge',actual)
+        self.assertIn('challenge-worker',actual)
         self.assertIn({'path':'/api/me/assets','status':401,'code':'unauthenticated'},actual['asset']['checks'])
         manifest=(ROOT/'ops/lab/asset.yaml').read_text()
         for value in ['replicas: 2', 'ASSET_STORAGE_BACKEND, value: s3', 'secretName: asset-runtime',
@@ -273,10 +291,16 @@ class ModuleDeployTest(unittest.TestCase):
             callers.append(pod['metadata']['labels']['app'])
             self.assertTrue(pod['spec']['securityContext']['runAsNonRoot'])
             self.assertFalse(pod['spec']['automountServiceAccountToken'])
+            if callers[-1] == 'challenge-worker':
+                self.assertEqual(pod['spec']['containers'][0]['env'], [{'name': 'MODEL_TEST_HOST', 'value': 'model.example.test'}])
 
-        with patch.object(check_network, 'run', side_effect=run), patch.object(check_network, 'apply', side_effect=apply), patch.object(check_network, 'kube', return_value=subprocess.CompletedProcess([], 0, stdout='Succeeded')):
+        def kube(*args, **kwargs):
+            output = json.dumps({'data': {'squid.conf': 'acl model_hosts dstdomain model.example.test\n'}}) if 'configmap' in args else 'Succeeded'
+            return subprocess.CompletedProcess(args, 0, stdout=output)
+
+        with patch.object(check_network, 'run', side_effect=run), patch.object(check_network, 'apply', side_effect=apply), patch.object(check_network, 'kube', side_effect=kube):
             check_network.main()
-        self.assertEqual(callers, ['identity', 'content', 'asset', 'moderation', 'voting', 'gateway', 'untrusted'])
+        self.assertEqual(callers, ['identity', 'content', 'asset', 'moderation', 'voting', 'discovery', 'challenge', 'challenge-worker', 'gateway', 'untrusted'])
 
     def test_asset_store_bucket_owner_is_confirmed(self):
         config={'endpoint':'http://asset-store.human-worth.svc.cluster.local:8333',

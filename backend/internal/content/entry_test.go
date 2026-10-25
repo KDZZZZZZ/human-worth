@@ -26,7 +26,7 @@ func entryTestInput(t *testing.T, raw string) *pb.EntryInput {
 	return e
 }
 
-const entryTestHuman = `{"side":"human","title":"work","source":"original","artifacts":[{"kind":"link","url":"https://example.com/work"}],"permissions":{"cloudUse":false}}`
+const entryTestHuman = `{"side":"human","title":"work","source":"original","artifacts":[{"kind":"text","text":"actual work body"},{"kind":"link","url":"https://example.com/work"}],"permissions":{"cloudUse":false}}`
 
 func TestAdditionalEntryValidation(t *testing.T) {
 	input := entryTestInput(t, entryTestHuman)

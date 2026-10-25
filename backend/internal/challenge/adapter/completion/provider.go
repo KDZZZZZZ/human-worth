@@ -30,8 +30,11 @@ type Provider struct {
 }
 
 func LoadProvider(path string) (*Provider, error) {
-	info, err := os.Lstat(path)
-	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 {
+	// Kubernetes projects Secret files through an atomic symlink and fsGroup
+	// may add group-read. Accept that private mount; reject world access and
+	// any group write/execute. Local files should still be 0600.
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0037 != 0 {
 		return nil, errors.New("model configuration must be a private regular file")
 	}
 	f, err := os.Open(path)

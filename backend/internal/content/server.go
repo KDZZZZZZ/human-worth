@@ -48,7 +48,13 @@ func Authorization(ctx context.Context, request any, info *grpc.UnaryServerInfo,
 }
 func contentPeer(ctx context.Context, method string) error {
 	switch method {
-	case pb.ContentService_GetVotingCatalogSnapshot_FullMethodName:
+	case pb.ContentService_GetChallengeTaskDescription_FullMethodName, pb.ContentService_ListChallengeWorks_FullMethodName, pb.ContentService_ListChallengeComments_FullMethodName, pb.ContentService_CheckChallengeMaterials_FullMethodName, pb.ContentService_OpenRunRegistration_FullMethodName, pb.ContentService_CloseRunRegistration_FullMethodName, pb.ContentService_RegisterChallengeCandidate_FullMethodName, pb.ContentService_GetChallengeRegistration_FullMethodName:
+		return requireContentCaller(ctx, "challenge")
+	case pb.ContentService_ListDiscoverableTasks_FullMethodName:
+		return requireContentCaller(ctx, "discovery")
+	case pb.ContentService_CheckModerationTarget_FullMethodName, pb.ContentService_ApplyTakedown_FullMethodName:
+		return requireContentCaller(ctx, "moderation")
+	case pb.ContentService_GetVotingCatalog_FullMethodName, pb.ContentService_GetVotingCatalogSnapshot_FullMethodName:
 		return requireContentCaller(ctx, "voting")
 	case pb.ContentService_CheckAssetAccess_FullMethodName, pb.ContentService_CheckReviewAssetAccess_FullMethodName:
 		return requireContentCaller(ctx, "asset")
@@ -119,6 +125,9 @@ type submissionCursor struct {
 
 func invalid(reason string) error { return status.Error(codes.InvalidArgument, reason) }
 func storage(err error) error {
+	if err == nil {
+		return nil
+	}
 	return platform.DependencyError(err, "content_unavailable")
 }
 
@@ -130,6 +139,16 @@ func validCategory(value string) bool {
 func validate(input *pb.TaskDraftInput) ([]byte, error) {
 	if input == nil || strings.TrimSpace(input.Title) == "" || input.Summary == nil || input.Description == nil || len(input.Entries) > 32 || (input.Category != nil && !validCategory(input.GetCategory())) {
 		return nil, invalid("invalid_draft")
+	}
+	seenAttachments := map[string]bool{}
+	if len(input.TaskAttachments) > 32 {
+		return nil, invalid("too_many_assets")
+	}
+	for _, a := range input.TaskAttachments {
+		if a == nil || a.CloudUseAllowed == nil || !reviewedAssetPattern.MatchString(a.AssetId) || seenAttachments[a.AssetId] {
+			return nil, invalid("invalid_task_attachment")
+		}
+		seenAttachments[a.AssetId] = true
 	}
 	for _, e := range input.Entries {
 		if e == nil || (e.Side != "human" && e.Side != "agent") || strings.TrimSpace(e.Title) == "" || strings.TrimSpace(e.Source) == "" || len(e.Artifacts) == 0 || len(e.Artifacts) > 32 || e.Permissions == nil || e.Permissions.CloudUse == nil {
@@ -144,12 +163,18 @@ func validate(input *pb.TaskDraftInput) ([]byte, error) {
 			}
 			// File references are verified against Asset before persistence.
 			if a.Kind == "file" {
-				if a.AssetId == nil || a.GetAssetId() == "" || a.Url != nil {
+				if a.AssetId == nil || a.GetAssetId() == "" || a.Url != nil || a.Text != nil {
 					return nil, invalid("invalid_artifact")
 				}
 				continue
 			}
-			if a.Kind != "link" || a.Url == nil || a.AssetId != nil {
+			if a.Kind == "text" {
+				if a.Text == nil || strings.TrimSpace(a.GetText()) == "" || a.AssetId != nil || a.Url != nil {
+					return nil, invalid("invalid_artifact")
+				}
+				continue
+			}
+			if a.Kind != "link" || a.Url == nil || a.AssetId != nil || a.Text != nil {
 				return nil, invalid("invalid_artifact")
 			}
 			u, err := url.Parse(a.GetUrl())
@@ -191,6 +216,12 @@ func (s *Server) validateAssets(ctx context.Context, author string, input *pb.Ta
 			}
 		}
 	}
+	for _, a := range input.GetTaskAttachments() {
+		if !seen[a.AssetId] {
+			seen[a.AssetId] = true
+			ids = append(ids, a.AssetId)
+		}
+	}
 	if len(ids) == 0 {
 		return nil
 	}
@@ -207,9 +238,25 @@ func (s *Server) validateAssets(ctx context.Context, author string, input *pb.Ta
 	if len(response.GetAssets()) != len(ids) {
 		return status.Error(codes.FailedPrecondition, "asset_not_ready")
 	}
+	returned := map[string]bool{}
 	for _, asset := range response.GetAssets() {
+		if !seen[asset.GetId()] || returned[asset.GetId()] {
+			return status.Error(codes.FailedPrecondition, "asset_not_ready")
+		}
+		returned[asset.Id] = true
 		if asset.GetOwnerId() != author || asset.GetState() != assetpb.AssetState_ASSET_STATE_READY {
 			return status.Error(codes.FailedPrecondition, "asset_not_ready")
+		}
+	}
+	// Immutable metadata is cached only after a fresh owner/readiness check.
+	// It grants no access: every public or Challenge read still checks references.
+	for _, a := range response.Assets {
+		metadata, e := protojson.Marshal(&assetpb.Asset{Id: a.Id, Filename: a.OriginalFilename, MediaType: a.MediaType, Bytes: a.Bytes, Sha256: a.Sha256})
+		if e != nil {
+			return storage(e)
+		}
+		if _, e = s.DB.Exec(ctx, `INSERT INTO content.asset_descriptors(asset_id,metadata) VALUES($1,$2) ON CONFLICT(asset_id) DO NOTHING`, a.Id, metadata); e != nil {
+			return storage(e)
 		}
 	}
 	return nil

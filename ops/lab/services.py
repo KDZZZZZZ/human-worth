@@ -81,6 +81,13 @@ def validate_manifest(objects, name, image):
         if name == 'identity':
             allowed.add('google-oauth')
         for volume in pod.get('volumes', []):
+            if name == 'challenge-worker' and 'projected' in volume:
+                expected = {'name':'api','projected':{'defaultMode':0o440,'sources':[
+                    {'serviceAccountToken':{'path':'token','expirationSeconds':3600}},
+                    {'configMap':{'name':'kube-root-ca.crt','items':[{'key':'ca.crt','path':'ca.crt'}]}}]}}
+                if volume != expected:
+                    raise ValueError('Worker may project only its bounded Kubernetes token and CA')
+                continue
             if set(volume) - {'name', 'secret', 'emptyDir', 'configMap'} or ('secret' in volume and volume['secret'].get('secretName') not in allowed):
                 raise ValueError('Unapproved module volume')
             if 'configMap' in volume and (name != 'gateway' or volume['configMap'].get('name') != 'release-status'):

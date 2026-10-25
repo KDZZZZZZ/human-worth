@@ -8,4 +8,7 @@ GRANT UPDATE(attempts,lease_token,available_at,delivered_at,blocked) ON moderati
 -- object_kind is supplied only at INSERT; object_id is generated from immutable
 -- task/snapshot identity. No UPDATE grants for either column are needed.
 -- No DDL/DELETE, snapshot/source/created_at rewrite or cross-schema access.
+GRANT SELECT,INSERT ON moderation.actions,moderation.reports TO moderation_runtime;
+GRANT UPDATE(state,applied_at,lease_token,available_at) ON moderation.actions TO moderation_runtime;
+GRANT UPDATE(resolution_action,resolution_reason,resolver_id,action_id,status,resolved_at) ON moderation.reports TO moderation_runtime;
 COMMIT;

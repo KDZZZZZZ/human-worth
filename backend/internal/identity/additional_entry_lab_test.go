@@ -45,7 +45,7 @@ func TestKindAdditionalEntryDeployment(t *testing.T) {
 
 	// Publish a real parent so additional-entry category/visibility are derived
 	// from an immutable, formally approved parent snapshot.
-	draftBody := `{"title":"additional-entry parent","summary":"","description":"frozen","category":"绘画","entries":[{"side":"human","title":"initial human","source":"self","artifacts":[{"kind":"link","url":"https://example.test/initial-human"}],"permissions":{"cloudUse":false}},{"side":"agent","title":"initial agent","source":"model","artifacts":[{"kind":"link","url":"https://example.test/initial-agent"}],"permissions":{"cloudUse":false},"agentConfiguration":{"model":"test"}}]}`
+	draftBody := `{"title":"additional-entry parent","summary":"","description":"frozen","category":"绘画","entries":[{"side":"human","title":"initial human","source":"self","artifacts":[{"kind":"text","text":"original human work"}],"permissions":{"cloudUse":false}},{"side":"agent","title":"initial agent","source":"model","artifacts":[{"kind":"text","text":"original agent work"}],"permissions":{"cloudUse":false},"agentConfiguration":{"model":"test"}}]}`
 	var task struct {
 		ID       string
 		State    string

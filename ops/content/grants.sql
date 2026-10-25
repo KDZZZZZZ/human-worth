@@ -20,4 +20,6 @@ GRANT UPDATE(attempts,lease_token,available_at,delivered_at,blocked) ON content.
 GRANT SELECT,INSERT ON content.voting_catalog_heads,content.voting_catalog_changes TO content_runtime;
 GRANT UPDATE(generation,active_change) ON content.voting_catalog_heads TO content_runtime;
 GRANT UPDATE(stage,result,catalog,attempts,lease_token,available_at,completed_at) ON content.voting_catalog_changes TO content_runtime;
+GRANT SELECT,INSERT ON content.asset_descriptors,content.comments,content.takedown_receipts,content.run_registrations,content.challenge_registrations TO content_runtime;
+GRANT UPDATE(state) ON content.comments,content.run_registrations TO content_runtime;
 COMMIT;

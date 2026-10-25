@@ -63,6 +63,13 @@ func (s *Server) GetTask(ctx context.Context, r *pb.GetTaskRequest) (*pb.GetTask
 		return nil, storage(err)
 	}
 	out.PublishedAt = publicTime(published)
+	attachments, err := taskAttachments(ctx, s.DB, r.TaskId)
+	if err != nil {
+		return nil, err
+	}
+	for _, a := range attachments {
+		out.TaskAttachments = append(out.TaskAttachments, a.Asset)
+	}
 	return &pb.GetTaskResponse{Task: out}, nil
 }
 

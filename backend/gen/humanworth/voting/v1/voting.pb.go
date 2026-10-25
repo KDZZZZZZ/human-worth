@@ -1045,6 +1045,8 @@ type TaskStatistics struct {
 	CatalogRevision int64                  `protobuf:"varint,9,opt,name=catalog_revision,json=catalogRevision,proto3" json:"catalog_revision,omitempty"`
 	Conclusion      string                 `protobuf:"bytes,10,opt,name=conclusion,proto3" json:"conclusion,omitempty"`
 	ComputedAt      *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
+	FlipCount       int64                  `protobuf:"varint,12,opt,name=flip_count,json=flipCount,proto3" json:"flip_count,omitempty"`
+	LastFlipAt      *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=last_flip_at,json=lastFlipAt,proto3" json:"last_flip_at,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1152,6 +1154,20 @@ func (x *TaskStatistics) GetConclusion() string {
 func (x *TaskStatistics) GetComputedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ComputedAt
+	}
+	return nil
+}
+
+func (x *TaskStatistics) GetFlipCount() int64 {
+	if x != nil {
+		return x.FlipCount
+	}
+	return 0
+}
+
+func (x *TaskStatistics) GetLastFlipAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastFlipAt
 	}
 	return nil
 }
@@ -1572,6 +1588,94 @@ func (x *GetCatalogTransitionResponse) GetTransition() *CatalogTransition {
 	return nil
 }
 
+type GetPublicConclusionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskIds       []string               `protobuf:"bytes,1,rep,name=task_ids,json=taskIds,proto3" json:"task_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPublicConclusionsRequest) Reset() {
+	*x = GetPublicConclusionsRequest{}
+	mi := &file_humanworth_voting_v1_voting_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPublicConclusionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPublicConclusionsRequest) ProtoMessage() {}
+
+func (x *GetPublicConclusionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_voting_v1_voting_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPublicConclusionsRequest.ProtoReflect.Descriptor instead.
+func (*GetPublicConclusionsRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_voting_v1_voting_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *GetPublicConclusionsRequest) GetTaskIds() []string {
+	if x != nil {
+		return x.TaskIds
+	}
+	return nil
+}
+
+type GetPublicConclusionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Conclusions   map[string]string      `protobuf:"bytes,1,rep,name=conclusions,proto3" json:"conclusions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPublicConclusionsResponse) Reset() {
+	*x = GetPublicConclusionsResponse{}
+	mi := &file_humanworth_voting_v1_voting_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPublicConclusionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPublicConclusionsResponse) ProtoMessage() {}
+
+func (x *GetPublicConclusionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_voting_v1_voting_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPublicConclusionsResponse.ProtoReflect.Descriptor instead.
+func (*GetPublicConclusionsResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_voting_v1_voting_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *GetPublicConclusionsResponse) GetConclusions() map[string]string {
+	if x != nil {
+		return x.Conclusions
+	}
+	return nil
+}
+
 var File_humanworth_voting_v1_voting_proto protoreflect.FileDescriptor
 
 const file_humanworth_voting_v1_voting_proto_rawDesc = "" +
@@ -1662,7 +1766,7 @@ const file_humanworth_voting_v1_voting_proto_rawDesc = "" +
 	"\x05votes\x18\x03 \x01(\x03R\x05votes\x12\"\n" +
 	"\n" +
 	"vote_share\x18\x04 \x01(\x01H\x00R\tvoteShare\x88\x01\x01B\r\n" +
-	"\v_vote_share\"\xae\x04\n" +
+	"\v_vote_share\"\x8b\x05\n" +
 	"\x0eTaskStatistics\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12I\n" +
 	"\veligibility\x18\x02 \x01(\v2'.humanworth.voting.v1.VotingEligibilityR\veligibility\x12\x1f\n" +
@@ -1682,7 +1786,11 @@ const file_humanworth_voting_v1_voting_proto_rawDesc = "" +
 	" \x01(\tR\n" +
 	"conclusion\x12;\n" +
 	"\vcomputed_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"computedAtB\x13\n" +
+	"computedAt\x12\x1d\n" +
+	"\n" +
+	"flip_count\x18\f \x01(\x03R\tflipCount\x12<\n" +
+	"\flast_flip_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"lastFlipAtB\x13\n" +
 	"\x11_human_vote_shareB\x13\n" +
 	"\x11_agent_vote_share\"b\n" +
 	"\x1aViewTaskStatisticsResponse\x12D\n" +
@@ -1720,8 +1828,16 @@ const file_humanworth_voting_v1_voting_proto_rawDesc = "" +
 	"\x1cGetCatalogTransitionResponse\x12G\n" +
 	"\n" +
 	"transition\x18\x01 \x01(\v2'.humanworth.voting.v1.CatalogTransitionR\n" +
-	"transition2\xf1\b\n" +
+	"transition\"8\n" +
+	"\x1bGetPublicConclusionsRequest\x12\x19\n" +
+	"\btask_ids\x18\x01 \x03(\tR\ataskIds\"\xc5\x01\n" +
+	"\x1cGetPublicConclusionsResponse\x12e\n" +
+	"\vconclusions\x18\x01 \x03(\v2C.humanworth.voting.v1.GetPublicConclusionsResponse.ConclusionsEntryR\vconclusions\x1a>\n" +
+	"\x10ConclusionsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012\xf0\t\n" +
 	"\rVotingService\x12}\n" +
+	"\x14GetPublicConclusions\x121.humanworth.voting.v1.GetPublicConclusionsRequest\x1a2.humanworth.voting.v1.GetPublicConclusionsResponse\x12}\n" +
 	"\x14GetVotingEligibility\x121.humanworth.voting.v1.GetVotingEligibilityRequest\x1a2.humanworth.voting.v1.GetVotingEligibilityResponse\x12\\\n" +
 	"\tGetBallot\x12&.humanworth.voting.v1.GetBallotRequest\x1a'.humanworth.voting.v1.GetBallotResponse\x12Y\n" +
 	"\bCastVote\x12%.humanworth.voting.v1.CastVoteRequest\x1a&.humanworth.voting.v1.CastVoteResponse\x12w\n" +
@@ -1744,7 +1860,7 @@ func file_humanworth_voting_v1_voting_proto_rawDescGZIP() []byte {
 	return file_humanworth_voting_v1_voting_proto_rawDescData
 }
 
-var file_humanworth_voting_v1_voting_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_humanworth_voting_v1_voting_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_humanworth_voting_v1_voting_proto_goTypes = []any{
 	(*HumanPreference)(nil),                      // 0: humanworth.voting.v1.HumanPreference
 	(*GetHumanPreferenceSnapshotRequest)(nil),    // 1: humanworth.voting.v1.GetHumanPreferenceSnapshotRequest
@@ -1771,59 +1887,66 @@ var file_humanworth_voting_v1_voting_proto_goTypes = []any{
 	(*ActivateCatalogSnapshotResponse)(nil),      // 22: humanworth.voting.v1.ActivateCatalogSnapshotResponse
 	(*GetCatalogTransitionRequest)(nil),          // 23: humanworth.voting.v1.GetCatalogTransitionRequest
 	(*GetCatalogTransitionResponse)(nil),         // 24: humanworth.voting.v1.GetCatalogTransitionResponse
-	nil,                                          // 25: humanworth.voting.v1.HumanPreference.CountsByWorkEntry
-	(*v1.SnapshotRef)(nil),                       // 26: humanworth.content.v1.SnapshotRef
-	(*timestamppb.Timestamp)(nil),                // 27: google.protobuf.Timestamp
-	(*v1.ApprovedEntry)(nil),                     // 28: humanworth.content.v1.ApprovedEntry
-	(*v1.VotingCatalogSnapshot)(nil),             // 29: humanworth.content.v1.VotingCatalogSnapshot
+	(*GetPublicConclusionsRequest)(nil),          // 25: humanworth.voting.v1.GetPublicConclusionsRequest
+	(*GetPublicConclusionsResponse)(nil),         // 26: humanworth.voting.v1.GetPublicConclusionsResponse
+	nil,                                          // 27: humanworth.voting.v1.HumanPreference.CountsByWorkEntry
+	nil,                                          // 28: humanworth.voting.v1.GetPublicConclusionsResponse.ConclusionsEntry
+	(*v1.SnapshotRef)(nil),                       // 29: humanworth.content.v1.SnapshotRef
+	(*timestamppb.Timestamp)(nil),                // 30: google.protobuf.Timestamp
+	(*v1.ApprovedEntry)(nil),                     // 31: humanworth.content.v1.ApprovedEntry
+	(*v1.VotingCatalogSnapshot)(nil),             // 32: humanworth.content.v1.VotingCatalogSnapshot
 }
 var file_humanworth_voting_v1_voting_proto_depIdxs = []int32{
-	26, // 0: humanworth.voting.v1.HumanPreference.snapshot:type_name -> humanworth.content.v1.SnapshotRef
-	27, // 1: humanworth.voting.v1.HumanPreference.window_start:type_name -> google.protobuf.Timestamp
-	27, // 2: humanworth.voting.v1.HumanPreference.window_end:type_name -> google.protobuf.Timestamp
-	25, // 3: humanworth.voting.v1.HumanPreference.counts_by_work:type_name -> humanworth.voting.v1.HumanPreference.CountsByWorkEntry
-	27, // 4: humanworth.voting.v1.GetHumanPreferenceSnapshotResponse.valid_until:type_name -> google.protobuf.Timestamp
+	29, // 0: humanworth.voting.v1.HumanPreference.snapshot:type_name -> humanworth.content.v1.SnapshotRef
+	30, // 1: humanworth.voting.v1.HumanPreference.window_start:type_name -> google.protobuf.Timestamp
+	30, // 2: humanworth.voting.v1.HumanPreference.window_end:type_name -> google.protobuf.Timestamp
+	27, // 3: humanworth.voting.v1.HumanPreference.counts_by_work:type_name -> humanworth.voting.v1.HumanPreference.CountsByWorkEntry
+	30, // 4: humanworth.voting.v1.GetHumanPreferenceSnapshotResponse.valid_until:type_name -> google.protobuf.Timestamp
 	0,  // 5: humanworth.voting.v1.GetHumanPreferenceSnapshotResponse.samples:type_name -> humanworth.voting.v1.HumanPreference
-	27, // 6: humanworth.voting.v1.VotingEligibility.closed_at:type_name -> google.protobuf.Timestamp
-	27, // 7: humanworth.voting.v1.Vote.created_at:type_name -> google.protobuf.Timestamp
-	27, // 8: humanworth.voting.v1.Vote.updated_at:type_name -> google.protobuf.Timestamp
-	28, // 9: humanworth.voting.v1.Ballot.entries:type_name -> humanworth.content.v1.ApprovedEntry
+	30, // 6: humanworth.voting.v1.VotingEligibility.closed_at:type_name -> google.protobuf.Timestamp
+	30, // 7: humanworth.voting.v1.Vote.created_at:type_name -> google.protobuf.Timestamp
+	30, // 8: humanworth.voting.v1.Vote.updated_at:type_name -> google.protobuf.Timestamp
+	31, // 9: humanworth.voting.v1.Ballot.entries:type_name -> humanworth.content.v1.ApprovedEntry
 	6,  // 10: humanworth.voting.v1.Ballot.current_vote:type_name -> humanworth.voting.v1.Vote
-	27, // 11: humanworth.voting.v1.Ballot.expires_at:type_name -> google.protobuf.Timestamp
+	30, // 11: humanworth.voting.v1.Ballot.expires_at:type_name -> google.protobuf.Timestamp
 	5,  // 12: humanworth.voting.v1.GetVotingEligibilityResponse.eligibility:type_name -> humanworth.voting.v1.VotingEligibility
 	7,  // 13: humanworth.voting.v1.GetBallotResponse.ballot:type_name -> humanworth.voting.v1.Ballot
 	6,  // 14: humanworth.voting.v1.CastVoteResponse.vote:type_name -> humanworth.voting.v1.Vote
 	5,  // 15: humanworth.voting.v1.TaskStatistics.eligibility:type_name -> humanworth.voting.v1.VotingEligibility
 	15, // 16: humanworth.voting.v1.TaskStatistics.entry_votes:type_name -> humanworth.voting.v1.EntryVoteCount
-	27, // 17: humanworth.voting.v1.TaskStatistics.computed_at:type_name -> google.protobuf.Timestamp
-	16, // 18: humanworth.voting.v1.ViewTaskStatisticsResponse.statistics:type_name -> humanworth.voting.v1.TaskStatistics
-	19, // 19: humanworth.voting.v1.PrepareCatalogChangeResponse.transition:type_name -> humanworth.voting.v1.CatalogTransition
-	29, // 20: humanworth.voting.v1.ActivateCatalogSnapshotRequest.catalog:type_name -> humanworth.content.v1.VotingCatalogSnapshot
-	19, // 21: humanworth.voting.v1.ActivateCatalogSnapshotResponse.transition:type_name -> humanworth.voting.v1.CatalogTransition
-	19, // 22: humanworth.voting.v1.GetCatalogTransitionResponse.transition:type_name -> humanworth.voting.v1.CatalogTransition
-	8,  // 23: humanworth.voting.v1.VotingService.GetVotingEligibility:input_type -> humanworth.voting.v1.GetVotingEligibilityRequest
-	10, // 24: humanworth.voting.v1.VotingService.GetBallot:input_type -> humanworth.voting.v1.GetBallotRequest
-	12, // 25: humanworth.voting.v1.VotingService.CastVote:input_type -> humanworth.voting.v1.CastVoteRequest
-	14, // 26: humanworth.voting.v1.VotingService.ViewTaskStatistics:input_type -> humanworth.voting.v1.ViewTaskStatisticsRequest
-	18, // 27: humanworth.voting.v1.VotingService.PrepareCatalogChange:input_type -> humanworth.voting.v1.PrepareCatalogChangeRequest
-	21, // 28: humanworth.voting.v1.VotingService.ActivateCatalogSnapshot:input_type -> humanworth.voting.v1.ActivateCatalogSnapshotRequest
-	23, // 29: humanworth.voting.v1.VotingService.GetCatalogTransition:input_type -> humanworth.voting.v1.GetCatalogTransitionRequest
-	1,  // 30: humanworth.voting.v1.VotingService.GetHumanPreferenceSnapshot:input_type -> humanworth.voting.v1.GetHumanPreferenceSnapshotRequest
-	3,  // 31: humanworth.voting.v1.VotingService.CheckHumanPreferenceSnapshot:input_type -> humanworth.voting.v1.CheckHumanPreferenceSnapshotRequest
-	9,  // 32: humanworth.voting.v1.VotingService.GetVotingEligibility:output_type -> humanworth.voting.v1.GetVotingEligibilityResponse
-	11, // 33: humanworth.voting.v1.VotingService.GetBallot:output_type -> humanworth.voting.v1.GetBallotResponse
-	13, // 34: humanworth.voting.v1.VotingService.CastVote:output_type -> humanworth.voting.v1.CastVoteResponse
-	17, // 35: humanworth.voting.v1.VotingService.ViewTaskStatistics:output_type -> humanworth.voting.v1.ViewTaskStatisticsResponse
-	20, // 36: humanworth.voting.v1.VotingService.PrepareCatalogChange:output_type -> humanworth.voting.v1.PrepareCatalogChangeResponse
-	22, // 37: humanworth.voting.v1.VotingService.ActivateCatalogSnapshot:output_type -> humanworth.voting.v1.ActivateCatalogSnapshotResponse
-	24, // 38: humanworth.voting.v1.VotingService.GetCatalogTransition:output_type -> humanworth.voting.v1.GetCatalogTransitionResponse
-	2,  // 39: humanworth.voting.v1.VotingService.GetHumanPreferenceSnapshot:output_type -> humanworth.voting.v1.GetHumanPreferenceSnapshotResponse
-	4,  // 40: humanworth.voting.v1.VotingService.CheckHumanPreferenceSnapshot:output_type -> humanworth.voting.v1.CheckHumanPreferenceSnapshotResponse
-	32, // [32:41] is the sub-list for method output_type
-	23, // [23:32] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	30, // 17: humanworth.voting.v1.TaskStatistics.computed_at:type_name -> google.protobuf.Timestamp
+	30, // 18: humanworth.voting.v1.TaskStatistics.last_flip_at:type_name -> google.protobuf.Timestamp
+	16, // 19: humanworth.voting.v1.ViewTaskStatisticsResponse.statistics:type_name -> humanworth.voting.v1.TaskStatistics
+	19, // 20: humanworth.voting.v1.PrepareCatalogChangeResponse.transition:type_name -> humanworth.voting.v1.CatalogTransition
+	32, // 21: humanworth.voting.v1.ActivateCatalogSnapshotRequest.catalog:type_name -> humanworth.content.v1.VotingCatalogSnapshot
+	19, // 22: humanworth.voting.v1.ActivateCatalogSnapshotResponse.transition:type_name -> humanworth.voting.v1.CatalogTransition
+	19, // 23: humanworth.voting.v1.GetCatalogTransitionResponse.transition:type_name -> humanworth.voting.v1.CatalogTransition
+	28, // 24: humanworth.voting.v1.GetPublicConclusionsResponse.conclusions:type_name -> humanworth.voting.v1.GetPublicConclusionsResponse.ConclusionsEntry
+	25, // 25: humanworth.voting.v1.VotingService.GetPublicConclusions:input_type -> humanworth.voting.v1.GetPublicConclusionsRequest
+	8,  // 26: humanworth.voting.v1.VotingService.GetVotingEligibility:input_type -> humanworth.voting.v1.GetVotingEligibilityRequest
+	10, // 27: humanworth.voting.v1.VotingService.GetBallot:input_type -> humanworth.voting.v1.GetBallotRequest
+	12, // 28: humanworth.voting.v1.VotingService.CastVote:input_type -> humanworth.voting.v1.CastVoteRequest
+	14, // 29: humanworth.voting.v1.VotingService.ViewTaskStatistics:input_type -> humanworth.voting.v1.ViewTaskStatisticsRequest
+	18, // 30: humanworth.voting.v1.VotingService.PrepareCatalogChange:input_type -> humanworth.voting.v1.PrepareCatalogChangeRequest
+	21, // 31: humanworth.voting.v1.VotingService.ActivateCatalogSnapshot:input_type -> humanworth.voting.v1.ActivateCatalogSnapshotRequest
+	23, // 32: humanworth.voting.v1.VotingService.GetCatalogTransition:input_type -> humanworth.voting.v1.GetCatalogTransitionRequest
+	1,  // 33: humanworth.voting.v1.VotingService.GetHumanPreferenceSnapshot:input_type -> humanworth.voting.v1.GetHumanPreferenceSnapshotRequest
+	3,  // 34: humanworth.voting.v1.VotingService.CheckHumanPreferenceSnapshot:input_type -> humanworth.voting.v1.CheckHumanPreferenceSnapshotRequest
+	26, // 35: humanworth.voting.v1.VotingService.GetPublicConclusions:output_type -> humanworth.voting.v1.GetPublicConclusionsResponse
+	9,  // 36: humanworth.voting.v1.VotingService.GetVotingEligibility:output_type -> humanworth.voting.v1.GetVotingEligibilityResponse
+	11, // 37: humanworth.voting.v1.VotingService.GetBallot:output_type -> humanworth.voting.v1.GetBallotResponse
+	13, // 38: humanworth.voting.v1.VotingService.CastVote:output_type -> humanworth.voting.v1.CastVoteResponse
+	17, // 39: humanworth.voting.v1.VotingService.ViewTaskStatistics:output_type -> humanworth.voting.v1.ViewTaskStatisticsResponse
+	20, // 40: humanworth.voting.v1.VotingService.PrepareCatalogChange:output_type -> humanworth.voting.v1.PrepareCatalogChangeResponse
+	22, // 41: humanworth.voting.v1.VotingService.ActivateCatalogSnapshot:output_type -> humanworth.voting.v1.ActivateCatalogSnapshotResponse
+	24, // 42: humanworth.voting.v1.VotingService.GetCatalogTransition:output_type -> humanworth.voting.v1.GetCatalogTransitionResponse
+	2,  // 43: humanworth.voting.v1.VotingService.GetHumanPreferenceSnapshot:output_type -> humanworth.voting.v1.GetHumanPreferenceSnapshotResponse
+	4,  // 44: humanworth.voting.v1.VotingService.CheckHumanPreferenceSnapshot:output_type -> humanworth.voting.v1.CheckHumanPreferenceSnapshotResponse
+	35, // [35:45] is the sub-list for method output_type
+	25, // [25:35] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_humanworth_voting_v1_voting_proto_init() }
@@ -1840,7 +1963,7 @@ func file_humanworth_voting_v1_voting_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_humanworth_voting_v1_voting_proto_rawDesc), len(file_humanworth_voting_v1_voting_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   26,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

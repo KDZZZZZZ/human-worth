@@ -172,19 +172,22 @@ func TestVotingCastAndStatisticsCommitOrders(t *testing.T) {
 			}
 			go call(1, second)
 			deadline := time.Now().Add(time.Second)
+			// CastVote now holds the exclusive task gate while it atomically
+			// updates conclusion history. Both commit orders therefore wait at
+			// this outer gate before reaching the unchanged account/task guard.
 			for {
 				var waiting bool
-				must(t, f.identity.db.QueryRow(t.Context(), `SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND application_name='voting-ordered-second' AND wait_event_type='Lock' AND query LIKE '%voting.account_task_guards%')`).Scan(&waiting))
+				must(t, f.identity.db.QueryRow(t.Context(), `SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND application_name='voting-ordered-second' AND wait_event_type='Lock' AND query LIKE '%voting.catalog_gates%')`).Scan(&waiting))
 				if waiting {
 					break
 				}
 				select {
 				case r := <-done:
-					t.Fatalf("second RPC escaped the account/task guard: %+v", r)
+					t.Fatalf("second RPC escaped the task serialization gate: %+v", r)
 				default:
 				}
 				if time.Now().After(deadline) {
-					t.Fatal("second RPC did not wait on the account/task guard")
+					t.Fatal("second RPC did not wait on the task serialization gate")
 				}
 				time.Sleep(5 * time.Millisecond)
 			}

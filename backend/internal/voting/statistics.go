@@ -99,6 +99,14 @@ func (s *Server) ViewTaskStatistics(ctx context.Context, r *pb.ViewTaskStatistic
 			e.VoteShare = &share
 		}
 	}
+	out.Conclusion = conclusion(out.HumanVotes, out.AgentVotes)
+	var lastFlip *time.Time
+	if err = tx.QueryRow(ctx, `SELECT COALESCE((SELECT flip_count FROM voting.conclusions WHERE task_id=$1),0),(SELECT last_flip_at FROM voting.conclusions WHERE task_id=$1)`, c.TaskId).Scan(&out.FlipCount, &lastFlip); err != nil {
+		return nil, storage(err)
+	}
+	if lastFlip != nil {
+		out.LastFlipAt = timestamppb.New(*lastFlip)
+	}
 	return &pb.ViewTaskStatisticsResponse{Statistics: out}, nil
 }
 func (s *Server) closeVoting(ctx context.Context, account string, c *contentpb.VotingCatalogSnapshot) (time.Time, error) {

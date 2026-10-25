@@ -23,6 +23,7 @@ type Clients struct {
 }
 
 var adminMethods = map[string]string{
+	"ListAuditEvents": challenge.ChallengeService_ListAuditEvents_FullMethodName,
 
 	"StartRun":          challenge.ChallengeService_StartRun_FullMethodName,
 	"GetRun":            challenge.ChallengeService_GetRun_FullMethodName,

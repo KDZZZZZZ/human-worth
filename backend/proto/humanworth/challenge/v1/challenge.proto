@@ -11,6 +11,7 @@ option go_package = "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/chal
 
 // ChallengeService 保存状态与权限；worker 只能领取并提交自己当前租约内的工作。
 service ChallengeService {
+  rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
   rpc GetRun(GetRunRequest) returns (GetRunResponse);
   rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
@@ -369,4 +370,23 @@ message SettleModelCallRequest {
 }
 message SettleModelCallResponse {
   string state = 1;
+}
+
+message AuditEvent {
+  string id = 1;
+  string actor_id = 2;
+  string action = 3;
+  string target_id = 4;
+  string outcome = 5;
+  string reason = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+message ListAuditEventsRequest {
+  string actor_assertion = 1;
+  int32 limit = 2;
+  google.protobuf.Timestamp before_time = 3;
+  string before_id = 4;
+}
+message ListAuditEventsResponse {
+  repeated AuditEvent items = 1;
 }

@@ -6,6 +6,7 @@ private, dynamically allocated Gateway NodePort. Never changes the public
 namespace, its fixed NodePort or its secrets.
 """
 import base64
+import argparse
 import hashlib
 import json
 import os
@@ -35,7 +36,7 @@ def objects(raw):
     return result
 
 
-def catalog_upgrade_regression(kube, state, legacy_source, legacy_revision, revision):
+def catalog_upgrade_regression(kube, state, legacy_source, legacy_revision, revision, cluster="lab"):
     """Real v6 Pods -> fenced v7, with real queued/applied bootstrap faults.
 
     The historical reviewed task is an explicit SQL projection fixture. Its
@@ -60,7 +61,7 @@ def catalog_upgrade_regression(kube, state, legacy_source, legacy_revision, revi
         "INSERT INTO content.reviewed_entries(id,task_id,position,state) VALUES('ent_"+'f2'*16+"','"+task+"',0,'approved'),('ent_"+'f3'*16+"','"+task+"',1,'approved');")
     gateway=json.loads(kube('-n','human-worth','get','service','gateway','-o','json',capture=True).stdout)
     port=gateway['spec']['ports'][0]['nodePort']
-    node=subprocess.check_output(['docker','inspect','lab-control-plane','--format','{{(index .NetworkSettings.Networks "kind").IPAddress}}'],text=True).strip()
+    node=subprocess.check_output(['docker','inspect',cluster+'-control-plane','--format','{{(index .NetworkSettings.Networks "kind").IPAddress}}'],text=True).strip()
     until=time.monotonic()+60
     while True:
         reply=subprocess.run(['curl','--silent','--show-error','--max-time','5','--cacert',str(state/'ca.crt'),
@@ -74,7 +75,10 @@ def catalog_upgrade_regression(kube, state, legacy_source, legacy_revision, revi
     def upgrading_kube(*args,**kwargs):
         nonlocal drained,injected
         if args[0]=='apply' and kwargs.get('input'):
-            for obj in objects(kwargs['input']):
+            raw=kwargs['input']
+            if not raw.lstrip().startswith('{'):
+                raw=kube('create','--dry-run=client','--validate=false','-f','-','-o','json',input=raw,capture=True).stdout
+            for obj in objects(raw):
                 if obj['kind']=='Deployment' and obj['metadata']['name'] in ('content','voting') and not drained:
                     raise RuntimeError('New protocol writer started before real v6 Pod drain')
         result=kube(*args,**kwargs)
@@ -124,22 +128,29 @@ def catalog_upgrade_regression(kube, state, legacy_source, legacy_revision, revi
     print('PASS: real a155639 v6 Pods and historical SQL fixture; old Pods deleted before new writers; queued/applied persist and reject v6 rollback; forward bootstrap recovery',flush=True)
 
 
-def main():
-    if shutil.which('kubectl') is None or shutil.which('kind') is None or not infra.KUBECONFIG.is_file():
+def main(cluster='lab', kubeconfig=None):
+    if cluster not in ('lab','human-worth-backend-check'):raise ValueError('Only isolated lab clusters are accepted')
+    config=Path(kubeconfig) if kubeconfig else infra.KUBECONFIG
+    if shutil.which('kubectl') is None or shutil.which('kind') is None or not config.is_file():
         raise RuntimeError('INCONCLUSIVE: kubectl, kind and the isolated lab kubeconfig are required')
     namespace='human-worth-verify-'+secrets.token_hex(4)
-    original=infra.kube
-    repository=app.REPO
+    def original(*args, **kwargs):
+        return infra.run('kubectl','--kubeconfig',str(config),'--context','kind-'+cluster,*args,**kwargs)
+    def run(*args, **kwargs):
+        args=list(args)
+        if args[0]=='kind' and '--name' in args:args[args.index('--name')+1]=cluster
+        return infra.run(*args,**kwargs)
     port=18444
     checks=[check for spec in app.load_services(app.REPO).values() for check in spec['checks']]
 
     def rewrite(value):
-        if isinstance(value, str): return value.replace('.human-worth.svc.cluster.local','.'+namespace+'.svc.cluster.local')
+        if isinstance(value, str):
+            if value=='human-worth':return namespace
+            return value.replace('.human-worth.svc.cluster.local','.'+namespace+'.svc.cluster.local').replace('human-worth-execution',namespace+'-execution').replace('challenge-worker-runtime',namespace+'-worker-runtime')
         if isinstance(value, list): return [rewrite(v) for v in value]
         if not isinstance(value, dict): return value
         value={k:rewrite(v) for k,v in value.items()}
         if value.get('namespace')=='human-worth':value['namespace']=namespace
-        if value.get('kind')=='Namespace':value['metadata']['name']=namespace
         if value.get('kind')=='Service' and value['spec'].get('type')=='NodePort':
             # Keep real Service endpoint selection; do not reuse public 30443.
             for item in value['spec']['ports']:item.pop('nodePort',None)
@@ -147,8 +158,18 @@ def main():
             value['spec']['instances']=1
             value['spec']['postgresql'].pop('synchronous',None)
             value['spec']['storage']['size']='512Mi'
+            if cluster=='human-worth-backend-check':
+                value['spec']['postgresql']['pg_hba']=[v.replace('10.244.0.0/16','10.245.0.0/16') for v in value['spec']['postgresql']['pg_hba']]
         if value.get('kind')=='Secret':
-            value['data']={k:base64.b64encode(rewrite(base64.b64decode(v).decode()).encode()).decode() for k,v in value['data'].items()}
+            data={}
+            for key, encoded in value['data'].items():
+                raw=base64.b64decode(encoded).decode()
+                try:
+                    decoded=json.loads(raw)
+                    raw=json.dumps(rewrite(decoded)) if isinstance(decoded,(dict,list)) else rewrite(raw)
+                except ValueError:raw=rewrite(raw)
+                data[key]=base64.b64encode(raw.encode()).decode()
+            value['data']=data
         return value
 
     def kube(*args,input=None,capture=False):
@@ -175,9 +196,9 @@ def main():
         for path in filter(None,paths):
             if (app.REPO/path).is_file():
                 target=source/path;target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(app.REPO/path,target)
-        legacy_revision=subprocess.check_output(['git','rev-parse','a155639^{commit}'],cwd=repository,text=True).strip()
+        legacy_revision=subprocess.check_output(['git','rev-parse','a155639^{commit}'],cwd=app.REPO,text=True).strip()
         legacy_source=Path(directory)/'v6';legacy_source.mkdir()
-        release.extract_release(subprocess.check_output(['git','archive',legacy_revision],cwd=repository),legacy_source)
+        release.extract_release(subprocess.check_output(['git','archive',legacy_revision],cwd=app.REPO),legacy_source)
         parent=infra.STATE/'egress-parent.json'
         if parent.exists():shutil.copyfile(parent,state/'egress-parent.json')
         curl_options=['--cacert',str(state/'ca.crt'),'--connect-to','worth.oopsbox.cn:443:127.0.0.1:'+str(port)]
@@ -185,16 +206,16 @@ def main():
         print('Disposable namespace: '+namespace,flush=True)
         try:
             kube('apply','--server-side','-f','-',input=(infra.HERE/'namespace.yaml').read_text())
-            with patch.dict(os.environ,{'GOOGLE_OAUTH_FILE':str(oauth)}),patch.object(app,'REPO',source),patch.object(app,'STATE',state),patch.object(release,'STATE',state),patch.object(app,'kube',kube),patch.object(infra,'kube',kube),patch.object(release,'kube',kube),patch.object(object_store,'apply',lambda text:kube('apply','--server-side','-f','-',input=text)),patch.object(object_store,'kube',kube),patch.object(object_store,'STATE',state),patch.object(object_store,'HERE',source/'ops/lab'):
+            with patch.dict(os.environ,{'GOOGLE_OAUTH_FILE':str(oauth)}),patch.object(app,'REPO',source),patch.object(app,'STATE',state),patch.object(release,'STATE',state),patch.object(app,'KUBECONFIG',config),patch.object(app,'run',run),patch.object(app,'kube',kube),patch.object(infra,'kube',kube),patch.object(release,'kube',kube),patch.object(object_store,'apply',lambda text:kube('apply','--server-side','-f','-',input=text)),patch.object(object_store,'kube',kube),patch.object(object_store,'STATE',state),patch.object(object_store,'HERE',source/'ops/lab'):
                 revision=hashlib.sha256((app.source_hash()+(source/'ops/lab/app.py').read_text()).encode()).hexdigest()[:40]
                 modules=app.load_services(source)
                 # app.main reconciles the private Asset store before Asset itself.
-                catalog_upgrade_regression(kube,state,legacy_source,legacy_revision,revision)
+                catalog_upgrade_regression(kube,state,legacy_source,legacy_revision,revision,cluster)
                 node_port=kube('-n',namespace,'get','service','gateway','-o','jsonpath={.spec.ports[0].nodePort}',capture=True).stdout.strip()
-                node_ip=subprocess.check_output(['docker','inspect','lab-control-plane','--format','{{(index .NetworkSettings.Networks "kind").IPAddress}}'],text=True).strip()
+                node_ip=subprocess.check_output(['docker','inspect',cluster+'-control-plane','--format','{{(index .NetworkSettings.Networks "kind").IPAddress}}'],text=True).strip()
                 if not node_ip or not node_port.isdigit():raise RuntimeError('Private validation NodePort unavailable')
                 with open(Path(directory)/'forward.log','w') as log:
-                    forward=subprocess.Popen(['kubectl','--kubeconfig',str(infra.KUBECONFIG),'--context','kind-lab','-n',namespace,'port-forward','--address=127.0.0.1','service/gateway',str(port)+':443'],stdout=log,stderr=log)
+                    forward=subprocess.Popen(['kubectl','--kubeconfig',str(config),'--context','kind-'+cluster,'-n',namespace,'port-forward','--address=127.0.0.1','service/gateway',str(port)+':443'],stdout=log,stderr=log)
                     deadline=time.monotonic()+45
                     while not healthy(revision,checks,curl_options):
                         if forward.poll() is not None or time.monotonic()>=deadline:raise RuntimeError('Isolated gateway did not become healthy')
@@ -207,10 +228,10 @@ def main():
                         if time.monotonic()>=deadline:raise RuntimeError('Completion ConfigMap did not reach the gateway')
                         time.sleep(2)
                     print('PASS: completion marker appears only after all modules pass',flush=True)
-                    env={**os.environ,'HUMAN_WORTH_VERIFY_NAMESPACE':namespace,'HUMAN_WORTH_VERIFY_STATE':str(state),'HUMAN_WORTH_VERIFY_KUBECONFIG':str(infra.KUBECONFIG),'HUMAN_WORTH_VERIFY_PORT':str(port),'HUMAN_WORTH_VERIFY_GATEWAY_ADDRESS':node_ip+':'+node_port}
+                    env={**os.environ,'HUMAN_WORTH_VERIFY_NAMESPACE':namespace,'HUMAN_WORTH_VERIFY_STATE':str(state),'HUMAN_WORTH_VERIFY_KUBECONFIG':str(config),'HUMAN_WORTH_VERIFY_CONTEXT':'kind-'+cluster,'HUMAN_WORTH_VERIFY_PORT':str(port),'HUMAN_WORTH_VERIFY_GATEWAY_ADDRESS':node_ip+':'+node_port}
                     subprocess.run(['go','test','-race','-tags=lab','./internal/identity','-run','^TestKind(Content|Asset|PublicAsset|Moderation|AdditionalEntry|Voting|FileAuthorizationRecovery)Deployment$|^TestKindRecovery','-count=1','-timeout=900s','-v'],cwd=source/'backend',env=env,check=True)
                     import check_network
-                    with patch.object(check_network,'kube',kube):check_network.main()
+                    with patch.object(check_network,'kube',kube),patch.object(check_network,'run',run):check_network.main()
                     previous=release.snapshot()
                     kube('-n','human-worth','patch','deployment','content','--type=json','-p',json.dumps([{'op':'replace','path':'/spec/template/spec/containers/0/image','value':'human-worth/content:missing-validation-image'}]))
                     try:
@@ -219,7 +240,10 @@ def main():
                     else:raise RuntimeError('Broken image unexpectedly rolled out')
                     release.publish_status('0'*40,modules)
                     release.restore(previous,None)
-                    if not healthy(revision,checks,curl_options):raise RuntimeError('Rollback did not recover HTTPS')
+                    # Match the real reconciler: Pod readiness alone does not
+                    # prove every headless gRPC caller has reconnected yet.
+                    with patch.object(release,'health',lambda sha,checks=(),services=():healthy(sha,checks,curl_options,services)):
+                        if not release.wait_health(revision,checks=checks):raise RuntimeError('Rollback did not recover HTTPS')
                     print('PASS: failed rollout restored all module templates and policies',flush=True)
                     # Corrupt only this temporary owner's DSN, then exercise same-SHA retry.
                     saved=json.loads(kube('-n','human-worth','get','secret','content-owner','-o','json',capture=True).stdout)
@@ -238,13 +262,22 @@ def main():
                     print('PASS: failed migration retried successfully with the same image revision',flush=True)
                     # Reconciliation must be idempotent and keep the dependency healthy.
                     app.main(revision=revision)
-                    if not healthy(revision,checks,curl_options):raise RuntimeError('Repeated deployment became unhealthy')
+                    with patch.object(release,'health',lambda sha,checks=(),services=():healthy(sha,checks,curl_options,services)):
+                        if not release.wait_health(revision,checks=checks):raise RuntimeError('Repeated deployment became unhealthy')
                     print('PASS: repeated complete module deployment',flush=True)
         finally:
             if forward is not None:
                 forward.terminate();forward.wait(timeout=10)
             original('delete','namespace',namespace,'--wait=true','--timeout=180s',capture=True)
+            original('delete','namespace',namespace+'-execution','--ignore-not-found','--wait=true','--timeout=180s',capture=True)
+            for kind in ('clusterrolebinding','clusterrole'):
+                original('delete',kind,namespace+'-worker-runtime','--ignore-not-found',capture=True)
             print('Cleaned disposable namespace: '+namespace,flush=True)
 
 
-if __name__=='__main__':main()
+if __name__=='__main__':
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--cluster',default='lab',choices=['lab','human-worth-backend-check'])
+    parser.add_argument('--kubeconfig')
+    args=parser.parse_args()
+    main(args.cluster,args.kubeconfig)

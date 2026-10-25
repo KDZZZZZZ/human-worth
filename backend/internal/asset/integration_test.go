@@ -634,8 +634,14 @@ func (f *assetIntegration) testChallengeGRPCScope(t *testing.T) {
 	}
 	content, stopContent := f.start("content")
 	defer stopContent()
-	if _, err = content.GetAsset(t.Context(), &pb.GetAssetRequest{AssetId: asset.Id, Access: access}); status.Code(err) != codes.PermissionDenied {
-		t.Errorf("content challenge call status=%s", status.Code(err))
+	if _, err = content.GetAsset(t.Context(), &pb.GetAssetRequest{AssetId: asset.Id, Access: access}); err != nil {
+		t.Errorf("content registration metadata status=%s", status.Code(err))
+	}
+	if _, err = readChallenge(t, content, &pb.ReadAssetRequest{AssetId: asset.Id, Access: access}); status.Code(err) != codes.PermissionDenied {
+		t.Errorf("content must not read challenge bytes: %s", status.Code(err))
+	}
+	if _, err = content.GetAsset(t.Context(), &pb.GetAssetRequest{AssetId: asset.Id, Access: &pb.Access{TaskId: access.TaskId, RunId: access.RunId, AttemptId: "wrong_attempt_0001", Purpose: "output"}}); status.Code(err) != codes.NotFound {
+		t.Errorf("content metadata crossed attempt: %s", status.Code(err))
 	}
 	if _, err = content.CheckAssetOwnership(t.Context(), &pb.CheckAssetOwnershipRequest{ActorAssertion: "alice", AssetIds: []string{asset.Id}}); status.Code(err) != codes.FailedPrecondition {
 		t.Errorf("content ownership method status=%s, want FailedPrecondition rather than service rejection", status.Code(err))

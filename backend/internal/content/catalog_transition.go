@@ -43,6 +43,8 @@ func (s *Server) localCatalog(ctx context.Context, method string, request proto.
 		return s.localApplyEntryReviewDecision(ctx, request.(*pb.ApplyEntryReviewDecisionRequest))
 	case "legacy":
 		return s.localApplyAssetReview(ctx, request.(*pb.ApplyAssetReviewRequest))
+	case "takedown":
+		return s.localApplyTakedown(ctx, request.(*pb.ApplyTakedownRequest))
 	case "bootstrap":
 		return &pb.ApplyAssetReviewResponse{}, nil
 	}
@@ -50,6 +52,8 @@ func (s *Server) localCatalog(ctx context.Context, method string, request proto.
 }
 func catalogMessage(method string) proto.Message {
 	switch method {
+	case "takedown":
+		return &pb.ApplyTakedownRequest{}
 	case "task":
 		return &pb.ApplyReviewDecisionRequest{}
 	case "entry":
@@ -60,6 +64,8 @@ func catalogMessage(method string) proto.Message {
 }
 func catalogResult(method string) proto.Message {
 	switch method {
+	case "takedown":
+		return &pb.ApplyTakedownResponse{}
 	case "task":
 		return &pb.ApplyReviewDecisionResponse{}
 	case "entry":
@@ -123,6 +129,8 @@ func (s *Server) changeCatalog(ctx context.Context, method, task string, request
 	hash := sha256.Sum256(wire)
 	var decision, receiptTable string
 	switch r := request.(type) {
+	case *pb.ApplyTakedownRequest:
+		decision = r.DecisionId
 	case *pb.ApplyReviewDecisionRequest:
 		decision = r.DecisionId
 		receiptTable = "content.review_decision_receipts"

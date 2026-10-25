@@ -1,15 +1,15 @@
 openapi: 3.1.1
 info:
   title: Human Worth API
-  version: 0.7.0-draft
+  version: 0.8.0
   summary: 人类价值平台的 HTTP 接口契约草案
   description: |
-    行为依据为 docs/prd.md 中的可信场景 S1～S6、人类修订 H1～H11，以及 AGENTS.md 的发帖、评论、投票目标。
-    健康检查与 Identity 的登录、会话和 MCP 凭据管理已在 worth.oopsbox.cn 上线；真人 Google 登录已由用户确认，部署状态见 x-deployment-status。
+    行为依据为 docs/prd.md 中的可信场景 S1～S6、人类修订 H1～H12，以及 AGENTS.md 的发帖、评论、投票目标。
+    健康检查与 Identity 的登录、会话和 MCP 凭据管理已在 worth.oopsbox.cn 上线；真人 Google 登录已由用户确认，部署状态见 x-deployment-status。requires_backend_0_8_0 表示该接口依赖本契约版本的九模块部署，不能仅凭文档判定现网就绪。
 
-    Content 的四个本人草稿操作已在 worth.oopsbox.cn 上线；当前分支同时实现了 Asset 私有文件链路，但尚未发布或部署。
-    本人投稿分页列表已发布；Asset 私有列表和上传接口仅本地实现；其余未实现的业务 operation 仍为 planned。implemented 不等于已部署，具体运行状态见 docs/deployment.md。
-    Challenge 管理接口已本地实现并通过有状态依赖 fake 联调，尚未发布。implemented 不代表真实依赖或执行沙箱已验收，具体状态见 docs/deployment.md。
+    本版本实现 Identity、Asset、Content、Moderation、Voting、Discovery、Challenge、challenge-worker 与 gateway。
+    基础投票自 dev 1fe4d3f 起提供；0.8.0 增加发现、评论举报、MCP 协议、结论历史与 Challenge 依赖闭环。实际部署版本以 /api/health 为准。
+    已通过真实数据库、mTLS、文件链路及 gVisor P/R/E 完整流程验证；真实模型协议另行验证。验收范围与部署状态见 docs/backend-completion.md。
 
     路径、字段、状态枚举、认证载体和分页等具体选择属于 Agent Self-Claimed，详见 docs/references.md。
 
@@ -35,21 +35,21 @@ info:
     Google 正式回调须使用预先注册的 HTTPS 域名，不能使用现有公网 IP 地址；Client Secret 仅保存在服务端。
     首次有效 Google 登录创建普通账号，再次登录复用稳定账号；不按邮箱自动合并账号或授予管理员。
     MCP token 通过本人网站会话创建、列出和撤销；管理员授予使用受限维护 Job，不暴露公开授予接口。
-    具体业务算法、文件限额及后续服务通信仍待实现阶段补全。
+    推荐、热度、结论与样本划分的当前技术选择见 docs/backend-completion.md，不代表人类指定的固定产品参数。
 externalDocs:
   description: 产品需求与可信场景
   url: https://github.com/KDZZZZZZ/human-worth/blob/dev/docs/prd.md
 servers:
   - url: /
-    description: 同源部署；planned 接口尚不可调用，带凭据的业务请求必须使用 HTTPS
+    description: 同源部署；能力取决于 /api/health 标识的版本与模块，带凭据的业务请求必须使用 HTTPS
 security:
   - WebSession: []
     CsrfToken: []
 x-contract-authority: Agent Self-Claimed
 x-mcp:
   description: |
-    以下仅为本地 MCP 工具到 HTTP 操作的映射提案，不是 MCP 的 JSON-RPC 或传输协议定义。
-    仅暴露下列三个工具；不要从本文件自动暴露全部 operation。
+    通过 POST /api/mcp 提供无状态 Streamable HTTP；支持 2026-07-28 及 2025-03-26/06-18/11-25。
+    仅暴露下列五个工具；不要从本文件自动暴露全部 operation。
     工具注解是提示，服务端仍须执行账号、用途和权限检查。
   tools:
     list_tasks:
@@ -59,12 +59,19 @@ x-mcp:
       operationId: getTask
       readOnlyHint: true
       description: 仅公开任务内容；作品可通过公开读取接口加载，禁止隐式拉取统计。
+    list_entries:
+      operationId: listApprovedEntries
+      readOnlyHint: true
+    list_comments:
+      operationId: listComments
+      readOnlyHint: true
     view_task_statistics:
       operationId: accessTaskStatistics
       readOnlyHint: false
       destructiveHint: true
       description: 客户端须先说明永久失去该题投票权，再以明确确认为参数调用；不提交选票。
 tags:
+  - {name: MCP, description: 公开内容读取与明确确认的统计访问}
   - {name: Health, description: 已实现的基础服务}
   - {name: Authentication, description: Google 登录、回调和退出网站会话；已实现，公网发布状态见部署文档}
   - {name: Account, description: 当前会话和本人投稿}
@@ -76,6 +83,29 @@ tags:
   - {name: Administration, description: 管理员审核、下架与审计}
   - {name: Challenges, description: 管理员云端挑战}
 paths:
+  /api/mcp:
+    post:
+      operationId: mcpRequest
+      tags: [MCP]
+      summary: MCP Streamable HTTP 内容读取与显式统计访问
+      description: 支持 2026-07-28 与 2025-03-26/06-18/11-25，无会话；仅 Bearer MCP 凭据。普通读取不影响投票资格；view_task_statistics 必须明确确认永久关闭该题投票资格。没有投稿、投票或云端控制工具。
+      x-implementation-status: implemented
+      x-deployment-status: requires_backend_0_8_0
+      security: [{McpToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, required: [jsonrpc, method], properties: {jsonrpc: {const: '2.0'}, id: {type: [string, integer]}, method: {type: string}, params: {type: object}}}
+      responses:
+        '200': {description: JSON-RPC 结果或工具错误}
+        '202': {description: 已接受通知，无响应体}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: 未实现的 JSON-RPC 方法}
+        '406': {description: Accept 必须同时支持 application/json 与 text/event-stream}
+        '415': {description: Content-Type 必须为 application/json}
   /api/health:
     get:
       tags: [Health]
@@ -363,12 +393,13 @@ paths:
       operationId: listTasks
       summary: 分页浏览公开任务
       description: |
-        首页默认 recommended；看板排行榜使用 hot，按热度降序排列，同热度按任务 ID 升序。
+        首页默认 recommended，按发布时间及任务 ID 降序；看板 hot 按最近七天的独立评论账号数加过审作品数降序，再按发布时间和 ID 降序。
         游标绑定排序、筛选及列表快照，持续滚动不重复同一任务；快照内已下架内容即时过滤。
         不返回具体得票或得票占比，不因读取改变资格。heat 是不可反推出具体票数的排序分值。
-        q 仅检索允许公开的任务文本，不检索私有投稿或统计。
+        q 对公开标题、摘要和描述做不区分大小写的字面子串检索（最多 200 字符）；不检索私有投稿或统计。
       x-scenarios: [S1, S5, S6]
-      x-implementation-status: planned
+      x-implementation-status: implemented-local
+      x-deployment-status: requires_backend_0_8_0
       security: [{}, {WebSession: []}, {McpToken: []}]
       parameters:
         - {$ref: '#/components/parameters/Cursor'}
@@ -395,7 +426,7 @@ paths:
       summary: 保存新任务草稿
       description: |
         可缺少一方或双方作品，不进入公开查询或审核，不启动云端挑战。作者仅由会话确定，不接受 authorId/state。
-        本阶段仅保存文本和 HTTP(S) 外链，不抓取或执行链接；file 材料返回 409 asset_service_not_ready。
+        支持 text 作品正文、已完成上传的 file 与补充 link；独立任务附件通过 taskAttachments 提交。新作品送审要求至少一项 text/file 实际内容；外链不自动抓取或执行。
         必须携带 Idempotency-Key。同账号同键、相同规范化内容重试返回原任务的当前快照（201），不回滚后续编辑；同键不同内容返回 409。
         不同账号键空间隔离。键随草稿持久保存，不因超时、进程重启或会话更新失效。
         HTTP 请求体上限 16384 字节，规范化 content 上限 12000 字节；最多 32 件初始作品，每件最多 32 个交付物。
@@ -431,8 +462,8 @@ paths:
         只读已批准冻结快照；草稿、待审、驳回和下架统一404 task_not_found。只允许无query请求。
         匿名、有效网站会话及MCP读取凭据可用；携带无效/撤销凭据返回401，不降级匿名；混合或重复凭据400，空会话401。
         不返回统计，不调用Voting、不写资格；不依赖Moderation在线。必要依赖不可用503，超时504 deadline_exceeded，取消503 request_cancelled；不缓存放行。
-        author.id取自不可变作者ID，displayName暂无可靠投影为null；heat未实现为null；旧publishedAt未知为null。
-        taskAttachments当前模型未支持独立任务附件，因此为[]，不从作品文件推导。此处nullable字段是原planned草案的显式调整，调用方需处理null。
+        author.id取自不可变作者ID，displayName暂无可靠投影为null；详情 heat 为null，发现流返回技术热度；旧publishedAt未知为null。
+        taskAttachments 返回独立任务附件的公开文件描述，不从作品文件推导；没有附件时为[]。调用方须处理nullable字段。
       x-scenarios: [S1, S3, S5, S6]
       x-implementation-status: implemented
       x-deployment-status: unpublished
@@ -519,7 +550,7 @@ paths:
       summary: 找回本人的任务草稿、投稿与审核结果
       description: |
         只返回当前网站会话账号本人的完整投稿；管理员也不能读取他人投稿，MCP禁止。kind缺省等同task，沿用原任务RPC；kind=entry使用独立作品RPC，不混查、不逐项补取详情。
-        task本人列表已发布；entry分派及作品筛选为本轮本地实现、未发布增量。
+        task 本人列表、entry 分派及作品筛选均已实现。
         kind=task时state缺省等同draft，支持draft/pending_review/rejected/published/taken_down。kind=entry时state缺省为空并查询全部追加作品状态，支持pending_review/approved/rejected/approval_revoked，不含draft、initial或cloud。
         明确传入不支持的kind/state或空kind/state返回400 unsupported_submission_filter，未知或重复参数返回400 invalid_request。
         category 按草稿写入值精确匹配，不 trim、不改变大小写、不做 Unicode 归一化；缺省不筛选，显式空值返回 400。为容纳合法 UTF-8 值的 URL 编码，该路由允许最多 40 KiB Request-URI；超过时返回 414 invalid_request。
@@ -862,14 +893,14 @@ paths:
       summary: 读取已过审作品实际引用的文件
       x-implementation-status: implemented-local
       description: |
-        3C 本地实现，未发布。匿名读取；Cookie、MCP token、作者或管理员身份不提供绕过权限。
+        匿名读取；Cookie、MCP token、作者或管理员身份不提供绕过权限。
         每次新下载由 Asset 经 mTLS 调用 Content.CheckAssetAccess，必须同时满足任务已发布、
         作品审核通过、准确 taskId/entryId/assetId 的 file 引用及资产 ready。
         未审核、下架、撤销审核、错误上下文和不存在统一 404 asset_not_found；
         Content、数据库或对象存储不可用为 503，不返回旧授权或存储 URL。
         不接受 query（包括 ownerId/public/token）、不返回 304 或重定向；响应 no-store、attachment、nosniff。
         审核收紧提交后发起的新请求立即拒绝；已发送字节不能撤回，进行中的流不承诺瞬时中止。
-        正式Moderation及公开任务/作品浏览现已本地实现，仍未公网发布；各自契约见对应接口。
+        正式 Moderation 及公开任务／作品浏览契约见对应接口。
       security: []
       parameters:
         - {$ref: '#/components/parameters/TaskId'}
@@ -898,8 +929,8 @@ paths:
       summary: 读取当前账号在该题的投票资格
       description: 不含票数，不改变资格；账号从认证取得，不接受 accountId 或其他查询参数。必要Content/Identity检查失败拒绝放行，失效凭据不降级匿名。
       x-scenarios: [S1, S3, S5]
-      x-implementation-status: implemented
-      x-deployment-status: unpublished
+      x-implementation-status: implemented-local
+      x-deployment-status: requires_backend_0_8_0
       security: [{WebSession: []}, {McpToken: []}]
       responses:
         '200':
@@ -922,8 +953,8 @@ paths:
         读取不提交选票、不改变永久资格；永久禁投返回 403。没有过审作品时仍返回 200 和空 entries，页面不能提交选票。
         必须从内容服务核实完整集合，目录未同步或不能确认完整性时返回 503，不能以旧的部分候选成功响应。最多4096项，Proto及HTTP完整响应各不超过2MiB；超限503 catalog_too_large，不截断（Agent Self-Claimed）。
       x-scenarios: [S1, H1]
-      x-implementation-status: implemented
-      x-deployment-status: unpublished
+      x-implementation-status: implemented-local
+      x-deployment-status: requires_backend_0_8_0
       security: [{WebSession: []}]
       responses:
         '200':
@@ -952,8 +983,8 @@ paths:
         返回本人的选票，不返回统计；管理员身份不豁免，MCP token 无权投票。版本、改选与幂等细则为 Agent Self-Claimed。
       security: [{WebSession: [], CsrfToken: []}]
       x-scenarios: [S1, S5, H1]
-      x-implementation-status: implemented
-      x-deployment-status: unpublished
+      x-implementation-status: implemented-local
+      x-deployment-status: requires_backend_0_8_0
       requestBody:
         required: true
         content:
@@ -983,8 +1014,8 @@ paths:
         网站、MCP、榜单下钻和管理员具体反馈查看共用此流程，没有无副作用的 GET 统计旁路。
         Cookie 调用须同时提供 CSRF token；MCP Bearer 调用不使用 Cookie。响应及错误均不可缓存。
       x-scenarios: [S1, S3, S4, S5, S6]
-      x-implementation-status: implemented
-      x-deployment-status: unpublished
+      x-implementation-status: implemented-local
+      x-deployment-status: requires_backend_0_8_0
       security:
         - WebSession: []
           CsrfToken: []
@@ -1024,7 +1055,8 @@ paths:
         仅提供按系统结论分组的任务数量，不提供单题票数、得票占比或可以通过小样本分组、差分还原的投票汇总。
         具体热度算法和领先阈值未定；不将热度榜改为得票占比榜。
       x-scenarios: [S1, S6]
-      x-implementation-status: planned
+      x-implementation-status: implemented-local
+      x-deployment-status: requires_backend_0_8_0
       security: [{}, {WebSession: []}, {McpToken: []}]
       responses:
         '200':
@@ -1042,7 +1074,8 @@ paths:
       summary: 分页读取公开任务的评论
       description: 来源为项目目标中的评论功能；提案采用按创建时间及 ID 升序的平铺评论，不附带平台统计。
       x-requirement-source: AGENTS.md 项目目标
-      x-implementation-status: planned
+      x-implementation-status: implemented-local
+      x-deployment-status: requires_backend_0_8_0
       security: [{}, {WebSession: []}, {McpToken: []}]
       parameters:
         - {$ref: '#/components/parameters/Cursor'}
@@ -1060,7 +1093,8 @@ paths:
       summary: 在公开任务下发表评论
       description: 纯文本评论，作者由会话确定；不需要该题投票资格，不能通过 MCP 代发。
       x-requirement-source: AGENTS.md 项目目标
-      x-implementation-status: planned
+      x-implementation-status: implemented-local
+      x-deployment-status: requires_backend_0_8_0
       requestBody:
         required: true
         content:
@@ -1086,7 +1120,8 @@ paths:
       summary: 举报公开内容
       description: 举报进入管理员待办，不自动下架；不对其他用户公开举报者身份。
       x-scenarios: [S4]
-      x-implementation-status: planned
+      x-implementation-status: implemented-local
+      x-deployment-status: requires_backend_0_8_0
       requestBody:
         required: true
         content:
@@ -1107,7 +1142,8 @@ paths:
       summary: 获取管理员每日待办和运行概览
       description: 汇总待审任务、待审作品、未处理举报及运行中/失败的挑战数量；不返回剩余或已用额度。
       x-scenarios: [S4, H2]
-      x-implementation-status: planned
+      x-implementation-status: implemented-local
+      x-deployment-status: requires_backend_0_8_0
       security: [{WebSession: [admin]}]
       responses:
         '200':
@@ -1140,7 +1176,7 @@ paths:
           schema: {type: string, enum: [pending, approved, rejected], default: pending}
       responses:
         '200':
-          description: 任务初始包或独立追加作品的完整不可变快照；submission.kind区分task/entry，云端投稿尚未实现
+          description: 任务初始包或独立追加／云端作品的完整不可变快照；submission.kind区分task/entry，origin区分additional/cloud
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ReviewPage'}
@@ -1200,7 +1236,7 @@ paths:
       summary: 通过或驳回一次审核
       description: |
         仅处理仍为 pending 的该次投稿快照；拒绝过时版本。新任务与双方初始作品一起通过才公开。
-        当前只支持初始任务整体审核；追加/云端投稿未实现。
+        支持初始任务整体审核、独立追加和云端作品审核；云端产出同样不能绕过审核。
         先持久化决定及outbox；未收到Content回执时status仍pending、deliveryState=pending，返回202。
         Content确认后status才approved/rejected、deliveryState=applied；原样重试返回200与同一结果。
         approve可选reason并原样保存；reject理由必填且不能全为空白。提供的理由须为有效UTF-8、无NUL且不超过4000字节。
@@ -1235,7 +1271,8 @@ paths:
       operationId: listReports
       summary: 分页读取举报待办与处理结果
       x-scenarios: [S4]
-      x-implementation-status: planned
+      x-implementation-status: implemented-local
+      x-deployment-status: requires_backend_0_8_0
       security: [{WebSession: [admin]}]
       parameters:
         - {$ref: '#/components/parameters/Cursor'}
@@ -1262,9 +1299,10 @@ paths:
       tags: [Administration]
       operationId: resolveReport
       summary: 驳回举报或下架被举报内容
-      description: 同一结果重试找回原处理记录；冲突决定返回 409。下架与举报状态更新、审计记录一起提交。
+      description: 同一结果重试找回原处理记录；冲突决定返回 409。先持久化处理意图与审计，Content 下架回执确认后再标记 actioned；待投递返回 202，可由后台恢复重试。
       x-scenarios: [S4]
-      x-implementation-status: planned
+      x-implementation-status: implemented-local
+      x-deployment-status: requires_backend_0_8_0
       security: [{WebSession: [admin], CsrfToken: []}]
       requestBody:
         required: true
@@ -1283,6 +1321,11 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Report'}
+        '202':
+          description: 已记录，等待 Content 投递确认；不能视为已下架
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Report'}
         '403': {$ref: '#/components/responses/Forbidden'}
         default: {$ref: '#/components/responses/Problem'}
 
@@ -1294,9 +1337,10 @@ paths:
       description: |
         可下架任务、作品或评论；作品下架表示撤销审核通过，进入 approval_revoked，不是切换为私有。
         下架任务后其作品、评论和文件不再通过公开接口可见；作品撤销通过后立即退出展示及候选列表。
-        不物理删除历史记录，不恢复投票资格。技术提案：保留历史选择，当前统计不再计入撤销通过作品的票；在途运行处置仍待补全。
+        不物理删除历史记录，不恢复投票资格。技术提案：保留历史选择，当前统计不再计入撤销通过作品的票；在途运行的旧材料版本失效，后续访问及提交均拒绝，不能登记迟到结果。
       x-scenarios: [S4, H1]
-      x-implementation-status: planned
+      x-implementation-status: implemented-local
+      x-deployment-status: requires_backend_0_8_0
       security: [{WebSession: [admin], CsrfToken: []}]
       requestBody:
         required: true
@@ -1306,6 +1350,11 @@ paths:
       responses:
         '200':
           description: 下架动作的审计结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuditEvent'}
+        '202':
+          description: 已记录，等待 Content 投递确认；不能视为已下架
           content:
             application/json:
               schema: {$ref: '#/components/schemas/AuditEvent'}
@@ -1319,7 +1368,7 @@ paths:
       summary: 分页查看云端运行、异常及结果
       x-scenarios: [S4, H2]
       x-implementation-status: implemented
-      x-deployment-status: not_published
+      x-deployment-status: requires_backend_0_8_0
       security: [{WebSession: [admin]}]
       parameters:
         - {$ref: '#/components/parameters/Cursor'}
@@ -1351,7 +1400,7 @@ paths:
         普通用户、任务作者及 MCP token 均不能启动。
       x-scenarios: [S4, H4, H5, H7, H8, H9, H10, H12]
       x-implementation-status: implemented
-      x-deployment-status: not_published
+      x-deployment-status: requires_backend_0_8_0
       security: [{WebSession: [admin], CsrfToken: []}]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
       requestBody:
@@ -1384,7 +1433,7 @@ paths:
       description: 不把生成完成、登记、审核发布或真人反馈混作获胜；不返回额度余额或消耗数值，具体真人统计仍走 statistics-access。
       x-scenarios: [S4, H2]
       x-implementation-status: implemented
-      x-deployment-status: not_published
+      x-deployment-status: requires_backend_0_8_0
       security: [{WebSession: [admin]}]
       responses:
         '200':
@@ -1409,7 +1458,7 @@ paths:
         已登记作品保留原审核流程；取消不表示已发生的消耗退回。
       x-scenarios: [S4]
       x-implementation-status: implemented
-      x-deployment-status: not_published
+      x-deployment-status: requires_backend_0_8_0
       security: [{WebSession: [admin], CsrfToken: []}]
       requestBody:
         required: true
@@ -1443,7 +1492,7 @@ paths:
         新运行从 R 拟合阶段开始，按当前工具与输入策略重新验证阈值和样本条件，不继承旧达标记录；统一追求最佳或对齐最佳效果，不读取任务领先结论。
       x-scenarios: [S4, H7, H9, H10, H11]
       x-implementation-status: implemented
-      x-deployment-status: not_published
+      x-deployment-status: requires_backend_0_8_0
       security: [{WebSession: [admin], CsrfToken: []}]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
       requestBody:
@@ -1480,7 +1529,7 @@ paths:
         完成运行前应处理完计划内候选；cancelling、finalizing 或终态下只查回已有登记，无登记返回 409，不补记迟到作品。
       x-scenarios: [S4]
       x-implementation-status: implemented
-      x-deployment-status: not_published
+      x-deployment-status: requires_backend_0_8_0
       security: [{WebSession: [admin], CsrfToken: []}]
       responses:
         '200':
@@ -1504,7 +1553,8 @@ paths:
       summary: 分页追溯管理员操作身份与结果
       description: 审核、举报处理、下架、启动、取消、重启和登记均留存；不返回密钥、完整私有材料或单题统计。
       x-scenarios: [S4]
-      x-implementation-status: planned
+      x-implementation-status: implemented-local
+      x-deployment-status: requires_backend_0_8_0
       security: [{WebSession: [admin]}]
       parameters:
         - {$ref: '#/components/parameters/Cursor'}
@@ -1516,6 +1566,29 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/AuditPage'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/tasks/{taskId}/assets/{assetId}/content:
+    parameters:
+      - {$ref: '#/components/parameters/TaskId'}
+      - name: assetId
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/Id'}
+    get:
+      tags: [Assets]
+      operationId: downloadTaskAsset
+      summary: 下载已发布任务的独立任务附件
+      description: 每次请求重新检查任务可见性和精确附件引用；无所有者绕过，不产生可复用下载授权。
+      x-implementation-status: implemented-local
+      x-deployment-status: requires_backend_0_8_0
+      security: [{}]
+      responses:
+        '200':
+          description: 已授权的附件内容
+          content:
+            application/octet-stream:
+              schema: {type: string, format: binary}
         default: {$ref: '#/components/responses/Problem'}
 
 components:
@@ -1632,7 +1705,7 @@ components:
         请求取消保留 request_cancelled；外层 HTTP 连接仍有效时为 503，连接已断开时不承诺响应送达。
         超时、取消与不可用均不证明写入未提交；按各接口的幂等键或回执查证，不据此自动重试写入。
         所有失败均不得附带单题统计；拒绝请求不得产生未声明的业务副作用。
-        此错误格式为 planned 接口约定，当前基础服务的 404/405 仍为空响应体。
+        业务接口使用结构化错误；不存在的基础路由或不支持的方法可返回空 404/405。
       headers:
         Cache-Control: {$ref: '#/components/headers/NoStore'}
       content:
@@ -1796,8 +1869,14 @@ components:
           items: {$ref: '#/components/schemas/Asset'}
         nextCursor: {$ref: '#/components/schemas/NextCursor'}
     Artifact:
-      description: 作品交付物；assetId 必须有权使用，外链仅允许 HTTP(S)，不在读取任务时自动抓取或执行。
+      description: 作品实际正文为 text/file；链接仅作补充。assetId 必须有权使用，外链仅允许 HTTP(S)，不自动抓取或执行。
       oneOf:
+        - type: object
+          additionalProperties: false
+          required: [kind, text]
+          properties:
+            kind: {type: string, const: text}
+            text: {type: string, minLength: 1, description: 计入整体内容字节上限；送审时不可全为空白}
         - type: object
           additionalProperties: false
           required: [kind, assetId]
@@ -1863,10 +1942,10 @@ components:
     TaskAttachmentInput:
       type: object
       additionalProperties: false
-      required: [assetId, permissions]
+      required: [assetId, cloudUseAllowed]
       properties:
         assetId: {$ref: '#/components/schemas/Id'}
-        permissions: {$ref: '#/components/schemas/Permissions'}
+        cloudUseAllowed: {type: boolean, description: 是否允许此独立任务附件用于云端挑战}
       description: 原始任务描述的附件，校验上传归属并随任务一起审核；与作品交付物分开，不能由打包角色追加作品库来扩大输入范围
     TaskDraftInput:
       type: object
@@ -1877,6 +1956,10 @@ components:
         summary: {type: string}
         description: {type: string}
         category: {type: [string, 'null'], description: 保存原值；不 trim、不改变大小写、不做 Unicode 归一化；没有独立字符数限制，仍计入草稿整体 12000 字节上限}
+        taskAttachments:
+          type: array
+          maxItems: 32
+          items: {$ref: '#/components/schemas/TaskAttachmentInput'}
         entries:
           type: array
           description: 草稿允许空列表或仅一方；送审时服务端要求至少各一件及完整来源、授权和适用配置
@@ -1948,7 +2031,7 @@ components:
           description: 随任务过审的描述附件，无附件时为空；下载仍检查当前可见性，云端使用权限不由此响应授予
         category: {type: [string, 'null']}
         author: {$ref: '#/components/schemas/PublicAuthor'}
-        heat: {type: [number, 'null'], description: 热度尚未实现时为null，不伪造0；本阶段不读取统计}
+        heat: {type: [number, 'null'], description: 发现流提供不含票数的热度，独立详情为null}
         publishedAt: {$ref: '#/components/schemas/NullableTime', description: 首次正式批准应用的数据库时间；旧数据无法证明时为null}
     ApprovedEntry:
       type: object
@@ -1965,7 +2048,7 @@ components:
           type: array
           minItems: 1
           items: {$ref: '#/components/schemas/Artifact'}
-          description: 沿用已实现Content的file/link交付物；兼容已接受的仅外链作品，不在公开读取时补造text或抓取链接。更严格送审材料规则另行实现。
+          description: 支持text/file及补充link；新送审必须包含实际正文或文件。旧已过审的仅外链作品继续可读，不补造正文或抓取外链。
         author: {$ref: '#/components/schemas/PublicAuthor'}
         approvedAt: {$ref: '#/components/schemas/NullableTime', description: 此作品首次批准应用时间；旧数据未知为null}
       description: 任务可见且作品审核通过时的展示内容；没有公开/私有状态，不返回投稿审核材料、完整运行配置或未过审作品内容。
@@ -2052,7 +2135,7 @@ components:
     TaskStatistics:
       type: object
       additionalProperties: false
-      required: [taskId, eligibility, totalVotes, humanVotes, agentVotes, humanVoteShare, agentVoteShare, entryVotes, catalogRevision, conclusion, computedAt]
+      required: [taskId, eligibility, totalVotes, humanVotes, agentVotes, humanVoteShare, agentVoteShare, entryVotes, catalogRevision, conclusion, computedAt, flipCount, lastFlipAt]
       properties:
         taskId: {$ref: '#/components/schemas/Id'}
         eligibility:
@@ -2072,11 +2155,13 @@ components:
         catalogRevision: {type: integer, minimum: 1}
         conclusion: {$ref: '#/components/schemas/Conclusion'}
         computedAt: {$ref: '#/components/schemas/Timestamp'}
+        flipCount: {type: integer, minimum: 0}
+        lastFlipAt: {$ref: '#/components/schemas/NullableTime'}
       description: |
         技术提案：按账号在该任务的当前选择计票，只统计所选作品仍审核通过且有效的真人选票；撤销通过的作品不进入当前统计，历史选票记录保留。
         entryVotes 覆盖该目录版本下全部过审作品（含零票），每个 entryId 唯一；totalVotes = 所有作品 votes 之和 = humanVotes + agentVotes。
         各作品与两方的得票占比为各自票数 / totalVotes；零总票时占比均为 null。单选没有平票选项，不用两两对抗胜率解释这些占比。
-        同一目录与计票快照生成响应；具体防刷有效票规则、领先/翻转算法仍待明确，不预设投票阈值。
+        同一目录与计票快照生成响应；默认至少 20 票且人类占比的 95% Wilson 区间排除 0.5 才判定领先，否则未定。跨越未定区间到对方明确领先记一次翻转；结论与票／目录变更同事务记录。此为技术选择，只描述参与账号。
         taskId 必须与 eligibility.taskId 相同；统计生成失败可返回 503，但已提交的永久禁投不能回滚。
       allOf:
         - if:
@@ -2139,11 +2224,12 @@ components:
     Report:
       type: object
       additionalProperties: false
-      required: [id, target, status, resolutionReason, createdAt, resolvedAt]
+      required: [id, target, status, resolutionReason, createdAt, resolvedAt, deliveryState]
       properties:
         id: {$ref: '#/components/schemas/Id'}
         target: {$ref: '#/components/schemas/ModerationInput'}
         status: {type: string, enum: [open, dismissed, actioned]}
+        deliveryState: {type: string, enum: [none, pending, applied, blocked]}
         resolutionReason: {type: [string, 'null']}
         createdAt: {$ref: '#/components/schemas/Timestamp'}
         resolvedAt: {$ref: '#/components/schemas/NullableTime'}
@@ -2350,7 +2436,7 @@ components:
         actorId: {$ref: '#/components/schemas/Id'}
         action: {type: string}
         targetId: {$ref: '#/components/schemas/Id'}
-        outcome: {type: string, enum: [succeeded, rejected, failed]}
+        outcome: {type: string, enum: [pending, succeeded, rejected, failed]}
         reason: {type: [string, 'null']}
         createdAt: {$ref: '#/components/schemas/Timestamp'}
     TaskPage:

@@ -13,14 +13,13 @@ metadata:
   namespace: human-worth
 spec:
   hard:
-    requests.cpu: "2"
-    requests.memory: 2Gi
-    # Agent Self-Claimed: five application modules, rolling replicas and the
-    # two isolated gateway probes used by real cross-Pod Asset verification.
-    limits.cpu: "8"
-    limits.memory: 5Gi
+    requests.cpu: "3"
+    requests.memory: 3Gi
+    # Nine deployed modules, migration/rolling replicas and bounded verification probes.
+    limits.cpu: "14"
+    limits.memory: 8Gi
     requests.storage: 8Gi
-    pods: "24"
+    pods: "36"
 ---
 apiVersion: v1
 kind: LimitRange

@@ -79,7 +79,7 @@ spec:
   podSelector: {matchLabels: {app: content}}
   policyTypes: [Ingress, Egress]
   ingress:
-    - from: [{podSelector: {matchLabels: {app: voting}}}]
+    - from: [{podSelector: {matchLabels: {app: voting}}}, {podSelector: {matchLabels: {app: discovery}}}, {podSelector: {matchLabels: {app: challenge}}}]
       ports: [{protocol: TCP, port: 8443}]
     - from: [{podSelector: {matchLabels: {app: gateway}}}, {podSelector: {matchLabels: {app: asset}}}, {podSelector: {matchLabels: {app: moderation}}}]
       ports: [{protocol: TCP, port: 8443}]

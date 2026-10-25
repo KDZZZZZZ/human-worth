@@ -1691,6 +1691,8 @@ func FromOpenRunRegistrationRequest(v *content.OpenRunRegistrationRequest) *dto.
 	out := &dto.OpenRunRegistrationRequest{}
 	out.RunId = v.RunId
 	out.TaskId = v.TaskId
+	out.AdministratorId = v.AdministratorId
+	out.ExecutorModel = v.ExecutorModel
 	return out
 }
 func ToOpenRunRegistrationRequest(v *dto.OpenRunRegistrationRequest) *content.OpenRunRegistrationRequest {
@@ -1700,6 +1702,8 @@ func ToOpenRunRegistrationRequest(v *dto.OpenRunRegistrationRequest) *content.Op
 	out := &content.OpenRunRegistrationRequest{}
 	out.RunId = v.RunId
 	out.TaskId = v.TaskId
+	out.AdministratorId = v.AdministratorId
+	out.ExecutorModel = v.ExecutorModel
 	return out
 }
 func FromOpenRunRegistrationResponse(v *content.OpenRunRegistrationResponse) *dto.OpenRunRegistrationResponse {

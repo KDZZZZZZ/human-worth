@@ -26,13 +26,14 @@ import (
 
 // ExecutorProfile 由可信运维配置，不接受管理员请求中的任意镜像、命令或网络地址。
 type ExecutorProfile struct {
-	Kubeconfig   string `json:"kubeconfig"`
-	Context      string `json:"context"`
-	Namespace    string `json:"namespace"`
-	Image        string `json:"image"`
-	RuntimeClass string `json:"runtime_class"`
-	RelayURL     string `json:"relay_url"`
-	CAFile       string `json:"ca_file"`
+	Kubeconfig      string `json:"kubeconfig"`
+	Context         string `json:"context"`
+	Namespace       string `json:"namespace"`
+	Image           string `json:"image"`
+	RuntimeClass    string `json:"runtime_class"`
+	RelayURL        string `json:"relay_url"`
+	CAFile          string `json:"ca_file"`
+	WorkerNamespace string `json:"worker_namespace,omitempty"`
 }
 type executorSession struct {
 	assignment       *pb.Assignment
@@ -116,7 +117,13 @@ func (k *KubernetesExecutor) Preflight(ctx context.Context) error {
 		return errors.New("dedicated execution network policy required")
 	}
 	actual, _ := json.Marshal(policies.Items[0].Spec)
-	expected, _ := json.Marshal(IsolationPolicy())
+	expectedPolicy := IsolationPolicy()
+	// This value is supplied only by trusted deployment configuration; test
+	// namespaces have the same exact isolation rule with a different peer name.
+	if k.Profile.WorkerNamespace != "" {
+		expectedPolicy["egress"].([]any)[0].(map[string]any)["to"].([]any)[0].(map[string]any)["namespaceSelector"].(map[string]any)["matchLabels"].(map[string]any)["kubernetes.io/metadata.name"] = k.Profile.WorkerNamespace
+	}
+	expected, _ := json.Marshal(expectedPolicy)
 	if !bytes.Equal(actual, expected) {
 		return errors.New("execution network policy mismatch")
 	}

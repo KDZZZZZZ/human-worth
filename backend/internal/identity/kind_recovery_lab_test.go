@@ -64,7 +64,7 @@ func dependencyFailure(code int, raw []byte) error {
 	}
 	if code == 503 {
 		switch failure.Code {
-		case "identity_unavailable", "asset_unavailable", "content_unavailable", "moderation_unavailable", "voting_unavailable", "storage_unavailable", "review_access_unavailable":
+		case "identity_unavailable", "asset_unavailable", "content_unavailable", "moderation_unavailable", "voting_unavailable", "discovery_unavailable", "storage_unavailable", "review_access_unavailable":
 			return nil
 		}
 	}

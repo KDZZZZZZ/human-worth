@@ -725,6 +725,906 @@ func (x *CreateEntryReviewCaseResponse) GetReview() *Review {
 	return nil
 }
 
+type ModerationTarget struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TargetKind    string                 `protobuf:"bytes,1,opt,name=target_kind,json=targetKind,proto3" json:"target_kind,omitempty"`
+	TargetId      string                 `protobuf:"bytes,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ModerationTarget) Reset() {
+	*x = ModerationTarget{}
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ModerationTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ModerationTarget) ProtoMessage() {}
+
+func (x *ModerationTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ModerationTarget.ProtoReflect.Descriptor instead.
+func (*ModerationTarget) Descriptor() ([]byte, []int) {
+	return file_humanworth_moderation_v1_moderation_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ModerationTarget) GetTargetKind() string {
+	if x != nil {
+		return x.TargetKind
+	}
+	return ""
+}
+
+func (x *ModerationTarget) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *ModerationTarget) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type Report struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Target           *ModerationTarget      `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	Status           string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	ResolutionReason *string                `protobuf:"bytes,4,opt,name=resolution_reason,json=resolutionReason,proto3,oneof" json:"resolution_reason,omitempty"`
+	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ResolvedAt       *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=resolved_at,json=resolvedAt,proto3" json:"resolved_at,omitempty"`
+	DeliveryState    string                 `protobuf:"bytes,7,opt,name=delivery_state,json=deliveryState,proto3" json:"delivery_state,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *Report) Reset() {
+	*x = Report{}
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Report) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Report) ProtoMessage() {}
+
+func (x *Report) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Report.ProtoReflect.Descriptor instead.
+func (*Report) Descriptor() ([]byte, []int) {
+	return file_humanworth_moderation_v1_moderation_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *Report) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Report) GetTarget() *ModerationTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *Report) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *Report) GetResolutionReason() string {
+	if x != nil && x.ResolutionReason != nil {
+		return *x.ResolutionReason
+	}
+	return ""
+}
+
+func (x *Report) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *Report) GetResolvedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ResolvedAt
+	}
+	return nil
+}
+
+func (x *Report) GetDeliveryState() string {
+	if x != nil {
+		return x.DeliveryState
+	}
+	return ""
+}
+
+type CreateReportRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ActorAssertion string                 `protobuf:"bytes,1,opt,name=actor_assertion,json=actorAssertion,proto3" json:"actor_assertion,omitempty"`
+	Target         *ModerationTarget      `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	IdempotencyKey string                 `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CreateReportRequest) Reset() {
+	*x = CreateReportRequest{}
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateReportRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateReportRequest) ProtoMessage() {}
+
+func (x *CreateReportRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateReportRequest.ProtoReflect.Descriptor instead.
+func (*CreateReportRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_moderation_v1_moderation_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *CreateReportRequest) GetActorAssertion() string {
+	if x != nil {
+		return x.ActorAssertion
+	}
+	return ""
+}
+
+func (x *CreateReportRequest) GetTarget() *ModerationTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *CreateReportRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+type CreateReportResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Report        *Report                `protobuf:"bytes,1,opt,name=report,proto3" json:"report,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateReportResponse) Reset() {
+	*x = CreateReportResponse{}
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateReportResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateReportResponse) ProtoMessage() {}
+
+func (x *CreateReportResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateReportResponse.ProtoReflect.Descriptor instead.
+func (*CreateReportResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_moderation_v1_moderation_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CreateReportResponse) GetReport() *Report {
+	if x != nil {
+		return x.Report
+	}
+	return nil
+}
+
+type ListReportsRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ActorAssertion string                 `protobuf:"bytes,1,opt,name=actor_assertion,json=actorAssertion,proto3" json:"actor_assertion,omitempty"`
+	Status         string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Limit          int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	Cursor         string                 `protobuf:"bytes,4,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ListReportsRequest) Reset() {
+	*x = ListReportsRequest{}
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListReportsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListReportsRequest) ProtoMessage() {}
+
+func (x *ListReportsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListReportsRequest.ProtoReflect.Descriptor instead.
+func (*ListReportsRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_moderation_v1_moderation_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ListReportsRequest) GetActorAssertion() string {
+	if x != nil {
+		return x.ActorAssertion
+	}
+	return ""
+}
+
+func (x *ListReportsRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ListReportsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListReportsRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+type ListReportsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*Report              `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	NextCursor    string                 `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListReportsResponse) Reset() {
+	*x = ListReportsResponse{}
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListReportsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListReportsResponse) ProtoMessage() {}
+
+func (x *ListReportsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListReportsResponse.ProtoReflect.Descriptor instead.
+func (*ListReportsResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_moderation_v1_moderation_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ListReportsResponse) GetItems() []*Report {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListReportsResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
+type ResolveReportRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ActorAssertion string                 `protobuf:"bytes,1,opt,name=actor_assertion,json=actorAssertion,proto3" json:"actor_assertion,omitempty"`
+	ReportId       string                 `protobuf:"bytes,2,opt,name=report_id,json=reportId,proto3" json:"report_id,omitempty"`
+	Action         string                 `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
+	Reason         string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ResolveReportRequest) Reset() {
+	*x = ResolveReportRequest{}
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveReportRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveReportRequest) ProtoMessage() {}
+
+func (x *ResolveReportRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveReportRequest.ProtoReflect.Descriptor instead.
+func (*ResolveReportRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_moderation_v1_moderation_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ResolveReportRequest) GetActorAssertion() string {
+	if x != nil {
+		return x.ActorAssertion
+	}
+	return ""
+}
+
+func (x *ResolveReportRequest) GetReportId() string {
+	if x != nil {
+		return x.ReportId
+	}
+	return ""
+}
+
+func (x *ResolveReportRequest) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *ResolveReportRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type ResolveReportResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Report        *Report                `protobuf:"bytes,1,opt,name=report,proto3" json:"report,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveReportResponse) Reset() {
+	*x = ResolveReportResponse{}
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveReportResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveReportResponse) ProtoMessage() {}
+
+func (x *ResolveReportResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveReportResponse.ProtoReflect.Descriptor instead.
+func (*ResolveReportResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_moderation_v1_moderation_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ResolveReportResponse) GetReport() *Report {
+	if x != nil {
+		return x.Report
+	}
+	return nil
+}
+
+type AuditEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ActorId       string                 `protobuf:"bytes,2,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	Action        string                 `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
+	TargetId      string                 `protobuf:"bytes,4,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	Outcome       string                 `protobuf:"bytes,5,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	Reason        *string                `protobuf:"bytes,6,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuditEvent) Reset() {
+	*x = AuditEvent{}
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuditEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuditEvent) ProtoMessage() {}
+
+func (x *AuditEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuditEvent.ProtoReflect.Descriptor instead.
+func (*AuditEvent) Descriptor() ([]byte, []int) {
+	return file_humanworth_moderation_v1_moderation_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *AuditEvent) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetReason() string {
+	if x != nil && x.Reason != nil {
+		return *x.Reason
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type TakeDownContentRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ActorAssertion string                 `protobuf:"bytes,1,opt,name=actor_assertion,json=actorAssertion,proto3" json:"actor_assertion,omitempty"`
+	Target         *ModerationTarget      `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	IdempotencyKey string                 `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *TakeDownContentRequest) Reset() {
+	*x = TakeDownContentRequest{}
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TakeDownContentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TakeDownContentRequest) ProtoMessage() {}
+
+func (x *TakeDownContentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TakeDownContentRequest.ProtoReflect.Descriptor instead.
+func (*TakeDownContentRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_moderation_v1_moderation_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *TakeDownContentRequest) GetActorAssertion() string {
+	if x != nil {
+		return x.ActorAssertion
+	}
+	return ""
+}
+
+func (x *TakeDownContentRequest) GetTarget() *ModerationTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *TakeDownContentRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+type TakeDownContentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Event         *AuditEvent            `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TakeDownContentResponse) Reset() {
+	*x = TakeDownContentResponse{}
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TakeDownContentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TakeDownContentResponse) ProtoMessage() {}
+
+func (x *TakeDownContentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TakeDownContentResponse.ProtoReflect.Descriptor instead.
+func (*TakeDownContentResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_moderation_v1_moderation_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *TakeDownContentResponse) GetEvent() *AuditEvent {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+type GetDashboardRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ActorAssertion string                 `protobuf:"bytes,1,opt,name=actor_assertion,json=actorAssertion,proto3" json:"actor_assertion,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetDashboardRequest) Reset() {
+	*x = GetDashboardRequest{}
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDashboardRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDashboardRequest) ProtoMessage() {}
+
+func (x *GetDashboardRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDashboardRequest.ProtoReflect.Descriptor instead.
+func (*GetDashboardRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_moderation_v1_moderation_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetDashboardRequest) GetActorAssertion() string {
+	if x != nil {
+		return x.ActorAssertion
+	}
+	return ""
+}
+
+type GetDashboardResponse struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	PendingTaskReviews  int64                  `protobuf:"varint,1,opt,name=pending_task_reviews,json=pendingTaskReviews,proto3" json:"pending_task_reviews,omitempty"`
+	PendingEntryReviews int64                  `protobuf:"varint,2,opt,name=pending_entry_reviews,json=pendingEntryReviews,proto3" json:"pending_entry_reviews,omitempty"`
+	OpenReports         int64                  `protobuf:"varint,3,opt,name=open_reports,json=openReports,proto3" json:"open_reports,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *GetDashboardResponse) Reset() {
+	*x = GetDashboardResponse{}
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDashboardResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDashboardResponse) ProtoMessage() {}
+
+func (x *GetDashboardResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDashboardResponse.ProtoReflect.Descriptor instead.
+func (*GetDashboardResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_moderation_v1_moderation_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GetDashboardResponse) GetPendingTaskReviews() int64 {
+	if x != nil {
+		return x.PendingTaskReviews
+	}
+	return 0
+}
+
+func (x *GetDashboardResponse) GetPendingEntryReviews() int64 {
+	if x != nil {
+		return x.PendingEntryReviews
+	}
+	return 0
+}
+
+func (x *GetDashboardResponse) GetOpenReports() int64 {
+	if x != nil {
+		return x.OpenReports
+	}
+	return 0
+}
+
+type ListAuditEventsRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ActorAssertion string                 `protobuf:"bytes,1,opt,name=actor_assertion,json=actorAssertion,proto3" json:"actor_assertion,omitempty"`
+	Limit          int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	BeforeTime     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=before_time,json=beforeTime,proto3" json:"before_time,omitempty"`
+	BeforeId       string                 `protobuf:"bytes,4,opt,name=before_id,json=beforeId,proto3" json:"before_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ListAuditEventsRequest) Reset() {
+	*x = ListAuditEventsRequest{}
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAuditEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAuditEventsRequest) ProtoMessage() {}
+
+func (x *ListAuditEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAuditEventsRequest.ProtoReflect.Descriptor instead.
+func (*ListAuditEventsRequest) Descriptor() ([]byte, []int) {
+	return file_humanworth_moderation_v1_moderation_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ListAuditEventsRequest) GetActorAssertion() string {
+	if x != nil {
+		return x.ActorAssertion
+	}
+	return ""
+}
+
+func (x *ListAuditEventsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListAuditEventsRequest) GetBeforeTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.BeforeTime
+	}
+	return nil
+}
+
+func (x *ListAuditEventsRequest) GetBeforeId() string {
+	if x != nil {
+		return x.BeforeId
+	}
+	return ""
+}
+
+type ListAuditEventsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*AuditEvent          `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAuditEventsResponse) Reset() {
+	*x = ListAuditEventsResponse{}
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAuditEventsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAuditEventsResponse) ProtoMessage() {}
+
+func (x *ListAuditEventsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_humanworth_moderation_v1_moderation_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAuditEventsResponse.ProtoReflect.Descriptor instead.
+func (*ListAuditEventsResponse) Descriptor() ([]byte, []int) {
+	return file_humanworth_moderation_v1_moderation_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ListAuditEventsResponse) GetItems() []*AuditEvent {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
 var File_humanworth_moderation_v1_moderation_proto protoreflect.FileDescriptor
 
 const file_humanworth_moderation_v1_moderation_proto_rawDesc = "" +
@@ -781,14 +1681,90 @@ const file_humanworth_moderation_v1_moderation_proto_rawDesc = "" +
 	"\x1cCreateEntryReviewCaseRequest\x12F\n" +
 	"\bsnapshot\x18\x01 \x01(\v2*.humanworth.content.v1.EntryReviewSnapshotR\bsnapshot\"Y\n" +
 	"\x1dCreateEntryReviewCaseResponse\x128\n" +
-	"\x06review\x18\x01 \x01(\v2 .humanworth.moderation.v1.ReviewR\x06review*\xa1\x01\n" +
+	"\x06review\x18\x01 \x01(\v2 .humanworth.moderation.v1.ReviewR\x06review\"h\n" +
+	"\x10ModerationTarget\x12\x1f\n" +
+	"\vtarget_kind\x18\x01 \x01(\tR\n" +
+	"targetKind\x12\x1b\n" +
+	"\ttarget_id\x18\x02 \x01(\tR\btargetId\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\xdb\x02\n" +
+	"\x06Report\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12B\n" +
+	"\x06target\x18\x02 \x01(\v2*.humanworth.moderation.v1.ModerationTargetR\x06target\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x120\n" +
+	"\x11resolution_reason\x18\x04 \x01(\tH\x00R\x10resolutionReason\x88\x01\x01\x129\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
+	"\vresolved_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"resolvedAt\x12%\n" +
+	"\x0edelivery_state\x18\a \x01(\tR\rdeliveryStateB\x14\n" +
+	"\x12_resolution_reason\"\xab\x01\n" +
+	"\x13CreateReportRequest\x12'\n" +
+	"\x0factor_assertion\x18\x01 \x01(\tR\x0eactorAssertion\x12B\n" +
+	"\x06target\x18\x02 \x01(\v2*.humanworth.moderation.v1.ModerationTargetR\x06target\x12'\n" +
+	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\"P\n" +
+	"\x14CreateReportResponse\x128\n" +
+	"\x06report\x18\x01 \x01(\v2 .humanworth.moderation.v1.ReportR\x06report\"\x83\x01\n" +
+	"\x12ListReportsRequest\x12'\n" +
+	"\x0factor_assertion\x18\x01 \x01(\tR\x0eactorAssertion\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06cursor\x18\x04 \x01(\tR\x06cursor\"n\n" +
+	"\x13ListReportsResponse\x126\n" +
+	"\x05items\x18\x01 \x03(\v2 .humanworth.moderation.v1.ReportR\x05items\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor\"\x8c\x01\n" +
+	"\x14ResolveReportRequest\x12'\n" +
+	"\x0factor_assertion\x18\x01 \x01(\tR\x0eactorAssertion\x12\x1b\n" +
+	"\treport_id\x18\x02 \x01(\tR\breportId\x12\x16\n" +
+	"\x06action\x18\x03 \x01(\tR\x06action\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\"Q\n" +
+	"\x15ResolveReportResponse\x128\n" +
+	"\x06report\x18\x01 \x01(\v2 .humanworth.moderation.v1.ReportR\x06report\"\xe9\x01\n" +
+	"\n" +
+	"AuditEvent\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
+	"\bactor_id\x18\x02 \x01(\tR\aactorId\x12\x16\n" +
+	"\x06action\x18\x03 \x01(\tR\x06action\x12\x1b\n" +
+	"\ttarget_id\x18\x04 \x01(\tR\btargetId\x12\x18\n" +
+	"\aoutcome\x18\x05 \x01(\tR\aoutcome\x12\x1b\n" +
+	"\x06reason\x18\x06 \x01(\tH\x00R\x06reason\x88\x01\x01\x129\n" +
+	"\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB\t\n" +
+	"\a_reason\"\xae\x01\n" +
+	"\x16TakeDownContentRequest\x12'\n" +
+	"\x0factor_assertion\x18\x01 \x01(\tR\x0eactorAssertion\x12B\n" +
+	"\x06target\x18\x02 \x01(\v2*.humanworth.moderation.v1.ModerationTargetR\x06target\x12'\n" +
+	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\"U\n" +
+	"\x17TakeDownContentResponse\x12:\n" +
+	"\x05event\x18\x01 \x01(\v2$.humanworth.moderation.v1.AuditEventR\x05event\">\n" +
+	"\x13GetDashboardRequest\x12'\n" +
+	"\x0factor_assertion\x18\x01 \x01(\tR\x0eactorAssertion\"\x9f\x01\n" +
+	"\x14GetDashboardResponse\x120\n" +
+	"\x14pending_task_reviews\x18\x01 \x01(\x03R\x12pendingTaskReviews\x122\n" +
+	"\x15pending_entry_reviews\x18\x02 \x01(\x03R\x13pendingEntryReviews\x12!\n" +
+	"\fopen_reports\x18\x03 \x01(\x03R\vopenReports\"\xb1\x01\n" +
+	"\x16ListAuditEventsRequest\x12'\n" +
+	"\x0factor_assertion\x18\x01 \x01(\tR\x0eactorAssertion\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12;\n" +
+	"\vbefore_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"beforeTime\x12\x1b\n" +
+	"\tbefore_id\x18\x04 \x01(\tR\bbeforeId\"U\n" +
+	"\x17ListAuditEventsResponse\x12:\n" +
+	"\x05items\x18\x01 \x03(\v2$.humanworth.moderation.v1.AuditEventR\x05items*\xa1\x01\n" +
 	"\rDeliveryState\x12\x1e\n" +
 	"\x1aDELIVERY_STATE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18DELIVERY_STATE_UNDECIDED\x10\x01\x12\x1a\n" +
 	"\x16DELIVERY_STATE_PENDING\x10\x02\x12\x1a\n" +
 	"\x16DELIVERY_STATE_APPLIED\x10\x03\x12\x1a\n" +
-	"\x16DELIVERY_STATE_BLOCKED\x10\x042\xda\x04\n" +
-	"\x11ModerationService\x12y\n" +
+	"\x16DELIVERY_STATE_BLOCKED\x10\x042\x86\n" +
+	"\n" +
+	"\x11ModerationService\x12m\n" +
+	"\fCreateReport\x12-.humanworth.moderation.v1.CreateReportRequest\x1a..humanworth.moderation.v1.CreateReportResponse\x12j\n" +
+	"\vListReports\x12,.humanworth.moderation.v1.ListReportsRequest\x1a-.humanworth.moderation.v1.ListReportsResponse\x12p\n" +
+	"\rResolveReport\x12..humanworth.moderation.v1.ResolveReportRequest\x1a/.humanworth.moderation.v1.ResolveReportResponse\x12v\n" +
+	"\x0fTakeDownContent\x120.humanworth.moderation.v1.TakeDownContentRequest\x1a1.humanworth.moderation.v1.TakeDownContentResponse\x12m\n" +
+	"\fGetDashboard\x12-.humanworth.moderation.v1.GetDashboardRequest\x1a..humanworth.moderation.v1.GetDashboardResponse\x12v\n" +
+	"\x0fListAuditEvents\x120.humanworth.moderation.v1.ListAuditEventsRequest\x1a1.humanworth.moderation.v1.ListAuditEventsResponse\x12y\n" +
 	"\x10CreateReviewCase\x121.humanworth.moderation.v1.CreateReviewCaseRequest\x1a2.humanworth.moderation.v1.CreateReviewCaseResponse\x12\x88\x01\n" +
 	"\x15CreateEntryReviewCase\x126.humanworth.moderation.v1.CreateEntryReviewCaseRequest\x1a7.humanworth.moderation.v1.CreateEntryReviewCaseResponse\x12j\n" +
 	"\vListReviews\x12,.humanworth.moderation.v1.ListReviewsRequest\x1a-.humanworth.moderation.v1.ListReviewsResponse\x12d\n" +
@@ -808,7 +1784,7 @@ func file_humanworth_moderation_v1_moderation_proto_rawDescGZIP() []byte {
 }
 
 var file_humanworth_moderation_v1_moderation_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_humanworth_moderation_v1_moderation_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_humanworth_moderation_v1_moderation_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_humanworth_moderation_v1_moderation_proto_goTypes = []any{
 	(DeliveryState)(0),                          // 0: humanworth.moderation.v1.DeliveryState
 	(*Review)(nil),                              // 1: humanworth.moderation.v1.Review
@@ -822,45 +1798,84 @@ var file_humanworth_moderation_v1_moderation_proto_goTypes = []any{
 	(*DecideReviewResponse)(nil),                // 9: humanworth.moderation.v1.DecideReviewResponse
 	(*CreateEntryReviewCaseRequest)(nil),        // 10: humanworth.moderation.v1.CreateEntryReviewCaseRequest
 	(*CreateEntryReviewCaseResponse)(nil),       // 11: humanworth.moderation.v1.CreateEntryReviewCaseResponse
-	(*v1.ReviewSnapshot)(nil),                   // 12: humanworth.content.v1.ReviewSnapshot
-	(*timestamppb.Timestamp)(nil),               // 13: google.protobuf.Timestamp
-	(v1.ReviewOutcome)(0),                       // 14: humanworth.content.v1.ReviewOutcome
-	(*v1.ApplyReviewDecisionResponse)(nil),      // 15: humanworth.content.v1.ApplyReviewDecisionResponse
-	(*v1.EntryReviewSnapshot)(nil),              // 16: humanworth.content.v1.EntryReviewSnapshot
-	(*v1.ApplyEntryReviewDecisionResponse)(nil), // 17: humanworth.content.v1.ApplyEntryReviewDecisionResponse
+	(*ModerationTarget)(nil),                    // 12: humanworth.moderation.v1.ModerationTarget
+	(*Report)(nil),                              // 13: humanworth.moderation.v1.Report
+	(*CreateReportRequest)(nil),                 // 14: humanworth.moderation.v1.CreateReportRequest
+	(*CreateReportResponse)(nil),                // 15: humanworth.moderation.v1.CreateReportResponse
+	(*ListReportsRequest)(nil),                  // 16: humanworth.moderation.v1.ListReportsRequest
+	(*ListReportsResponse)(nil),                 // 17: humanworth.moderation.v1.ListReportsResponse
+	(*ResolveReportRequest)(nil),                // 18: humanworth.moderation.v1.ResolveReportRequest
+	(*ResolveReportResponse)(nil),               // 19: humanworth.moderation.v1.ResolveReportResponse
+	(*AuditEvent)(nil),                          // 20: humanworth.moderation.v1.AuditEvent
+	(*TakeDownContentRequest)(nil),              // 21: humanworth.moderation.v1.TakeDownContentRequest
+	(*TakeDownContentResponse)(nil),             // 22: humanworth.moderation.v1.TakeDownContentResponse
+	(*GetDashboardRequest)(nil),                 // 23: humanworth.moderation.v1.GetDashboardRequest
+	(*GetDashboardResponse)(nil),                // 24: humanworth.moderation.v1.GetDashboardResponse
+	(*ListAuditEventsRequest)(nil),              // 25: humanworth.moderation.v1.ListAuditEventsRequest
+	(*ListAuditEventsResponse)(nil),             // 26: humanworth.moderation.v1.ListAuditEventsResponse
+	(*v1.ReviewSnapshot)(nil),                   // 27: humanworth.content.v1.ReviewSnapshot
+	(*timestamppb.Timestamp)(nil),               // 28: google.protobuf.Timestamp
+	(v1.ReviewOutcome)(0),                       // 29: humanworth.content.v1.ReviewOutcome
+	(*v1.ApplyReviewDecisionResponse)(nil),      // 30: humanworth.content.v1.ApplyReviewDecisionResponse
+	(*v1.EntryReviewSnapshot)(nil),              // 31: humanworth.content.v1.EntryReviewSnapshot
+	(*v1.ApplyEntryReviewDecisionResponse)(nil), // 32: humanworth.content.v1.ApplyEntryReviewDecisionResponse
 }
 var file_humanworth_moderation_v1_moderation_proto_depIdxs = []int32{
-	12, // 0: humanworth.moderation.v1.Review.snapshot:type_name -> humanworth.content.v1.ReviewSnapshot
-	13, // 1: humanworth.moderation.v1.Review.created_at:type_name -> google.protobuf.Timestamp
-	13, // 2: humanworth.moderation.v1.Review.decided_at:type_name -> google.protobuf.Timestamp
-	14, // 3: humanworth.moderation.v1.Review.decision:type_name -> humanworth.content.v1.ReviewOutcome
+	27, // 0: humanworth.moderation.v1.Review.snapshot:type_name -> humanworth.content.v1.ReviewSnapshot
+	28, // 1: humanworth.moderation.v1.Review.created_at:type_name -> google.protobuf.Timestamp
+	28, // 2: humanworth.moderation.v1.Review.decided_at:type_name -> google.protobuf.Timestamp
+	29, // 3: humanworth.moderation.v1.Review.decision:type_name -> humanworth.content.v1.ReviewOutcome
 	0,  // 4: humanworth.moderation.v1.Review.delivery_state:type_name -> humanworth.moderation.v1.DeliveryState
-	15, // 5: humanworth.moderation.v1.Review.receipt:type_name -> humanworth.content.v1.ApplyReviewDecisionResponse
-	16, // 6: humanworth.moderation.v1.Review.entry_snapshot:type_name -> humanworth.content.v1.EntryReviewSnapshot
-	17, // 7: humanworth.moderation.v1.Review.entry_receipt:type_name -> humanworth.content.v1.ApplyEntryReviewDecisionResponse
-	12, // 8: humanworth.moderation.v1.CreateReviewCaseRequest.snapshot:type_name -> humanworth.content.v1.ReviewSnapshot
+	30, // 5: humanworth.moderation.v1.Review.receipt:type_name -> humanworth.content.v1.ApplyReviewDecisionResponse
+	31, // 6: humanworth.moderation.v1.Review.entry_snapshot:type_name -> humanworth.content.v1.EntryReviewSnapshot
+	32, // 7: humanworth.moderation.v1.Review.entry_receipt:type_name -> humanworth.content.v1.ApplyEntryReviewDecisionResponse
+	27, // 8: humanworth.moderation.v1.CreateReviewCaseRequest.snapshot:type_name -> humanworth.content.v1.ReviewSnapshot
 	1,  // 9: humanworth.moderation.v1.CreateReviewCaseResponse.review:type_name -> humanworth.moderation.v1.Review
 	1,  // 10: humanworth.moderation.v1.ListReviewsResponse.items:type_name -> humanworth.moderation.v1.Review
 	1,  // 11: humanworth.moderation.v1.GetReviewResponse.review:type_name -> humanworth.moderation.v1.Review
-	14, // 12: humanworth.moderation.v1.DecideReviewRequest.decision:type_name -> humanworth.content.v1.ReviewOutcome
+	29, // 12: humanworth.moderation.v1.DecideReviewRequest.decision:type_name -> humanworth.content.v1.ReviewOutcome
 	1,  // 13: humanworth.moderation.v1.DecideReviewResponse.review:type_name -> humanworth.moderation.v1.Review
-	16, // 14: humanworth.moderation.v1.CreateEntryReviewCaseRequest.snapshot:type_name -> humanworth.content.v1.EntryReviewSnapshot
+	31, // 14: humanworth.moderation.v1.CreateEntryReviewCaseRequest.snapshot:type_name -> humanworth.content.v1.EntryReviewSnapshot
 	1,  // 15: humanworth.moderation.v1.CreateEntryReviewCaseResponse.review:type_name -> humanworth.moderation.v1.Review
-	2,  // 16: humanworth.moderation.v1.ModerationService.CreateReviewCase:input_type -> humanworth.moderation.v1.CreateReviewCaseRequest
-	10, // 17: humanworth.moderation.v1.ModerationService.CreateEntryReviewCase:input_type -> humanworth.moderation.v1.CreateEntryReviewCaseRequest
-	4,  // 18: humanworth.moderation.v1.ModerationService.ListReviews:input_type -> humanworth.moderation.v1.ListReviewsRequest
-	6,  // 19: humanworth.moderation.v1.ModerationService.GetReview:input_type -> humanworth.moderation.v1.GetReviewRequest
-	8,  // 20: humanworth.moderation.v1.ModerationService.DecideReview:input_type -> humanworth.moderation.v1.DecideReviewRequest
-	3,  // 21: humanworth.moderation.v1.ModerationService.CreateReviewCase:output_type -> humanworth.moderation.v1.CreateReviewCaseResponse
-	11, // 22: humanworth.moderation.v1.ModerationService.CreateEntryReviewCase:output_type -> humanworth.moderation.v1.CreateEntryReviewCaseResponse
-	5,  // 23: humanworth.moderation.v1.ModerationService.ListReviews:output_type -> humanworth.moderation.v1.ListReviewsResponse
-	7,  // 24: humanworth.moderation.v1.ModerationService.GetReview:output_type -> humanworth.moderation.v1.GetReviewResponse
-	9,  // 25: humanworth.moderation.v1.ModerationService.DecideReview:output_type -> humanworth.moderation.v1.DecideReviewResponse
-	21, // [21:26] is the sub-list for method output_type
-	16, // [16:21] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	12, // 16: humanworth.moderation.v1.Report.target:type_name -> humanworth.moderation.v1.ModerationTarget
+	28, // 17: humanworth.moderation.v1.Report.created_at:type_name -> google.protobuf.Timestamp
+	28, // 18: humanworth.moderation.v1.Report.resolved_at:type_name -> google.protobuf.Timestamp
+	12, // 19: humanworth.moderation.v1.CreateReportRequest.target:type_name -> humanworth.moderation.v1.ModerationTarget
+	13, // 20: humanworth.moderation.v1.CreateReportResponse.report:type_name -> humanworth.moderation.v1.Report
+	13, // 21: humanworth.moderation.v1.ListReportsResponse.items:type_name -> humanworth.moderation.v1.Report
+	13, // 22: humanworth.moderation.v1.ResolveReportResponse.report:type_name -> humanworth.moderation.v1.Report
+	28, // 23: humanworth.moderation.v1.AuditEvent.created_at:type_name -> google.protobuf.Timestamp
+	12, // 24: humanworth.moderation.v1.TakeDownContentRequest.target:type_name -> humanworth.moderation.v1.ModerationTarget
+	20, // 25: humanworth.moderation.v1.TakeDownContentResponse.event:type_name -> humanworth.moderation.v1.AuditEvent
+	28, // 26: humanworth.moderation.v1.ListAuditEventsRequest.before_time:type_name -> google.protobuf.Timestamp
+	20, // 27: humanworth.moderation.v1.ListAuditEventsResponse.items:type_name -> humanworth.moderation.v1.AuditEvent
+	14, // 28: humanworth.moderation.v1.ModerationService.CreateReport:input_type -> humanworth.moderation.v1.CreateReportRequest
+	16, // 29: humanworth.moderation.v1.ModerationService.ListReports:input_type -> humanworth.moderation.v1.ListReportsRequest
+	18, // 30: humanworth.moderation.v1.ModerationService.ResolveReport:input_type -> humanworth.moderation.v1.ResolveReportRequest
+	21, // 31: humanworth.moderation.v1.ModerationService.TakeDownContent:input_type -> humanworth.moderation.v1.TakeDownContentRequest
+	23, // 32: humanworth.moderation.v1.ModerationService.GetDashboard:input_type -> humanworth.moderation.v1.GetDashboardRequest
+	25, // 33: humanworth.moderation.v1.ModerationService.ListAuditEvents:input_type -> humanworth.moderation.v1.ListAuditEventsRequest
+	2,  // 34: humanworth.moderation.v1.ModerationService.CreateReviewCase:input_type -> humanworth.moderation.v1.CreateReviewCaseRequest
+	10, // 35: humanworth.moderation.v1.ModerationService.CreateEntryReviewCase:input_type -> humanworth.moderation.v1.CreateEntryReviewCaseRequest
+	4,  // 36: humanworth.moderation.v1.ModerationService.ListReviews:input_type -> humanworth.moderation.v1.ListReviewsRequest
+	6,  // 37: humanworth.moderation.v1.ModerationService.GetReview:input_type -> humanworth.moderation.v1.GetReviewRequest
+	8,  // 38: humanworth.moderation.v1.ModerationService.DecideReview:input_type -> humanworth.moderation.v1.DecideReviewRequest
+	15, // 39: humanworth.moderation.v1.ModerationService.CreateReport:output_type -> humanworth.moderation.v1.CreateReportResponse
+	17, // 40: humanworth.moderation.v1.ModerationService.ListReports:output_type -> humanworth.moderation.v1.ListReportsResponse
+	19, // 41: humanworth.moderation.v1.ModerationService.ResolveReport:output_type -> humanworth.moderation.v1.ResolveReportResponse
+	22, // 42: humanworth.moderation.v1.ModerationService.TakeDownContent:output_type -> humanworth.moderation.v1.TakeDownContentResponse
+	24, // 43: humanworth.moderation.v1.ModerationService.GetDashboard:output_type -> humanworth.moderation.v1.GetDashboardResponse
+	26, // 44: humanworth.moderation.v1.ModerationService.ListAuditEvents:output_type -> humanworth.moderation.v1.ListAuditEventsResponse
+	3,  // 45: humanworth.moderation.v1.ModerationService.CreateReviewCase:output_type -> humanworth.moderation.v1.CreateReviewCaseResponse
+	11, // 46: humanworth.moderation.v1.ModerationService.CreateEntryReviewCase:output_type -> humanworth.moderation.v1.CreateEntryReviewCaseResponse
+	5,  // 47: humanworth.moderation.v1.ModerationService.ListReviews:output_type -> humanworth.moderation.v1.ListReviewsResponse
+	7,  // 48: humanworth.moderation.v1.ModerationService.GetReview:output_type -> humanworth.moderation.v1.GetReviewResponse
+	9,  // 49: humanworth.moderation.v1.ModerationService.DecideReview:output_type -> humanworth.moderation.v1.DecideReviewResponse
+	39, // [39:50] is the sub-list for method output_type
+	28, // [28:39] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_humanworth_moderation_v1_moderation_proto_init() }
@@ -870,13 +1885,15 @@ func file_humanworth_moderation_v1_moderation_proto_init() {
 	}
 	file_humanworth_moderation_v1_moderation_proto_msgTypes[0].OneofWrappers = []any{}
 	file_humanworth_moderation_v1_moderation_proto_msgTypes[7].OneofWrappers = []any{}
+	file_humanworth_moderation_v1_moderation_proto_msgTypes[12].OneofWrappers = []any{}
+	file_humanworth_moderation_v1_moderation_proto_msgTypes[19].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_humanworth_moderation_v1_moderation_proto_rawDesc), len(file_humanworth_moderation_v1_moderation_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   11,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -6,6 +6,7 @@ import (
 	assetpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/asset/v1"
 	challengepb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1"
 	contentpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1"
+	discoverypb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/discovery/v1"
 	pb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/identity/v1"
 	moderationpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/moderation/v1"
 	votingpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/voting/v1"
@@ -153,7 +154,16 @@ func run() error {
 		defer c.Close()
 		votingClient = votingpb.NewVotingServiceClient(c)
 	}
-	handler, err := gateway.New(pb.NewIdentityServiceClient(conn), gateway.Options{Voting: votingClient, Moderation: moderationClient, Challenge: challengeClient, Content: contentClient, Asset: assetClient, DeploymentStatusFile: os.Getenv("DEPLOYMENT_STATUS_FILE"), Origin: origin, LogoPath: platform.Value("SITE_LOGO_FILE", "../public/brand/logo.png"), TrustedProxies: proxies, Logger: runtime.Log, Registry: runtime.Registry, Ready: ready})
+	var discoveryClient discoverypb.DiscoveryServiceClient
+	if target := os.Getenv("DISCOVERY_TARGET"); target != "" {
+		c, e := platform.Client(target, "discovery")
+		if e != nil {
+			return e
+		}
+		defer c.Close()
+		discoveryClient = discoverypb.NewDiscoveryServiceClient(c)
+	}
+	handler, err := gateway.New(pb.NewIdentityServiceClient(conn), gateway.Options{Discovery: discoveryClient, Voting: votingClient, Moderation: moderationClient, Challenge: challengeClient, Content: contentClient, Asset: assetClient, DeploymentStatusFile: os.Getenv("DEPLOYMENT_STATUS_FILE"), Origin: origin, LogoPath: platform.Value("SITE_LOGO_FILE", "../public/brand/logo.png"), TrustedProxies: proxies, Logger: runtime.Log, Registry: runtime.Registry, Ready: ready})
 	if err != nil {
 		return err
 	}

@@ -130,7 +130,7 @@ func assetPeer(ctx context.Context, method string) error {
 			return nil
 		}
 	case "content":
-		if method == pb.AssetService_CheckAssetOwnership_FullMethodName {
+		if method == pb.AssetService_CheckAssetOwnership_FullMethodName || method == pb.AssetService_GetAsset_FullMethodName {
 			return nil
 		}
 	case "challenge":

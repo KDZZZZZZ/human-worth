@@ -10,4 +10,9 @@ GRANT UPDATE(lock_marker) ON voting.account_task_guards TO voting_runtime;
 GRANT UPDATE(entry_id,revision,request_hash,updated_at) ON voting.current_votes TO voting_runtime;
 GRANT DELETE ON voting.ballots TO voting_runtime;
 -- No UPDATE/DELETE of permanent closure facts, no DDL/cross-schema privileges.
+GRANT UPDATE(activated_at) ON voting.catalog_gates TO voting_runtime;
+GRANT UPDATE(generation) ON voting.current_votes TO voting_runtime;
+GRANT SELECT,INSERT ON voting.conclusions,voting.conclusion_events,voting.preference_snapshots,voting.preference_assignments TO voting_runtime;
+GRANT UPDATE(conclusion,last_leading,flip_count,last_flip_at,changed_at) ON voting.conclusions TO voting_runtime;
+GRANT USAGE ON SEQUENCE voting.conclusion_events_id_seq TO voting_runtime;
 COMMIT;

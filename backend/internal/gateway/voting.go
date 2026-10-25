@@ -155,9 +155,13 @@ func (h *Handler) accessTaskStatistics(w http.ResponseWriter, r *http.Request) {
 		problem(w, 503, "voting_unavailable")
 		return
 	}
+	votingJSON(w, statisticsJSON(s))
+}
+
+func statisticsJSON(s *pb.TaskStatistics) any {
 	entries := make([]any, 0, len(s.EntryVotes))
 	for _, e := range s.EntryVotes {
 		entries = append(entries, map[string]any{"entryId": e.EntryId, "side": e.Side, "votes": e.Votes, "voteShare": e.VoteShare})
 	}
-	votingJSON(w, map[string]any{"taskId": s.TaskId, "eligibility": eligibilityJSON(s.Eligibility), "totalVotes": s.TotalVotes, "humanVotes": s.HumanVotes, "agentVotes": s.AgentVotes, "humanVoteShare": s.HumanVoteShare, "agentVoteShare": s.AgentVoteShare, "entryVotes": entries, "catalogRevision": s.CatalogRevision, "conclusion": s.Conclusion, "computedAt": timestampJSON(s.ComputedAt)})
+	return map[string]any{"taskId": s.TaskId, "eligibility": eligibilityJSON(s.Eligibility), "totalVotes": s.TotalVotes, "humanVotes": s.HumanVotes, "agentVotes": s.AgentVotes, "humanVoteShare": s.HumanVoteShare, "agentVoteShare": s.AgentVoteShare, "entryVotes": entries, "catalogRevision": s.CatalogRevision, "conclusion": s.Conclusion, "computedAt": timestampJSON(s.ComputedAt), "flipCount": s.FlipCount, "lastFlipAt": timestampJSON(s.LastFlipAt)}
 }

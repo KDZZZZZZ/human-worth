@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: discovery, namespace: human-worth}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Service
+metadata: {name: discovery, namespace: human-worth}
+spec:
+  clusterIP: None
+  selector: {app: discovery}
+  ports: [{name: grpc, port: 8443, targetPort: grpc}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: discovery, namespace: human-worth}
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector: {matchLabels: {app: discovery}}
+  strategy:
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
+  template:
+    metadata: {labels: {app: discovery}}
+    spec:
+      serviceAccountName: discovery
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 20
+      nodeSelector: {human-worth.io/worker: "true"}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector: {matchLabels: {app: discovery}}
+      securityContext: {runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: discovery
+          image: human-worth/discovery:local
+          imagePullPolicy: Never
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 400m, memory: 192Mi}
+          env:
+            - {name: IDENTITY_TARGET, value: "dns:///identity.human-worth.svc.cluster.local:8443"}
+            - {name: VOTING_TARGET, value: "dns:///voting.human-worth.svc.cluster.local:8443"}
+            - {name: CONTENT_TARGET, value: "dns:///content.human-worth.svc.cluster.local:8443"}
+            - {name: SERVICE_CERT_FILE, value: /tls/tls.crt}
+            - {name: SERVICE_KEY_FILE, value: /tls/tls.key}
+            - {name: SERVICE_CA_FILE, value: /tls/ca.crt}
+            - {name: POD_NAME, valueFrom: {fieldRef: {fieldPath: metadata.name}}}
+            - {name: GOMEMLIMIT, value: 150MiB}
+          ports: [{name: grpc, containerPort: 8443}, {name: health, containerPort: 8081}]
+          startupProbe: {httpGet: {path: /livez, port: health}, periodSeconds: 2, failureThreshold: 30}
+          livenessProbe: {httpGet: {path: /livez, port: health}, periodSeconds: 10}
+          readinessProbe: {httpGet: {path: /readyz, port: health}, periodSeconds: 3, timeoutSeconds: 3, failureThreshold: 2}
+          volumeMounts:
+            - {name: tls, mountPath: /tls, readOnly: true}
+      volumes:
+        - {name: tls, secret: {secretName: discovery-tls, defaultMode: 0440}}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: {name: discovery, namespace: human-worth}
+spec:
+  minAvailable: 1
+  selector: {matchLabels: {app: discovery}}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: discovery, namespace: human-worth}
+spec:
+  podSelector: {matchLabels: {app: discovery}}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{podSelector: {matchLabels: {app: gateway}}}, {podSelector: {matchLabels: {app: content}}}]
+      ports: [{protocol: TCP, port: 8443}]
+  egress:
+    - to: [{podSelector: {matchLabels: {app: content}}}]
+      ports: [{protocol: TCP, port: 8443}]
+    - to: [{podSelector: {matchLabels: {app: identity}}}]
+      ports: [{protocol: TCP, port: 8443}]
+    - to: [{podSelector: {matchLabels: {app: voting}}}]
+      ports: [{protocol: TCP, port: 8443}]

@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	VotingService_GetPublicConclusions_FullMethodName         = "/humanworth.voting.v1.VotingService/GetPublicConclusions"
 	VotingService_GetVotingEligibility_FullMethodName         = "/humanworth.voting.v1.VotingService/GetVotingEligibility"
 	VotingService_GetBallot_FullMethodName                    = "/humanworth.voting.v1.VotingService/GetBallot"
 	VotingService_CastVote_FullMethodName                     = "/humanworth.voting.v1.VotingService/CastVote"
@@ -36,6 +37,7 @@ const (
 //
 // VotingService 的机器监督接口仅允许 Challenge，不能映射为网站或 MCP 统计旁路。
 type VotingServiceClient interface {
+	GetPublicConclusions(ctx context.Context, in *GetPublicConclusionsRequest, opts ...grpc.CallOption) (*GetPublicConclusionsResponse, error)
 	// Gateway mTLS + current method-bound assertion. No anonymous callers.
 	GetVotingEligibility(ctx context.Context, in *GetVotingEligibilityRequest, opts ...grpc.CallOption) (*GetVotingEligibilityResponse, error)
 	GetBallot(ctx context.Context, in *GetBallotRequest, opts ...grpc.CallOption) (*GetBallotResponse, error)
@@ -56,6 +58,16 @@ type votingServiceClient struct {
 
 func NewVotingServiceClient(cc grpc.ClientConnInterface) VotingServiceClient {
 	return &votingServiceClient{cc}
+}
+
+func (c *votingServiceClient) GetPublicConclusions(ctx context.Context, in *GetPublicConclusionsRequest, opts ...grpc.CallOption) (*GetPublicConclusionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPublicConclusionsResponse)
+	err := c.cc.Invoke(ctx, VotingService_GetPublicConclusions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *votingServiceClient) GetVotingEligibility(ctx context.Context, in *GetVotingEligibilityRequest, opts ...grpc.CallOption) (*GetVotingEligibilityResponse, error) {
@@ -154,6 +166,7 @@ func (c *votingServiceClient) CheckHumanPreferenceSnapshot(ctx context.Context, 
 //
 // VotingService 的机器监督接口仅允许 Challenge，不能映射为网站或 MCP 统计旁路。
 type VotingServiceServer interface {
+	GetPublicConclusions(context.Context, *GetPublicConclusionsRequest) (*GetPublicConclusionsResponse, error)
 	// Gateway mTLS + current method-bound assertion. No anonymous callers.
 	GetVotingEligibility(context.Context, *GetVotingEligibilityRequest) (*GetVotingEligibilityResponse, error)
 	GetBallot(context.Context, *GetBallotRequest) (*GetBallotResponse, error)
@@ -176,6 +189,9 @@ type VotingServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedVotingServiceServer struct{}
 
+func (UnimplementedVotingServiceServer) GetPublicConclusions(context.Context, *GetPublicConclusionsRequest) (*GetPublicConclusionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPublicConclusions not implemented")
+}
 func (UnimplementedVotingServiceServer) GetVotingEligibility(context.Context, *GetVotingEligibilityRequest) (*GetVotingEligibilityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetVotingEligibility not implemented")
 }
@@ -222,6 +238,24 @@ func RegisterVotingServiceServer(s grpc.ServiceRegistrar, srv VotingServiceServe
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&VotingService_ServiceDesc, srv)
+}
+
+func _VotingService_GetPublicConclusions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPublicConclusionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VotingServiceServer).GetPublicConclusions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: VotingService_GetPublicConclusions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VotingServiceServer).GetPublicConclusions(ctx, req.(*GetPublicConclusionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _VotingService_GetVotingEligibility_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -393,6 +427,10 @@ var VotingService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "humanworth.voting.v1.VotingService",
 	HandlerType: (*VotingServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetPublicConclusions",
+			Handler:    _VotingService_GetPublicConclusions_Handler,
+		},
 		{
 			MethodName: "GetVotingEligibility",
 			Handler:    _VotingService_GetVotingEligibility_Handler,

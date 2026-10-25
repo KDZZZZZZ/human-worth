@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	ChallengeService_ListAuditEvents_FullMethodName   = "/humanworth.challenge.v1.ChallengeService/ListAuditEvents"
 	ChallengeService_StartRun_FullMethodName          = "/humanworth.challenge.v1.ChallengeService/StartRun"
 	ChallengeService_GetRun_FullMethodName            = "/humanworth.challenge.v1.ChallengeService/GetRun"
 	ChallengeService_ListRuns_FullMethodName          = "/humanworth.challenge.v1.ChallengeService/ListRuns"
@@ -45,6 +46,7 @@ const (
 //
 // ChallengeService 保存状态与权限；worker 只能领取并提交自己当前租约内的工作。
 type ChallengeServiceClient interface {
+	ListAuditEvents(ctx context.Context, in *ListAuditEventsRequest, opts ...grpc.CallOption) (*ListAuditEventsResponse, error)
 	StartRun(ctx context.Context, in *StartRunRequest, opts ...grpc.CallOption) (*StartRunResponse, error)
 	GetRun(ctx context.Context, in *GetRunRequest, opts ...grpc.CallOption) (*GetRunResponse, error)
 	ListRuns(ctx context.Context, in *ListRunsRequest, opts ...grpc.CallOption) (*ListRunsResponse, error)
@@ -71,6 +73,16 @@ type challengeServiceClient struct {
 
 func NewChallengeServiceClient(cc grpc.ClientConnInterface) ChallengeServiceClient {
 	return &challengeServiceClient{cc}
+}
+
+func (c *challengeServiceClient) ListAuditEvents(ctx context.Context, in *ListAuditEventsRequest, opts ...grpc.CallOption) (*ListAuditEventsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAuditEventsResponse)
+	err := c.cc.Invoke(ctx, ChallengeService_ListAuditEvents_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *challengeServiceClient) StartRun(ctx context.Context, in *StartRunRequest, opts ...grpc.CallOption) (*StartRunResponse, error) {
@@ -271,6 +283,7 @@ func (c *challengeServiceClient) SettleModelCall(ctx context.Context, in *Settle
 //
 // ChallengeService 保存状态与权限；worker 只能领取并提交自己当前租约内的工作。
 type ChallengeServiceServer interface {
+	ListAuditEvents(context.Context, *ListAuditEventsRequest) (*ListAuditEventsResponse, error)
 	StartRun(context.Context, *StartRunRequest) (*StartRunResponse, error)
 	GetRun(context.Context, *GetRunRequest) (*GetRunResponse, error)
 	ListRuns(context.Context, *ListRunsRequest) (*ListRunsResponse, error)
@@ -299,6 +312,9 @@ type ChallengeServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedChallengeServiceServer struct{}
 
+func (UnimplementedChallengeServiceServer) ListAuditEvents(context.Context, *ListAuditEventsRequest) (*ListAuditEventsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAuditEvents not implemented")
+}
 func (UnimplementedChallengeServiceServer) StartRun(context.Context, *StartRunRequest) (*StartRunResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method StartRun not implemented")
 }
@@ -372,6 +388,24 @@ func RegisterChallengeServiceServer(s grpc.ServiceRegistrar, srv ChallengeServic
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&ChallengeService_ServiceDesc, srv)
+}
+
+func _ChallengeService_ListAuditEvents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAuditEventsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChallengeServiceServer).ListAuditEvents(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChallengeService_ListAuditEvents_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChallengeServiceServer).ListAuditEvents(ctx, req.(*ListAuditEventsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _ChallengeService_StartRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -687,6 +721,10 @@ var ChallengeService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "humanworth.challenge.v1.ChallengeService",
 	HandlerType: (*ChallengeServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ListAuditEvents",
+			Handler:    _ChallengeService_ListAuditEvents_Handler,
+		},
 		{
 			MethodName: "StartRun",
 			Handler:    _ChallengeService_StartRun_Handler,

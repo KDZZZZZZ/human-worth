@@ -38,7 +38,15 @@ func (h *Handler) publicContentActor(w http.ResponseWriter, r *http.Request, ope
 		problem(w, 401, "unauthenticated")
 		return "", false
 	}
-	return h.contentActor(w, r, operation)
+	definition, ok := contract.LookupOperation(operation)
+	if !ok {
+		problem(w, 503, "internal_error")
+		return "", false
+	}
+	if definition.Policy.Audience == "content" {
+		return h.contentActor(w, r, operation)
+	}
+	return h.actorFor(w, r, operation)
 }
 func timestampJSON(t *timestamppb.Timestamp) any {
 	if t == nil {
@@ -72,6 +80,9 @@ func (h *Handler) getPublicTask(w http.ResponseWriter, r *http.Request) {
 		problem(w, 503, "content_unavailable")
 		return
 	}
+	jsonResponse(w, 200, publicTaskJSON(t))
+}
+func publicTaskJSON(t *pb.PublicTask) map[string]any {
 	var category, heat any
 	if t.Category != nil {
 		category = *t.Category
@@ -79,7 +90,11 @@ func (h *Handler) getPublicTask(w http.ResponseWriter, r *http.Request) {
 	if t.Heat != nil {
 		heat = *t.Heat
 	}
-	jsonResponse(w, 200, map[string]any{"id": t.Id, "revision": t.Revision, "title": t.Title, "summary": t.Summary, "description": t.Description, "category": category, "author": publicAuthorJSON(t.Author), "heat": heat, "publishedAt": timestampJSON(t.PublishedAt), "taskAttachments": []any{}})
+	attachments := make([]any, 0, len(t.TaskAttachments))
+	for _, a := range t.TaskAttachments {
+		attachments = append(attachments, map[string]any{"id": a.Id, "filename": a.Filename, "mediaType": a.MediaType, "bytes": a.Bytes, "sha256": a.Sha256})
+	}
+	return map[string]any{"id": t.Id, "revision": t.Revision, "title": t.Title, "summary": t.Summary, "description": t.Description, "category": category, "author": publicAuthorJSON(t.Author), "heat": heat, "publishedAt": timestampJSON(t.PublishedAt), "taskAttachments": attachments}
 }
 func publicEntryQuery(raw string) (int32, string, string) {
 	q, err := url.ParseQuery(raw)
@@ -124,22 +139,35 @@ func (h *Handler) listPublicEntries(w http.ResponseWriter, r *http.Request) {
 			problem(w, 503, "content_unavailable")
 			return
 		}
-		artifacts := make([]map[string]any, 0, len(e.Artifacts))
-		for _, a := range e.Artifacts {
-			if a.GetKind() == "file" {
-				artifacts = append(artifacts, map[string]any{"kind": "file", "assetId": a.GetAssetId()})
-			} else if a.GetKind() == "link" {
-				artifacts = append(artifacts, map[string]any{"kind": "link", "url": a.GetUrl()})
-			} else {
-				problem(w, 503, "content_unavailable")
-				return
-			}
+		item := approvedEntryJSON(e)
+		if item == nil {
+			problem(w, 503, "content_unavailable")
+			return
 		}
-		items = append(items, map[string]any{"id": e.Id, "taskId": e.TaskId, "side": e.Side, "title": e.Title, "description": e.Description, "source": e.Source, "artifacts": artifacts, "author": publicAuthorJSON(e.Author), "approvedAt": timestampJSON(e.ApprovedAt)})
+		items = append(items, item)
 	}
 	var next any
 	if result.NextCursor != "" {
 		next = result.NextCursor
 	}
 	jsonResponse(w, 200, map[string]any{"items": items, "nextCursor": next})
+}
+
+func approvedEntryJSON(e *pb.ApprovedEntry) map[string]any {
+	artifacts := make([]map[string]any, 0, len(e.Artifacts))
+	for _, a := range e.Artifacts {
+		v := map[string]any{"kind": a.Kind}
+		switch a.Kind {
+		case "file":
+			v["assetId"] = a.AssetId
+		case "link":
+			v["url"] = a.Url
+		case "text":
+			v["text"] = a.Text
+		default:
+			return nil
+		}
+		artifacts = append(artifacts, v)
+	}
+	return map[string]any{"id": e.Id, "taskId": e.TaskId, "side": e.Side, "title": e.Title, "description": e.Description, "source": e.Source, "artifacts": artifacts, "author": publicAuthorJSON(e.Author), "approvedAt": timestampJSON(e.ApprovedAt)}
 }

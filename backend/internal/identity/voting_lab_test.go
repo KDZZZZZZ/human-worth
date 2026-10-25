@@ -41,7 +41,7 @@ func TestKindVotingDeployment(t *testing.T) {
 	kindDecode(t, l.request(client, author, "POST", "/api/me/assets/upload-sessions", body, map[string]string{"Idempotency-Key": "kind-voting-upload-01"}, 201), &upload)
 	l.request(client, author, "PUT", "/api/me/assets/upload-sessions/"+upload.UploadSession.ID+"/content", string(data), map[string]string{"Content-Type": "application/octet-stream", "Content-Range": fmt.Sprintf("bytes 0-%d/%d", len(data)-1, len(data))}, 200)
 	l.request(client, author, "POST", "/api/me/assets/"+upload.Asset.ID+"/complete", `{"uploadSessionId":"`+upload.UploadSession.ID+`"}`, nil, 200)
-	draft := `{"title":"kind voting parent","summary":"","description":"frozen","entries":[{"side":"human","title":"human","source":"self","artifacts":[{"kind":"file","assetId":"` + upload.Asset.ID + `"}],"permissions":{"cloudUse":false}},{"side":"agent","title":"agent","source":"model","artifacts":[{"kind":"link","url":"https://example.test/work"}],"permissions":{"cloudUse":false},"agentConfiguration":{"model":"PRIVATE_MODEL"}}]}`
+	draft := `{"title":"kind voting parent","summary":"","description":"frozen","entries":[{"side":"human","title":"human","source":"self","artifacts":[{"kind":"file","assetId":"` + upload.Asset.ID + `"}],"permissions":{"cloudUse":false}},{"side":"agent","title":"agent","source":"model","artifacts":[{"kind":"text","text":"complete agent work"}],"permissions":{"cloudUse":false},"agentConfiguration":{"model":"PRIVATE_MODEL"}}]}`
 	var task struct {
 		ID       string
 		ReviewID *string
@@ -71,6 +71,32 @@ func TestKindVotingDeployment(t *testing.T) {
 	l.request(client, admin, "POST", "/api/admin/reviews/"+*task.ReviewID+"/decision", `{"decision":"approve","reason":"Voting verification"}`, nil, 202)
 	poll(*task.ReviewID, "approved")
 	base := "/api/tasks/" + task.ID
+	// Exercise the new read and administration services through the deployed
+	// Gateway, with their actual mTLS and database grants.
+	l.request(client, voter, "POST", base+"/comments", `{"body":"Compare the complete works"}`, nil, 201)
+	var comments struct{ Items []struct{ Body string } }
+	kindDecode(t, l.request(client, kindUser{}, "GET", base+"/comments", "", nil, 200), &comments)
+	if len(comments.Items) != 1 || comments.Items[0].Body != "Compare the complete works" {
+		t.Fatal("deployed discussion lost its persisted comment")
+	}
+	var found struct{ Items []struct{ ID string } }
+	kindDecode(t, l.request(client, kindUser{}, "GET", "/api/tasks?order=hot&q=kind%20voting", "", nil, 200), &found)
+	if len(found.Items) != 1 || found.Items[0].ID != task.ID {
+		t.Fatal("deployed Discovery failed to find the published task")
+	}
+	var board struct {
+		Overall struct{ PublishedTasks int64 }
+	}
+	kindDecode(t, l.request(client, kindUser{}, "GET", "/api/board", "", nil, 200), &board)
+	if board.Overall.PublishedTasks < 1 {
+		t.Fatal("deployed public board omitted published tasks")
+	}
+	l.request(client, voter, "GET", "/api/admin/dashboard", "", nil, 403)
+	dashboard := l.request(client, admin, "GET", "/api/admin/dashboard", "", nil, 200)
+	if !bytes.Contains(dashboard, []byte(`"activeRuns"`)) || bytes.Contains(dashboard, []byte(`"quota"`)) {
+		t.Fatal("admin summary did not join Challenge or exposed quota")
+	}
+	l.request(client, admin, "GET", "/api/admin/audit-events", "", nil, 200)
 	var ballot struct {
 		ID          string
 		Entries     []struct{ ID string }
@@ -154,10 +180,15 @@ func TestKindVotingDeployment(t *testing.T) {
 	l.request(client, voter, "GET", "/api/me", "", nil, 200)
 	l.request(client, kindUser{}, "GET", base, "", nil, 200)
 	l.request(client, kindUser{}, "GET", base+"/entries", "", nil, 200)
+	kindDecode(t, l.request(client, kindUser{}, "GET", "/api/tasks?q=kind%20voting", "", nil, 200), &found)
+	if len(found.Items) != 1 || found.Items[0].ID != task.ID {
+		t.Fatal("Voting outage removed ordinary discovery")
+	}
+	l.request(client, kindUser{}, "GET", "/api/board", "", nil, 503, 504)
 	l.request(client, voter, "GET", base+"/ballot", "", nil, 503, 504)
 	// While Voting is offline an approval becomes a durable pending intent, never
 	// a final Moderation receipt or an unguarded newly published directory.
-	entryBody := `{"side":"human","title":"outage addition","source":"self","artifacts":[{"kind":"link","url":"https://example.test/new"}],"permissions":{"cloudUse":false}}`
+	entryBody := `{"side":"human","title":"outage addition","source":"self","artifacts":[{"kind":"text","text":"complete new work"}],"permissions":{"cloudUse":false}}`
 	var entry struct{ ID, ReviewID string }
 	kindDecode(t, l.request(client, voter, "POST", base+"/entries", entryBody, map[string]string{"Idempotency-Key": "kind-voting-addition-01"}, 201), &entry)
 	poll(entry.ReviewID, "pending")

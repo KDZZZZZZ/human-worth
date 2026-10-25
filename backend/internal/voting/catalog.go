@@ -113,12 +113,15 @@ func (s *Server) ActivateCatalogSnapshot(ctx context.Context, r *pb.ActivateCata
 		return nil, conflict("catalog_generation_conflict")
 	}
 	raw, _ := proto.Marshal(c)
-	_, err = tx.Exec(ctx, `UPDATE voting.catalog_gates SET state=$2,sha256=$3,snapshot=$4,tombstone=tombstone OR $2='closed' WHERE task_id=$1`, c.TaskId, c.State, c.Sha256, raw)
+	_, err = tx.Exec(ctx, `UPDATE voting.catalog_gates SET state=$2,sha256=$3,snapshot=$4,activated_at=clock_timestamp(),tombstone=tombstone OR $2='closed' WHERE task_id=$1`, c.TaskId, c.State, c.Sha256, raw)
 	if err == nil {
 		_, err = tx.Exec(ctx, `UPDATE voting.catalog_changes SET phase='activated',sha256=$2 WHERE change_id=$1`, r.ChangeId, c.Sha256)
 	}
 	if err != nil {
 		return nil, storage(err)
+	}
+	if err = updateConclusion(ctx, tx, c); err != nil {
+		return nil, err
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return nil, storage(err)

@@ -18,7 +18,12 @@ func layeredAssetServer(db *pgxpool.Pool, store asset.Storage, identity identity
 		useCase.Multipart = multipart
 	}
 	repository := assetpostgres.UploadRepository{DB: db}
+	challenge := assetapp.ChallengeUploadUseCase{Repository: repository, Storage: store, ChunkBytes: platform.AssetUploadChunkBytes, MaxAssetBytes: 32 << 20}
+	if multipart, ok := store.(assetapp.ChallengeMultipartStorage); ok {
+		challenge.Multipart = multipart
+	}
 	return &asset.Server{DB: db, Identity: identity, Storage: store, Content: content, BrowserUpload: useCase,
+		ChallengeUpload: challenge,
 		UploadSessions:  assetapp.SessionUseCase{Repository: repository},
 		CompleteUseCase: assetapp.CompleteUploadUseCase{Repository: repository, Storage: store},
 		AbortUseCase:    assetapp.AbortUploadUseCase{Repository: repository, Storage: store},

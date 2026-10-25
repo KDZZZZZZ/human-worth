@@ -147,7 +147,7 @@ func (f *additionalEntryLab) request(t *testing.T, replica int, actor additional
 }
 
 func additionalInput(side, title, assetID string) string {
-	artifact := map[string]string{"kind": "link", "url": "https://example.test/work"}
+	artifact := map[string]string{"kind": "text", "text": "complete submitted work"}
 	if assetID != "" {
 		artifact = map[string]string{"kind": "file", "assetId": assetID}
 	}

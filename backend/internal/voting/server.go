@@ -40,7 +40,12 @@ var objectID = regexp.MustCompile(`^[a-z]+_[a-f0-9]{32}$`)
 
 func invalid(reason string) error  { return status.Error(codes.InvalidArgument, reason) }
 func conflict(reason string) error { return status.Error(codes.Aborted, reason) }
-func storage(err error) error      { return platform.DependencyError(err, "voting_unavailable") }
+func storage(err error) error {
+	if err == nil {
+		return nil
+	}
+	return platform.DependencyError(err, "voting_unavailable")
+}
 func id(prefix string) (string, error) {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
@@ -61,6 +66,8 @@ func peer(ctx context.Context, expected string) error {
 func Authorization(ctx context.Context, r any, info *grpc.UnaryServerInfo, next grpc.UnaryHandler) (any, error) {
 	expected := "gateway"
 	switch info.FullMethod {
+	case pb.VotingService_GetPublicConclusions_FullMethodName:
+		expected = "discovery"
 	case pb.VotingService_PrepareCatalogChange_FullMethodName, pb.VotingService_ActivateCatalogSnapshot_FullMethodName, pb.VotingService_GetCatalogTransition_FullMethodName:
 		expected = "content"
 	case pb.VotingService_GetHumanPreferenceSnapshot_FullMethodName, pb.VotingService_CheckHumanPreferenceSnapshot_FullMethodName:
@@ -133,11 +140,15 @@ func (s *Server) authority(ctx context.Context, task string) (*contentpb.VotingC
 	}
 	return c, nil
 }
-func gate(ctx context.Context, tx pgx.Tx, expected *contentpb.VotingCatalogSnapshot) (*contentpb.VotingCatalogSnapshot, error) {
+func gate(ctx context.Context, tx pgx.Tx, expected *contentpb.VotingCatalogSnapshot, exclusive ...bool) (*contentpb.VotingCatalogSnapshot, error) {
 	var raw []byte
 	var state, hash string
 	var generation int64
-	err := tx.QueryRow(ctx, `SELECT state,generation,sha256,snapshot FROM voting.catalog_gates WHERE task_id=$1 FOR SHARE`, expected.TaskId).Scan(&state, &generation, &hash, &raw)
+	lock := " FOR SHARE"
+	if len(exclusive) > 0 && exclusive[0] {
+		lock = " FOR UPDATE"
+	}
+	err := tx.QueryRow(ctx, `SELECT state,generation,sha256,snapshot FROM voting.catalog_gates WHERE task_id=$1`+lock, expected.TaskId).Scan(&state, &generation, &hash, &raw)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, status.Error(codes.Unavailable, "catalog_not_initialized")
 	}
@@ -285,7 +296,7 @@ func (s *Server) CastVote(ctx context.Context, r *pb.CastVoteRequest) (*pb.CastV
 		return nil, storage(err)
 	}
 	defer tx.Rollback(ctx)
-	c, err = gate(ctx, tx, c)
+	c, err = gate(ctx, tx, c, true)
 	if err != nil {
 		return nil, err
 	}
@@ -343,18 +354,21 @@ func (s *Server) CastVote(ctx context.Context, r *pb.CastVoteRequest) (*pb.CastV
 		if err != nil {
 			return nil, err
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO voting.current_votes(account_id,task_id,id,entry_id,revision,request_hash) VALUES($1,$2,$3,$4,1,$5)`, account, c.TaskId, v, r.EntryId, hash[:])
+		_, err = tx.Exec(ctx, `INSERT INTO voting.current_votes(account_id,task_id,id,entry_id,revision,request_hash,generation) VALUES($1,$2,$3,$4,1,$5,$6)`, account, c.TaskId, v, r.EntryId, hash[:], c.Generation)
 		if err != nil {
 			return nil, storage(err)
 		}
 	} else {
-		_, err = tx.Exec(ctx, `UPDATE voting.current_votes SET entry_id=$3,revision=revision+1,request_hash=$4,updated_at=clock_timestamp() WHERE account_id=$1 AND task_id=$2`, account, c.TaskId, r.EntryId, hash[:])
+		_, err = tx.Exec(ctx, `UPDATE voting.current_votes SET entry_id=$3,revision=revision+1,request_hash=$4,generation=$5,updated_at=clock_timestamp() WHERE account_id=$1 AND task_id=$2`, account, c.TaskId, r.EntryId, hash[:], c.Generation)
 		if err != nil {
 			return nil, storage(err)
 		}
 	}
 	vote, _, err = currentVote(ctx, tx, account, c.TaskId)
 	if err != nil {
+		return nil, err
+	}
+	if err = updateConclusion(ctx, tx, c); err != nil {
 		return nil, err
 	}
 	if err = tx.Commit(ctx); err != nil {

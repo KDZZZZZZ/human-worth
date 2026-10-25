@@ -280,3 +280,18 @@ P 完全不看评论与其他作品，R 又需为 P 提供依据，因此采用�
 ### Voting 第七阶段实施增量（2026-10-25，Agent Self-Claimed）
 
 原规划记录保留。实际从包含第六阶段的dev `a1556394e6b4f27101e79327c349e6c39561ca29`开发；本轮重新HTTP读取上述PostgreSQL18锁、隔离及Proto3官方页面均200，记录位于`/home/cherry/.local/state/human-worth/validation/voting-20261025/reference-check.json`。采用gate `FOR SHARE`与目录`FOR UPDATE`串行、账号guard统一票/禁投、只追加禁投及RR同快照统计；跨服务仍需持久意图/冻结/激活/确认，不以本地隔离替代分布式协议。具体状态、预算、故障与实际证据见Voting第13节及执行记录；没有引入外部依赖或Challenge监督样本。
+
+<a id="backend-completion-references"></a>
+## 后端补全参考（2026-10-25）
+
+以下为 Agent Self-Claimed 技术选择，不能替代 PRD 中的人类要求。
+
+| 缺口 | 已核对的成熟参考 | 采用、差异与验证 |
+| --- | --- | --- |
+| MCP HTTP 传输与方法协商 | MCP 官方 [2026-07-28 Streamable HTTP](https://raw.githubusercontent.com/modelcontextprotocol/modelcontextprotocol/main/docs/specification/2026-07-28/basic/transports/streamable-http.mdx)、[schema](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2026-07-28/schema.ts)、[2025-11-25 transport](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports) | 使用无服务端会话的 JSON 响应；2026 方法／工具元信息与请求头匹配，兼容旧 initialize。每次请求重新检查 Bearer token；统计工具披露永久禁投，必须显式确认；不增加写工具。真实 HTTP 覆盖撤销、Origin／Accept、批请求、ID、通知及协议版本拒绝 |
+| 发现流与热度的初始规则 | Mastodon [分页](https://docs.joinmastodon.org/methods/timelines/) 与固定 [v4.5.0 trends/statuses.rb](https://raw.githubusercontent.com/mastodon/mastodon/v4.5.0/app/models/trends/statuses.rb) | 借鉴公开内容候选、稳定分页与近期互动；本项目没有点赞／转发，不能照搬其阈值、平方权重或半衰期。采用七天不同评论账号＋过审作品作为可验证基线，完全排除票数；推荐先按最新发布排序。不是成熟个性化推荐或抗刷保证 |
+| 小样本领先与翻转 | NIST [TN 2119](https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.2119.pdf)、英国公共卫生 [Proportions technical guidance](https://fingertips.phe.org.uk/static-reports/public-health-technical-guidance/Basic_statistics/Proportions.html) | 采用 95% Wilson 区间，至少 20 票是本项目技术参数，不是来源认可的统一样本阈值；只描述参与账号。边界和并发改选测试检查不确定区间、两方领先及一次翻转，不能据此声称统计代表性 |
+| gVisor 可复现安装 | 官方 [安装说明](https://gvisor.dev/docs/user_guide/install/) 与 [containerd quick start](https://gvisor.dev/docs/user_guide/containerd/quick_start/) | 2026-07 以后用完整 bundle，包括 runsc、shim 和 gvisor-bin；固定 20261019.0 和 SHA-512。仅在选定 kind 节点配置 containerd，不改宿主机 Docker。用真实 Job 验证非 root、只读根、无凭据、网络拒绝、文件产出与回收 |
+| 训练／验证任务隔离 | 延续前文 scikit-learn 的独立验证参考及 PRD H10／H12 | 训练最多消耗候选集合一半，永久保存同 run 的任务占用；验证不复用训练或此前暴露任务。样本不足明确失败，不能通过延长快照／重新取样伪造拟合通过 |
+
+此前投票的持久意图、先冻结再应用、不可修改的禁投事实以及失败恢复继续保留。新增分类历史使 CastVote 采用任务 gate 排他锁；没有宣称该锁具有单任务高并发性能优势。接口、数据库和真实测试见 [补全记录](backend-completion.md)。

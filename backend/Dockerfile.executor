@@ -1,5 +1,5 @@
 # 运维提供包含 /bin/sh 与任务所需语言工具的固定 digest 镜像，E 直接使用 Completion。
-ARG EXECUTOR_IMAGE
+ARG EXECUTOR_IMAGE=python:3.14-slim-bookworm@sha256:945c2676dc2b18e0c1f16879244122c57c0ffede60006bf3df159c507a31bcae
 FROM golang:1.27.1-bookworm@sha256:648f440f42a0958804efb24df176f806f9d353b41f1c0627f666428e40310f6b AS build
 WORKDIR /src
 COPY backend/go.mod backend/go.sum ./

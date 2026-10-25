@@ -7,6 +7,7 @@ import (
 	assetpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/asset/v1"
 	challengepb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/challenge/v1"
 	contentpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/content/v1"
+	discoverypb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/discovery/v1"
 	identitypb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/identity/v1"
 	moderationpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/moderation/v1"
 	votingpb "github.com/KDZZZZZZ/human-worth/backend/gen/humanworth/voting/v1"
@@ -22,12 +23,11 @@ type plannedMethod struct {
 
 // These policies are intentionally recorded before their RPC contracts exist.
 // Remove each exception as soon as its service method is declared in Proto.
-var plannedMethods = []plannedMethod{
-	{contract.ListTasks, "/humanworth.discovery.v1.DiscoveryService/ListTasks", "Discovery Proto has not been added"},
-}
+var plannedMethods = []plannedMethod{}
 
 func TestOperationMethodsMatchProtoDescriptors(t *testing.T) {
 	descriptors := protoMethods(
+		discoverypb.File_humanworth_discovery_v1_discovery_proto,
 		assetpb.File_humanworth_asset_v1_asset_proto,
 		challengepb.File_humanworth_challenge_v1_challenge_proto,
 		contentpb.File_humanworth_content_v1_content_proto,

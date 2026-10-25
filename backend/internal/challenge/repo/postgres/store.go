@@ -244,3 +244,20 @@ func (t *transaction) AddResult(ctx context.Context, ref *domain.AttemptRef, own
 	_, err := t.tx.Exec(ctx, `INSERT INTO challenge.receipts(attempt_id,run_id,worker_id,lease_epoch,work_item_id,result_digest) VALUES($1,$2,$3,$4,$5,$6)`, ref.AttemptId, ref.RunId, owner, ref.LeaseEpoch, ref.WorkItemId, digest)
 	return persistence(err)
 }
+
+func (s *Store) ListAuditEvents(ctx context.Context, before time.Time, id string, limit int32) ([]dto.AuditEvent, error) {
+	rows, e := s.db.Query(ctx, `SELECT 'cha_'||lpad(id::text,20,'0'),actor_id,action,run_id,reason,created_at FROM challenge.audit_events WHERE (created_at,'cha_'||lpad(id::text,20,'0'))<($1,$2) ORDER BY created_at DESC,id DESC LIMIT $3`, before, id, limit)
+	if e != nil {
+		return nil, e
+	}
+	defer rows.Close()
+	out := []dto.AuditEvent{}
+	for rows.Next() {
+		v := dto.AuditEvent{Outcome: "succeeded"}
+		if e = rows.Scan(&v.ID, &v.ActorID, &v.Action, &v.TargetID, &v.Reason, &v.CreatedAt); e != nil {
+			return nil, e
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
+}

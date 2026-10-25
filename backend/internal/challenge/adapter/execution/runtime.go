@@ -94,7 +94,7 @@ func RunExecutor(ctx context.Context) error {
 	if !strings.HasPrefix(base, "https://") {
 		return errors.New("HTTPS execution relay required")
 	}
-	r := executionRelay{base: strings.TrimSuffix(base, "/") + "/attempts/" + a.Attempt.AttemptId, grant: string(grant), client: &http.Client{Timeout: 90 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS13}}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+	r := executionRelay{base: strings.TrimSuffix(base, "/") + "/attempts/" + a.Attempt.AttemptId, grant: string(grant), client: &http.Client{Timeout: 90 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, ServerName: "challenge-worker", MinVersion: tls.VersionTLS13}}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 	ctx, cancel := context.WithDeadline(ctx, a.Deadline.AsTime())
 	defer cancel()
 	response, err := r.call(ctx, "POST", "/activate", nil, "")

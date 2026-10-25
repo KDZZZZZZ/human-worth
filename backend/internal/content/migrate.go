@@ -77,7 +77,7 @@ func Migrate(ctx context.Context, db *pgxpool.Pool) error {
 }
 func Ready(ctx context.Context, db *pgxpool.Pool) error {
 	var exists bool
-	err := db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM content.schema_migrations WHERE version='007_voting_catalog.sql')`).Scan(&exists)
+	err := db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM content.schema_migrations WHERE version='008_backend_collaboration.sql')`).Scan(&exists)
 	if err != nil {
 		return err
 	}

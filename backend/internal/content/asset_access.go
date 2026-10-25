@@ -37,6 +37,16 @@ func (s *Server) CheckAssetAccess(ctx context.Context, r *pb.CheckAssetAccessReq
 	}
 	ref := r.GetReference()
 	result := &pb.CheckAssetAccessResponse{}
+	if taskPattern.MatchString(ref.GetTaskId()) && ref.GetEntryId() == "" && reviewedAssetPattern.MatchString(ref.GetAssetId()) {
+		err := s.DB.QueryRow(ctx, `SELECT revision,state='published' AND `+catalogPublic+` AND COALESCE(snapshot->'taskAttachments','[]'::jsonb) @> jsonb_build_array(jsonb_build_object('assetId',$2::text)) FROM content.reviewed_tasks t WHERE task_id=$1`, ref.TaskId, ref.AssetId).Scan(&result.Revision, &result.Allowed)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return result, nil
+		}
+		if err != nil {
+			return nil, storage(err)
+		}
+		return result, nil
+	}
 	if !taskPattern.MatchString(ref.GetTaskId()) || !reviewedEntryPattern.MatchString(ref.GetEntryId()) || !reviewedAssetPattern.MatchString(ref.GetAssetId()) {
 		return result, nil
 	}
@@ -171,7 +181,7 @@ func (s *Server) localApplyAssetReview(ctx context.Context, r *pb.ApplyAssetRevi
 			}
 			_, err = tx.Exec(ctx, `UPDATE content.reviewed_tasks SET revision=revision+1,catalog_revision=catalog_revision+1,updated_at=clock_timestamp() WHERE task_id=$1`, r.TaskId)
 		} else {
-			_, err = tx.Exec(ctx, `UPDATE content.reviewed_tasks SET state=$2,revision=revision+1,updated_at=clock_timestamp() WHERE task_id=$1`, r.TaskId, taskState)
+			_, err = tx.Exec(ctx, `UPDATE content.reviewed_tasks SET state=$2,revision=revision+1,catalog_revision=catalog_revision+1,updated_at=clock_timestamp() WHERE task_id=$1`, r.TaskId, taskState)
 		}
 		if err != nil {
 			return nil, storage(err)
