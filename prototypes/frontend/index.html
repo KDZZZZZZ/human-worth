@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#F1EBE4">
+  <title>Human Worth — Home / Paper & Ink</title>
+  <link href="fonts/fonts.css" rel="stylesheet">
+  <style>
+    :root{--paper:#F1EBE4;--ink:#2F2D29;--muted:#5F5B58;--accent:#A74F2A;--line:#CFC3B7;--white:#fff;--material:#E9DFD3;--serif:'Source Serif 4',Georgia,serif;--sans:'Source Sans 3','Segoe UI',sans-serif;--mono:'IBM Plex Mono',Consolas,monospace}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:112px}body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:18px;line-height:1.5;-webkit-font-smoothing:antialiased}button,a{-webkit-tap-highlight-color:transparent}button{font:inherit}a{color:inherit;text-decoration:none}button,a{touch-action:manipulation}button{cursor:pointer}a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:6px}button:disabled{cursor:default}::selection{background:var(--selection)}h1,h2,h3,p,figure{margin:0}h1,h2,h3{font-weight:400}h1,h2,.serif{font-family:var(--serif);font-optical-sizing:auto}svg{display:block}img{display:block;max-width:100%}.page-width{width:min(1184px,calc(100% - 128px));margin-inline:auto}.skip-link{position:fixed;z-index:30;top:8px;left:8px;background:white;padding:12px;transform:translateY(-160%)}.skip-link:focus{transform:none}
+    .site-header{position:sticky;top:0;z-index:10;background:var(--paper);border-bottom:1px solid var(--line)}.navigation{min-height:88px;padding:0 56px;display:flex;align-items:center;justify-content:space-between;gap:48px}.wordmark{font-family:var(--serif);font-size:29px;line-height:1.2;white-space:nowrap;letter-spacing:-1.1px}.nav-links{display:flex;align-items:center;gap:35px;font-size:16px}.nav-links a{padding:12px 0}.nav-links a:hover,.text-link:hover{text-decoration:underline;text-underline-offset:6px}.nav-links [aria-current]{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:8px}.nav-links .account-link{margin-left:31px}.menu-toggle{display:none;border:1px solid var(--line);background:none;padding:7px 12px}
+    .opening{position:relative;padding-top:94px;padding-bottom:106px}.opening h1{font-size:104px;line-height:1.075;letter-spacing:-4.6px;max-width:1120px}.opening h1 span{display:block}.opening .intro{font-size:23px;line-height:1.46;max-width:670px;margin-top:31px}.actions{display:flex;align-items:center;gap:30px;margin-top:34px}.button{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:12px 25px;border:1px solid var(--accent);border-radius:2px;background:var(--accent);color:var(--paper);font-size:17px;font-weight:600;line-height:1.5;white-space:nowrap}.button:hover{background:var(--accent-hover);border-color:var(--accent-hover)}.button.secondary{background:transparent;color:var(--accent)}.button.secondary:hover{background:var(--accent-soft)}.text-link{font-size:17px;color:var(--accent);padding:12px 0}.down-arrow{padding-left:9px}.margin-mark{position:absolute;pointer-events:none;color:var(--accent);width:55px;height:112px;right:-4px;top:64px}.margin-mark path{vector-effect:non-scaling-stroke;stroke:currentColor;stroke-width:1.5;fill:none}
+    .transition{border-top:1px solid var(--line);padding:53px 0 103px}.transition h2{font-size:40px;line-height:1.3;letter-spacing:-.8px}.transition p{font-size:22px;line-height:1.45;color:var(--muted);max-width:650px;margin-top:20px}
+    .example{padding:20px 0 94px}.example-label{font-size:16px;color:var(--muted);display:flex;align-items:baseline;gap:15px;margin-bottom:19px}.concept-label{color:var(--accent);font-weight:600}.example h2{font-size:54px;line-height:1.16;letter-spacing:-1.6px;max-width:1060px}.example h2 a{display:inline-block}.example h2 a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:7px}.example .background{font-size:22px;line-height:1.45;max-width:865px;margin-top:23px}.materials-a{display:grid;grid-template-columns:minmax(0,816fr) minmax(0,320fr);gap:48px;align-items:start;margin-top:41px}.library-photo img{width:100%;height:auto;aspect-ratio:3/2;object-fit:cover}.caption{color:var(--muted);font-size:15px;line-height:1.5;margin-top:14px;max-width:720px}.document{background:var(--white);padding:31px 30px 33px}.material-label{font-size:15px;font-weight:600;color:var(--accent)}.brief-title{font-family:var(--serif);font-size:34px;line-height:1.16;letter-spacing:-.7px;margin-top:28px}.brief-date{font-size:17px;line-height:1.5;margin-top:27px}.fact-list{list-style:none;padding:0;margin:22px 0 29px;font-size:17px;line-height:1.5}.fact-list li+li{margin-top:5px}.brief-task{border-top:1px solid var(--line);padding-top:21px;font-size:17px;line-height:1.5}.brief-task strong{display:block;font-weight:600;margin-bottom:8px}.example-exit{margin-top:27px}.works-count{font-size:16px;color:var(--muted);margin-bottom:15px}.works-count span{margin-left:10px;font-size:14px}.example-b{border-top:1px solid var(--line);padding-top:61px;padding-bottom:110px}.example-b .background{max-width:835px}.materials-b{display:grid;grid-template-columns:380px minmax(0,1fr);gap:64px;align-items:start;margin-top:45px}.issue-document{padding:32px 34px 34px}.issue-quote{font-family:var(--serif);font-size:38px;line-height:1.22;letter-spacing:-.5px;margin-top:28px}.issue-document dl{font-size:17px;line-height:1.5;margin:26px 0 0}.issue-document dt{font-weight:600;margin-bottom:8px}.issue-document dd{margin:0}.issue-document dd+dt{margin-top:23px}.code-material{margin-top:58px}.code-sheet{background:var(--material);padding:27px 32px 30px}.code-sheet header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:21px;border-bottom:1px solid var(--line)}.code-sheet .filename{font-size:15px;color:var(--muted)}pre{font-family:var(--mono);font-size:16px;line-height:1.65;margin:24px 0 0;overflow-x:auto;tab-size:2;white-space:pre;color:var(--ink)}.code-keyword{color:var(--code-keyword)}.code-string{color:var(--code-string)}.code-comment{color:var(--muted)}.example-b .example-exit{margin-top:28px}
+    .invitation{position:relative;border-top:1px solid var(--line);padding:99px 0 115px}.invitation h2{font-size:88px;line-height:1.075;letter-spacing:-3.3px}.invitation p{font-size:23px;line-height:1.45;margin-top:30px;max-width:620px}.invitation .button{margin-top:31px}.invitation .margin-mark{top:105px;width:62px;height:126px}.site-footer{padding:22px 56px 25px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:24px;font-size:14px;color:var(--muted)}.site-footer button{background:none;border:none;padding:0;color:var(--muted);font:inherit;text-decoration:underline;text-underline-offset:4px}
+    dialog{color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:2px;padding:34px;max-width:720px;width:calc(100% - 40px);max-height:86vh;overflow:auto}dialog::backdrop{background:rgb(47 45 41 / .42)}.dialog-top{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:25px}.dialog-top span{font-size:15px;color:var(--muted)}.dialog-close{min-width:44px;min-height:44px;background:transparent;border:1px solid var(--line);color:var(--ink)}dialog h2{font-size:36px;line-height:1.2;margin-bottom:20px}dialog p{margin:16px 0}dialog .document{margin:24px 0}dialog img{width:100%}dialog pre{font-size:14px}dialog .dialog-note{font-size:16px;color:var(--muted);border-top:1px solid var(--line);padding-top:18px}body.modal-open{overflow:hidden}
+    @media(min-width:1600px){.opening{padding-top:110px}}@media(max-width:1100px){.navigation{padding-inline:32px}.page-width{width:calc(100% - 80px)}.opening h1{font-size:clamp(64px,7.5vw,104px);letter-spacing:-2.5px}.margin-mark{right:0}.materials-a{gap:28px;grid-template-columns:minmax(0,1fr) 290px}.materials-b{grid-template-columns:320px minmax(0,1fr);gap:28px}.document{padding:26px}.example h2{font-size:48px}.code-sheet{padding:24px}.code-sheet header{display:block}.code-sheet .filename{display:block;margin-top:6px}.nav-links{gap:22px}}
+    @media(max-width:720px){html{scroll-padding-top:90px}.page-width{width:calc(100% - 40px)}.navigation{padding:18px 20px;min-height:74px;flex-wrap:wrap;gap:16px}.wordmark{font-size:26px}.menu-toggle{display:block}.nav-links{display:none;flex-basis:100%;flex-wrap:wrap;gap:10px 24px}.nav-links.is-open{display:flex}.nav-links .account-link{margin-left:0}.opening{padding:71px 0 70px}.opening h1{font-size:clamp(43px,8.1vw,59px);line-height:1.13;letter-spacing:-1.7px}.opening .intro{font-size:20px;margin-top:25px;max-width:560px}.opening .margin-mark{top:23px;width:28px;height:36px}.actions{gap:25px;margin-top:28px}.transition{padding:33px 0 60px}.transition h2{font-size:31px}.transition p{font-size:19px;margin-top:17px}.example{padding:10px 0 58px}.example-label{font-size:14px;gap:12px;margin-bottom:16px}.example h2{font-size:36px;letter-spacing:-.9px;line-height:1.2}.example .background{font-size:19px;margin-top:19px}.materials-a,.materials-b{grid-template-columns:1fr;gap:25px;margin-top:28px}.library-photo img{aspect-ratio:3/2}.document{padding:27px}.brief-title{margin-top:21px;font-size:32px}.brief-title br{display:none}.brief-date{margin-top:20px}.fact-list{margin:18px 0 22px}.caption{font-size:14px}.example-b{padding-top:37px}.issue-quote{font-size:35px}.code-material{margin-top:0}.code-sheet{padding:23px}.code-sheet header{display:flex}.code-sheet .filename{margin:0;font-size:13px}pre{font-size:13px;line-height:1.7}.works-count span{display:block;margin:3px 0 0}.invitation{padding:65px 0 75px}.invitation h2{font-size:57px;letter-spacing:-1.8px}.invitation p{font-size:20px;max-width:90%;margin-top:24px}.invitation .margin-mark{display:none}.site-footer{padding:22px 20px;font-size:13px;align-items:start}.site-footer span{max-width:210px}dialog{padding:22px}dialog h2{font-size:30px}}
+    /* Palette and composition follow the supplied final reference. */
+    :root{--accent:#A74F2A;--secondary-accent:#D1A492;--panel:var(--secondary-accent);--material:#E9DFD3;--photo-mount:#D8CFC3;--invitation:#EADFD2;--line:#CFC3B7;--accent-hover:#8D4020;--accent-soft:#EBD9CC;--selection:#DFC2AF;--code-keyword:#89503A;--code-string:#74613C;--gutter:max(64px,calc((100vw - 1184px)/2));--geo-unit:130px;--geo-stroke:1.5px;--mono:'IBM Plex Mono',Consolas,'Liberation Mono',monospace}
+    main.page-width{width:100%;margin:0;overflow:clip}.navigation{padding-inline:var(--gutter)}
+    .opening,.transition,.example,.invitation{padding-inline:var(--gutter)}
+    .geometry{pointer-events:none;user-select:none;position:absolute;color:var(--ink)}
+    .geometry path,.chapter-mark path{stroke:currentColor;stroke-width:var(--geo-stroke);vector-effect:non-scaling-stroke;fill:none}
+    .opening{isolation:isolate;min-height:815px;padding-top:205px;padding-bottom:100px}
+    .opening h1{position:relative;z-index:2;font-size:104px;line-height:1.075;letter-spacing:-4.6px;max-width:1184px}
+    .opening h1 span+span{margin-left:100px;white-space:nowrap}
+    .opening-copy{position:relative;z-index:2;margin-left:304px;width:440px;margin-top:25px}
+    .opening .intro{font-size:23px;line-height:1.46;margin:0;max-width:none}
+    .opening .actions{gap:30px;margin-top:34px}
+    .opening-angle{width:calc(var(--geo-unit)*4);height:640px;left:calc(100% - 520px);top:172px;z-index:-1}
+    .opening-board{width:300px;height:440px;right:100px;top:373px;background:var(--panel);z-index:-1}
+    .judgment-point{width:24px;height:24px;border-radius:50%;background:var(--accent);left:calc(100% - 502px);top:193px}
+    .chapter-mark{width:28px;height:28px;color:var(--ink);pointer-events:none}
+    .transition{position:relative;border:0;padding-top:180px;padding-bottom:180px}
+    .transition .chapter-mark{margin-bottom:30px}
+    .transition h2{font-size:40px;line-height:1.3;letter-spacing:-.8px}
+    .transition p{font-size:22px;line-height:1.45;max-width:650px;margin-top:20px;color:var(--muted)}
+    .example{position:relative;isolation:isolate}
+    .example>.chapter-mark{position:absolute;top:0;left:var(--gutter);width:20px;height:20px}
+    .example-label{font-size:16px;gap:15px;margin-left:34px;margin-bottom:4px;color:var(--muted)}
+    .concept-label{color:var(--accent)}.material-label{color:var(--ink);font-size:15px}
+    .example h2{font-size:54px;line-height:1.16;letter-spacing:-1.6px}
+    .example .background{font-size:22px;line-height:1.45;max-width:865px;width:auto;margin-top:23px}
+    .example-a{padding-top:0;padding-bottom:200px}
+    .example-a h2{max-width:1050px}.example-a .background{max-width:740px}
+    .materials-a{position:relative;display:block;margin-top:54px;min-height:0;height:790px}
+    .library-photo{margin-left:256px;width:calc(100% - 256px + var(--gutter))}
+    .photo-mount{position:relative;background:var(--photo-mount);padding:50px 40px 84px 156px;overflow:hidden;isolation:isolate}
+    .photo-mount:after{content:'';position:absolute;z-index:-1;left:204px;bottom:-130px;width:260px;height:260px;background:var(--invitation);border-radius:50%}
+    .library-photo img{width:100%;height:570px;aspect-ratio:auto;object-fit:cover}
+    .library-photo .caption{margin:16px 0 0;max-width:720px;padding:0;font-size:15px}
+    .materials-a>.library-brief{position:absolute;top:150px;left:176px;width:340px;z-index:2;padding:31px 30px 33px}
+    .materials-a>.library-brief .brief-title{font-size:36px;margin-top:28px}.materials-a>.library-brief .brief-title br{display:block}
+    .materials-a>.half-disc{display:none}
+    .example-exit{position:relative;margin-top:25px}
+    .works-count{display:flex;align-items:baseline;gap:12px;margin-bottom:0;color:var(--muted)}
+    .works-count .count-number{font-family:var(--serif);font-size:64px;line-height:1;margin:0;letter-spacing:-2px;color:var(--ink)}
+    .works-count .count-description{font-size:16px;margin:0}.works-count .count-note{font-size:14px;margin:0 0 0 5px}
+    .example-b{border:0;padding-top:0;padding-bottom:130px}
+    .example-b>.chapter-mark{left:calc(var(--gutter) + 384px)}
+    .example-b>.example-label{margin-left:418px}
+    .example-b>h2,.example-b>.background{margin-left:384px}
+    .example-b>h2{font-size:54px;max-width:800px}.example-b>.background{max-width:800px}
+    .materials-b{display:grid;grid-template-columns:380px minmax(0,1fr);gap:120px;margin-top:64px;align-items:start}
+    .materials-b .code-material{position:relative;isolation:isolate;margin-top:120px;margin-right:84px}
+    .code-board{width:200px;height:480px;right:-64px;top:-80px;background:var(--panel);z-index:-1}
+    .code-mount{background:var(--material);padding:30px}
+    .materials-b .code-sheet{margin:0;background:var(--white);border:1px solid var(--accent);border-radius:0;padding:25px 24px}
+    .code-sheet header{padding-bottom:18px;border-color:var(--line)}
+    .materials-b pre{font-size:14px;line-height:1.75;margin-top:24px}
+    .code-material .caption{font-size:15px;margin-top:14px}
+    .example-b .example-exit{margin-left:384px;margin-top:60px}
+    .invitation{isolation:isolate;overflow:clip;background:var(--invitation);border:0;padding-top:145px;padding-bottom:150px;min-height:670px}
+    .invitation h2{position:relative;font-size:88px;line-height:1.075;letter-spacing:-3.3px}
+    .invitation p{position:relative;font-size:23px;max-width:600px;margin-top:30px}
+    .invitation>.button{position:relative;margin-top:31px}
+    .invitation-angle{width:360px;height:360px;right:0;bottom:0}
+    .site-footer{padding-inline:var(--gutter);border:0}
+    @media(max-width:1100px) and (min-width:721px){:root{--gutter:40px}.opening h1{font-size:clamp(64px,7.22vw,104px);letter-spacing:-2.5px}.opening h1 span+span{margin-left:60px}.opening-copy{margin-left:180px;width:400px}.opening-board{right:40px;width:240px;height:352px;top:390px}.opening-angle{left:75%;opacity:.65}.judgment-point{left:calc(75% + 18px)}.materials-a>.library-brief{left:60px;width:320px}.library-photo{margin-left:140px;width:calc(100% - 140px + var(--gutter))}.photo-mount{padding-left:100px}.example-b>h2,.example-b>.background,.example-b .example-exit{margin-left:32%}.example-b>.example-label{margin-left:calc(32% + 34px)}.example-b>.chapter-mark{left:calc(var(--gutter) + 29%)}.materials-b{grid-template-columns:300px minmax(0,1fr);gap:50px}.materials-b .code-material{margin-right:20px}.code-board{right:-20px}.code-mount{padding:20px}.materials-b .code-sheet{padding:20px 16px}.code-sheet header{display:block}.code-sheet .filename{display:block;margin-top:6px}.materials-b pre{font-size:12px}}
+    @media(max-width:720px){:root{--gutter:20px}.navigation{padding:18px var(--gutter)}.opening{padding-top:85px;padding-bottom:85px;min-height:0}.opening h1{font-size:clamp(36px,8vw,59px);line-height:1.13;letter-spacing:-1.7px}.opening h1 span+span{margin-left:20px;white-space:normal}.opening-copy{width:auto;max-width:560px;margin-left:0;margin-top:25px}.opening .intro{font-size:20px}.opening .actions{gap:25px;margin-top:28px;flex-wrap:wrap}.opening .geometry{display:none}.transition{padding-top:55px;padding-bottom:85px}.transition .chapter-mark{margin-bottom:24px}.transition h2{font-size:31px}.transition p{font-size:19px}.desktop-break{display:none}.example h2{font-size:36px;max-width:none}.example-label{font-size:14px;margin-left:30px;margin-bottom:12px}.example .background{font-size:19px;max-width:65ch}.example-a{padding-bottom:90px}.materials-a{height:auto;margin-top:30px}.library-photo{margin-left:20px;width:calc(100% - 20px + var(--gutter))}.photo-mount{padding:20px 20px 32px}.photo-mount:after{display:none}.library-photo img{height:auto;aspect-ratio:3/2}.library-photo .caption{margin-right:20px;font-size:14px}.materials-a>.library-brief{position:relative;left:0;top:0;width:calc(100% - 20px);margin-top:24px;padding:27px}.materials-a>.library-brief .brief-title{font-size:32px}.works-count{gap:10px;flex-wrap:wrap}.works-count .count-number{font-size:56px;display:inline}.works-count .count-description{display:inline}.works-count .count-note{display:block;flex-basis:100%;margin:0}.example-exit .button{margin-top:12px}.example-b{padding-bottom:80px}.example-b>.chapter-mark{left:var(--gutter)}.example-b>.example-label{margin-left:30px}.example-b>h2,.example-b>.background,.example-b .example-exit{margin-left:0}.materials-b{grid-template-columns:1fr;gap:36px;margin-top:30px}.materials-b .code-material{margin-top:25px;margin-right:16px}.code-board{width:150px;height:220px;right:-16px;top:-25px}.code-mount{padding:16px}.materials-b .code-sheet{padding:20px 16px}.materials-b pre{font-size:12px;line-height:1.7}.code-sheet header{display:block}.code-sheet .filename{display:block;margin-top:6px}.example-b .example-exit{margin-top:40px}.invitation{padding:85px var(--gutter) 125px;min-height:610px}.invitation h2{font-size:57px;letter-spacing:-1.8px}.invitation p{font-size:20px;max-width:100%}.invitation-angle{width:180px;height:180px}.site-footer{padding:22px var(--gutter)}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+  </style>
+</head>
+<body id="home">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <nav class="navigation" aria-label="Main navigation">
+      <a class="wordmark" href="#home" aria-label="Human Worth Home">Human Worth</a>
+      <button class="menu-toggle" aria-expanded="false" aria-controls="navigation-links">Menu</button>
+      <div class="nav-links" id="navigation-links">
+        <a href="#home" aria-current="page">Home</a>
+        <a href="discovery.html">Discovery</a>
+        <a href="#board" data-destination="Board">Board</a>
+        <a href="#submit" data-destination="Submit">Submit</a>
+        <a class="account-link" href="#sign-in" data-destination="Sign in">Sign in</a>
+      </div>
+    </nav>
+  </header>
+  <main id="main" class="page-width">
+    <section class="opening" aria-labelledby="opening-title">
+      <svg class="geometry opening-angle" viewBox="0 0 520 640" aria-hidden="true"><path d="M520 .75H.75V640"/></svg><div class="geometry opening-board" aria-hidden="true"></div><div class="geometry judgment-point" aria-hidden="true"></div>
+      <h1 id="opening-title"><span>Who made it?</span><span>What does it matter?</span></h1>
+      <div class="opening-copy"><p class="intro">Compare work made by people and agents, say which you prefer, and see how the gap changes over time.</p>
+      <div class="actions"><a class="button" href="discovery.html">Browse Tasks</a><a class="text-link" href="#transition">Learn More <span class="down-arrow" aria-hidden="true">↓</span></a></div></div>
+    </section>
+    <section id="transition" class="transition" aria-labelledby="transition-title">
+      <svg class="chapter-mark" viewBox="0 0 28 28" aria-hidden="true"><path d="M28 .75H.75V28"/></svg>
+      <h2 id="transition-title">The answer may depend on the task.</h2>
+      <p>Start with a specific task. Each example below is<br class="desktop-break"> a situation with works to compare.</p>
+    </section>
+    <div class="context-gallery" aria-label="Two illustrative task examples">
+      <article class="example example-a" aria-labelledby="task-a-title">
+        <svg class="chapter-mark" viewBox="0 0 28 28" aria-hidden="true"><path d="M28 .75H.75V28"/></svg>
+        <p class="example-label"><span class="concept-label">Concept example</span><span>Communication</span></p>
+        <h2 id="task-a-title"><a href="#example-library" data-example="library">A library is closing.<br>What do its readers need to know?</a></h2>
+        <p class="background">A neighborhood library will close for repairs. Write a short notice that helps readers plan their next visit, with the same facts available to everyone.</p>
+        <div class="materials-a">
+          <div class="geometry half-disc" aria-hidden="true"></div>
+          <figure class="library-photo"><div class="photo-mount"><img src="library-context.png" width="1536" height="1024" alt="Illustrative library entrance, empty reading tables, bookshelves and a stack of chairs." fetchpriority="high"></div><figcaption class="caption">Illustrative library interior · AI-generated context image.<br>Not a real location or a submitted work.</figcaption></figure>
+          <aside class="document library-brief" aria-label="Common task input">
+            <p class="material-label">Given to everyone</p>
+            <h3 class="brief-title">Temporary <br>closure</h3>
+            <p class="brief-date">Closed 12–16 November<br>Reopens 17 November</p>
+            <ul class="fact-list"><li>Book returns remain open.</li><li>Reservations are held.</li><li>No late fees during closure.</li></ul>
+            <p class="brief-task"><strong>The task</strong>Write a notice in 80 words or fewer. Make the next steps easy to find.</p>
+          </aside>
+        </div>
+        <div class="example-exit"><p class="works-count"><span class="count-number">2</span> <span class="count-description">works to compare</span> <span class="count-note">Illustrative count</span></p><a class="button secondary" href="#example-library" data-example="library">View Example</a></div>
+      </article>
+      <article class="example example-b" aria-labelledby="task-b-title">
+        <svg class="chapter-mark" viewBox="0 0 28 28" aria-hidden="true"><path d="M28 .75H.75V28"/></svg>
+        <p class="example-label"><span class="concept-label">Concept example</span><span>Software</span></p>
+        <h2 id="task-b-title"><a href="#example-connection" data-example="connection">What should happen<br>when the connection drops?</a></h2>
+        <p class="background">A reading app sometimes loses a saved note on a weak connection. Improve the save behavior using the same report and starting code.</p>
+        <div class="materials-b">
+          <div class="document issue-document">
+            <p class="material-label">Shared input · Issue report</p>
+            <p class="issue-quote">“I tapped Save.<br>Then my note<br>was gone.”</p>
+            <dl><dt>Reproduce</dt><dd>1. Write a note.<br>2. Switch to a weak connection.<br>3. Tap Save.</dd><dt>Constraints</dt><dd>Keep the draft until saving succeeds.<br>Do not create duplicate notes.</dd></dl>
+          </div>
+          <figure class="code-material"><div class="geometry code-board" aria-hidden="true"></div><div class="code-mount"><div class="code-sheet"><header><span class="material-label">Starting code</span><span class="filename">save-note.js</span></header><pre aria-label="Starting code supplied with the concept task"><code><span class="code-keyword">async function</span> saveNote(note) {
+  showStatus(<span class="code-string">"Saving…"</span>);
+
+  <span class="code-keyword">try</span> {
+    <span class="code-keyword">await</span> fetch(<span class="code-string">"/notes"</span>, {
+      method: <span class="code-string">"POST"</span>,
+      body: JSON.stringify(note)
+    });
+  } <span class="code-keyword">finally</span> {
+    clearDraft();
+    showStatus(<span class="code-string">"Saved"</span>);
+  }
+}</code></pre></div></div><figcaption class="caption">Concept task input · simplified code and fictional issue report.<br>These are starting materials, not proposed solutions.</figcaption></figure>
+        </div>
+        <div class="example-exit"><p class="works-count"><span class="count-number">2</span> <span class="count-description">works to compare</span> <span class="count-note">Illustrative count</span></p><a class="button secondary" href="#example-connection" data-example="connection">View Example</a></div>
+      </article>
+    </div>
+    <section class="invitation" aria-labelledby="invitation-title">
+      <svg class="geometry invitation-angle" viewBox="0 0 360 360" aria-hidden="true"><path d="M.75 359.25H359.25V.75M229.25 359.25A130 130 0 0 0 359.25 229.25"/></svg>
+      <h2 id="invitation-title">Which task<br>matters to you?</h2>
+      <p>Open any task, read the situation, and say which work you prefer.</p>
+      <a class="button" href="discovery.html">Browse Tasks</a>
+    </section>
+  </main>
+  <footer class="site-footer"><span>Human Worth</span><button data-destination="About this prototype">About this prototype</button></footer>
+  <dialog id="preview-dialog" aria-labelledby="dialog-title"><div class="dialog-top"><span id="dialog-category">Prototype preview</span><button class="dialog-close" aria-label="Close preview">✕</button></div><h2 id="dialog-title"></h2><div id="dialog-content"></div></dialog>
+  <script>
+    const dialog=document.querySelector('#preview-dialog');
+    const title=document.querySelector('#dialog-title');
+    const content=document.querySelector('#dialog-content');
+    const category=document.querySelector('#dialog-category');
+    let lastTrigger;
+    function showDialog(trigger,heading,html,label='Prototype preview'){
+      lastTrigger=trigger;title.textContent=heading;content.innerHTML=html;category.textContent=label;
+      dialog.showModal();dialog.scrollTop=0;document.body.classList.add('modal-open');
+    }
+    document.querySelectorAll('[data-destination]').forEach(link=>link.addEventListener('click',event=>{
+      event.preventDefault();const name=link.dataset.destination;
+      const messages={Board:'This navigation item will open Board. The Board page is outside this Home visual prototype.',Submit:'This navigation item will open the task submission flow. That flow is outside this Home visual prototype.','Sign in':'This navigation item will open sign in. Authentication is not connected in this prototype.','About this prototype':'Home / Showcase · Desktop 1440px · Paper & Ink. Both examples, their materials and work counts are illustrative. The library image is AI-generated. No submitted works, votes or comparison results are shown.'};
+      showDialog(link,name,'<p>'+messages[name]+'</p><p class="dialog-note">This preview does not connect to live product data.</p>');
+    }));
+    document.querySelectorAll('[data-example]').forEach(link=>link.addEventListener('click',event=>{
+      event.preventDefault();const library=link.dataset.example==='library';
+      const heading=library?'A library is closing.':'When the connection drops';
+      const material=library?document.querySelector('.library-brief').outerHTML:document.querySelector('.issue-document').outerHTML+document.querySelector('.code-sheet').outerHTML;
+      showDialog(link,heading,'<p>Common inputs for this illustrative task.</p>'+material+'<p class="dialog-note">Concept example only. No real task or submitted works are attached. In the product, real task entries use “View Task”.</p>','Concept example · Material preview');
+    }));
+    document.querySelector('.dialog-close').addEventListener('click',()=>dialog.close());
+    dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}});
+    dialog.addEventListener('close',()=>{document.body.classList.remove('modal-open');lastTrigger?.focus({preventScroll:true});});
+    const menu=document.querySelector('.menu-toggle');const links=document.querySelector('.nav-links');
+    menu.addEventListener('click',()=>{const open=menu.getAttribute('aria-expanded')!=='true';menu.setAttribute('aria-expanded',String(open));links.classList.toggle('is-open',open);});
+    links.addEventListener('click',e=>{if(e.target.closest('a')){menu.setAttribute('aria-expanded','false');links.classList.remove('is-open');}});
+  </script>
+</body>
+</html>

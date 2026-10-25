@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#F1EBE4">
+  <title>Discovery — Human Worth</title>
+  <link href="fonts/fonts.css" rel="stylesheet">
+  <style>
+    :root{--paper:#F1EBE4;--ink:#2F2D29;--muted:#5F5B58;--accent:#A74F2A;--secondary-accent:#D1A492;--line:#CFC3B7;--white:#fff;--material:#E9DFD3;--accent-hover:#8D4020;--accent-soft:#EBD9CC;--selection:#DFC2AF;--serif:'Source Serif 4',Georgia,serif;--sans:'Source Sans 3','Segoe UI',sans-serif;--mono:'IBM Plex Mono',Consolas,'Liberation Mono',monospace;--gutter:max(64px,calc((100vw - 1184px)/2));--offset:96px}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:18px/1.5 var(--sans);-webkit-font-smoothing:antialiased}html{scroll-padding-top:112px}h1,h2,p{margin:0}h1,h2{font-family:var(--serif);font-weight:400;font-optical-sizing:auto}button,input{font:inherit}button,a{touch-action:manipulation;-webkit-tap-highlight-color:transparent}button{cursor:pointer}a{color:inherit;text-decoration:none}a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:5px}::selection{background:var(--selection)}[hidden]{display:none!important}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.skip-link{position:fixed;z-index:30;top:8px;left:8px;background:var(--white);padding:12px;transform:translateY(-160%)}.skip-link:focus{transform:none}
+    .site-header{position:sticky;top:0;z-index:10;background:var(--paper);border-bottom:1px solid var(--line)}.navigation{min-height:88px;padding:0 var(--gutter);display:flex;align-items:center;justify-content:space-between;gap:48px}.wordmark{font-family:var(--serif);font-size:29px;line-height:1.2;white-space:nowrap;letter-spacing:-1.1px}.nav-links{display:flex;align-items:center;gap:35px;font-size:16px}.nav-links a{padding:12px 0}.nav-links a:hover,.text-link:hover{text-decoration:underline;text-underline-offset:6px}.nav-links [aria-current]{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:8px}.nav-links .account-link{margin-left:31px}.menu-toggle{display:none;border:1px solid var(--line);background:none;padding:7px 12px;color:var(--ink)}
+    .button{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:12px 25px;border:1px solid var(--accent);border-radius:2px;background:var(--accent);color:var(--paper);font-size:17px;font-weight:600;line-height:1.5;white-space:nowrap}.button:hover{background:var(--accent-hover);border-color:var(--accent-hover)}.button.secondary{background:transparent;color:var(--accent)}.button.secondary:hover{background:var(--accent-soft)}.text-link{color:var(--accent);font-size:17px;background:none;border:0;padding:10px 0;line-height:1.5}
+    main{padding:0 var(--gutter);min-height:calc(100vh - 156px)}.page-intro{position:relative;display:flex;justify-content:space-between;align-items:end;gap:48px;padding:48px 0 30px}.open-margin{position:absolute;top:51px;left:0;width:24px;height:24px;pointer-events:none}.open-margin path{stroke:var(--ink);stroke-width:1.5;fill:none}.intro-copy{padding-left:40px}.page-intro h1{font-size:48px;line-height:1.08;letter-spacing:-1.3px}.page-intro .description{margin-top:12px;font-size:20px;line-height:1.45}.prototype-note{font-size:15px;line-height:1.45;color:var(--muted);padding-bottom:3px;flex-shrink:0}.prototype-note strong{font-weight:600;color:var(--ink);display:block;margin-bottom:3px}
+    .browse-content{margin-left:var(--offset)}.search-form{display:flex;align-items:center;gap:12px;max-width:900px}.search-field{position:relative;flex:1;min-width:0}.search-field input{width:100%;height:52px;border:1px solid var(--line);border-radius:0;padding:12px 18px 12px 48px;color:var(--ink);background:transparent;font-size:18px;appearance:none}.search-field input::placeholder{color:var(--muted);opacity:1}.search-field input:focus{border-color:var(--accent)}.search-icon{position:absolute;left:18px;top:18px;width:17px;height:17px;pointer-events:none;color:var(--muted)}.search-status{min-height:51px;padding:12px 0 15px;display:flex;gap:16px;align-items:baseline;line-height:1.4}.search-status p{font-size:15px;color:var(--muted)}.search-status .text-link{padding:0;font-size:15px}.task-list{list-style:none;padding:0;margin:0;border-top:1px solid var(--line)}
+    .task-item{border-bottom:1px solid var(--line);padding:20px 0 18px}.task-category{font-size:14px;line-height:20px;color:var(--muted);margin-bottom:5px}.task-item h2{font-size:32px;line-height:1.18;letter-spacing:-.65px;max-width:880px}.task-title:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:6px}.task-summary{font-size:19px;line-height:1.45;max-width:760px;margin-top:11px}.task-item .task-link{display:inline-flex;align-items:center;min-height:44px;margin-top:7px;font-weight:500}.list-end{padding:28px 0 62px;display:flex;align-items:center;gap:20px}.end-note{font-size:16px;color:var(--muted)}.empty-state{padding:45px 0 64px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.empty-state h2{font-size:32px;line-height:1.2;margin-bottom:12px}.empty-state p{color:var(--muted);font-size:18px;margin-bottom:12px}.noscript-note{padding:24px 0;color:var(--muted)}
+    .site-footer{padding:22px var(--gutter) 25px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:24px;font-size:14px;color:var(--muted)}.site-footer button{background:none;border:none;padding:0;color:var(--muted);font:inherit;text-decoration:underline;text-underline-offset:4px}
+    dialog{color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:2px;padding:34px;max-width:760px;width:calc(100% - 40px);max-height:85vh;overflow:auto}dialog::backdrop{background:rgb(47 45 41 / .42)}.dialog-top{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:28px}.dialog-top p{font-size:15px;color:var(--muted)}.dialog-close{min-width:44px;min-height:44px;background:none;border:1px solid var(--line);color:var(--ink)}dialog h2{font-size:38px;line-height:1.16;letter-spacing:-.6px;margin-bottom:22px}dialog .detail-category{font-size:14px;color:var(--muted);margin-bottom:10px}dialog .detail-description{white-space:pre-line;font-size:19px;line-height:1.55}dialog .dialog-note{font-size:16px;line-height:1.5;color:var(--muted);border-top:1px solid var(--line);padding-top:20px;margin-top:28px}dialog .return-link{margin-top:14px}body.modal-open{overflow:hidden}
+    @media(max-width:1100px){:root{--gutter:40px;--offset:40px}.nav-links{gap:22px}.nav-links .account-link{margin-left:10px}.page-intro{gap:25px}.prototype-note{max-width:210px;flex-shrink:1}.task-item h2{font-size:30px}}
+    @media(max-width:720px){:root{--gutter:20px;--offset:0px}.navigation{padding:18px var(--gutter);min-height:74px;flex-wrap:wrap;gap:16px}.wordmark{font-size:26px}.menu-toggle{display:block}.nav-links{display:none;flex-basis:100%;flex-wrap:wrap;gap:10px 24px}.nav-links.is-open{display:flex}.nav-links .account-link{margin-left:0}.page-intro{display:block;padding:34px 0 26px}.open-margin{top:37px;width:20px;height:20px}.intro-copy{padding-left:32px}.page-intro h1{font-size:40px}.page-intro .description{font-size:18px}.prototype-note{max-width:none;margin:18px 0 0 32px;font-size:14px}.prototype-note strong{display:inline;margin-right:8px}.search-form{gap:8px}.search-form .button{padding-inline:17px}.search-field input{padding-left:39px;font-size:16px}.search-icon{left:13px}.search-status{min-height:49px;flex-wrap:wrap;gap:4px 12px}.task-item{padding:24px 0 20px}.task-item h2{font-size:29px;letter-spacing:-.4px}.task-summary{font-size:18px}.site-footer{align-items:start;font-size:13px}.list-end{padding-bottom:45px}dialog{padding:22px}dialog h2{font-size:31px}.dialog-top{margin-bottom:22px}}
+    /* Editorial Task Index: one standard density; no featured data exists. */
+    .page-intro{padding:44px 0 28px}.intro-copy{padding-left:216px}.open-margin{top:49px}
+    .browse-content{margin-left:0;display:grid;grid-template-columns:152px minmax(0,1fr);column-gap:64px}
+    .index-margin{padding-top:5px}.index-margin h2{font:600 15px/1.5 var(--sans);margin:0 0 15px}.category-index{display:flex;flex-direction:column;gap:3px}
+    .category-filter{position:relative;text-align:left;border:0;background:transparent;color:var(--muted);padding:10px 0 10px 14px;min-height:44px;font-size:16px;line-height:1.4}
+    .category-filter:hover{color:var(--accent);text-decoration:underline;text-underline-offset:5px}
+    .category-filter[aria-pressed=true]{color:var(--accent);font-weight:600}
+    .category-filter[aria-pressed=true]:before{content:'';position:absolute;left:0;top:12px;bottom:12px;border-left:1.5px solid var(--accent)}
+    .index-note{font-size:14px;line-height:1.5;color:var(--muted);border-top:1px solid var(--line);padding-top:16px;margin-top:22px}
+    .task-content{min-width:0}.search-form{max-width:none}.search-status{flex-wrap:wrap;gap:4px 16px;min-height:51px}
+    .task-item{padding:23px 0 18px}.task-item h2{max-width:800px;font-size:32px;line-height:1.18}.task-summary{max-width:700px;font-size:19px;line-height:1.45}
+    .task-category{font-size:14px;line-height:20px;margin-bottom:7px;letter-spacing:.02em}
+    .list-end{flex-wrap:wrap;padding-bottom:56px}.load-feedback{font-size:16px;color:var(--muted);flex-basis:100%}
+    .button:disabled{cursor:wait;opacity:.65}.task-list[aria-busy=true]{cursor:progress}
+    .prototype-tools{border-top:1px solid var(--line);padding-top:18px;margin-top:18px}.prototype-tools p{font-size:16px;color:var(--muted);margin-bottom:12px}
+    @media(max-width:1100px){.intro-copy{padding-left:180px}.browse-content{grid-template-columns:140px minmax(0,1fr);gap:40px}.task-item h2{font-size:30px}.prototype-note{max-width:180px}}
+    @media(max-width:900px){.intro-copy{padding-left:40px}.browse-content{display:block}.index-margin{padding:0 0 22px}.index-margin h2{margin-bottom:8px}.category-index{flex-direction:row;flex-wrap:wrap;gap:4px 18px}.category-filter{padding:8px 0;min-height:44px}.category-filter[aria-pressed=true]:before{left:0;right:0;top:auto;bottom:4px;border-left:0;border-bottom:1.5px solid var(--accent)}.index-note{border:0;margin-top:7px;padding:0}.task-item h2{max-width:760px}.prototype-note{max-width:none}}
+    @media(max-width:720px){.page-intro{padding:34px 0 24px}.intro-copy{padding-left:32px}.open-margin{top:37px}.category-index{gap:2px 18px}.category-filter{font-size:15px}.index-note{font-size:13px}.task-item{padding:22px 0 20px}.task-item h2{font-size:29px}.task-summary{font-size:18px}.search-status{min-height:49px}.prototype-note{margin-left:32px}.list-end{padding-bottom:40px}}
+    /* Decorations stay outside the unchanged task reading axis. */
+    .open-margin{width:146px;height:138px;top:16px;left:30px}
+    .open-margin .paper-square{fill:var(--material)}
+    .open-margin .small-square{fill:var(--secondary-accent)}
+    .open-margin path{vector-effect:non-scaling-stroke}
+    .open-margin .mobile-angle{display:none}
+    .list-end{position:relative;isolation:isolate;overflow:clip}
+    .end-geometry{position:absolute;right:0;bottom:0;width:176px;height:100%;max-height:136px;pointer-events:none;user-select:none;z-index:-1}
+    .end-geometry rect{fill:color-mix(in srgb,var(--material) 65%,var(--paper))}
+    .end-geometry path{fill:none;stroke:var(--line);stroke-width:1;vector-effect:non-scaling-stroke}
+    .list-end:has(.load-feedback:not([hidden])) .end-geometry{display:none}
+    @media(max-width:1100px){.open-margin{width:128px;height:121px;left:12px;top:24px}.end-geometry{display:none}}
+    @media(max-width:900px){.open-margin{width:24px;height:24px;top:49px;left:0}.open-margin rect,.open-margin .desktop-angle{display:none}.open-margin .mobile-angle{display:block}}
+    @media(max-width:720px){.open-margin{top:37px;width:20px;height:20px}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <nav class="navigation" aria-label="Main navigation">
+      <a class="wordmark" href="index.html" aria-label="Human Worth Home">Human Worth</a>
+      <button class="menu-toggle" aria-expanded="false" aria-controls="navigation-links">Menu</button>
+      <div class="nav-links" id="navigation-links">
+        <a href="index.html">Home</a><a href="discovery.html" aria-current="page">Discovery</a>
+        <a href="#board" data-destination="Board">Board</a><a href="#submit" data-destination="Submit">Submit</a>
+        <a class="account-link" href="#sign-in" data-destination="Sign in">Sign in</a>
+      </div>
+    </nav>
+  </header>
+  <main id="main">
+    <header class="page-intro">
+      <svg class="open-margin" viewBox="0 0 146 138" aria-hidden="true" focusable="false"><rect class="paper-square" x="16" y="8" width="110" height="110"/><rect class="small-square" x="103" y="94" width="42" height="42"/><path class="desktop-angle" d="M40 .75H.75V40"/><path class="mobile-angle" d="M146 4H4V138"/></svg>
+      <div class="intro-copy"><h1>Discovery</h1><p class="description">Works, contexts, and perspectives.</p></div>
+      <p class="prototype-note"><strong>Prototype data</strong>Illustrative tasks. No live data.</p>
+    </header>
+    <div class="browse-content">
+      <aside class="index-margin" aria-labelledby="index-title">
+        <h2 id="index-title">Categories</h2>
+        <div class="category-index" id="category-index" role="group" aria-label="Filter tasks by category"></div>
+        <p class="index-note">Categories from these prototype tasks.</p>
+      </aside>
+      <section class="task-content" aria-label="Browse tasks">
+      <form class="search-form" role="search" aria-label="Search tasks">
+        <div class="search-field"><label class="sr-only" for="task-search">Search task titles and descriptions</label><svg class="search-icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8" cy="8" r="5.75" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m12.5 12.5 5 5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><input id="task-search" name="q" type="search" placeholder="Search tasks" autocomplete="off" maxlength="200"></div>
+        <button class="button" type="submit">Search</button>
+      </form>
+      <div class="search-status"><p id="search-context">Explore the tasks below.</p><button id="clear-search" class="text-link" hidden>Clear search</button></div>
+      <p id="announcements" class="sr-only" role="status" aria-live="polite"></p>
+      <ul class="task-list" aria-label="Tasks" id="task-list"></ul>
+      <section class="empty-state" id="empty-state" aria-labelledby="empty-title" hidden><h2 id="empty-title">No tasks found.</h2><p>Try a different word or category, or reset both to explore all prototype tasks.</p><button class="text-link" id="empty-clear">Reset search and category</button></section>
+      <div class="list-end" id="list-end"><button class="button secondary" id="load-more">Load more tasks</button><p class="load-feedback" id="load-feedback" role="status" hidden></p><p class="end-note" id="end-note" hidden>You’ve reached the end of the prototype tasks.</p><svg class="end-geometry" viewBox="0 0 176 136" aria-hidden="true" focusable="false"><rect x="64" y="32" width="144" height="144"/><path d="M40 104H16V80"/></svg></div>
+      <noscript><p class="noscript-note">Enable JavaScript to browse and search this local prototype.</p></noscript>
+      </section>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Human Worth</span><button data-destination="About this prototype">About this prototype</button></footer>
+  <dialog id="task-preview" aria-labelledby="preview-title"><div class="dialog-top"><p id="preview-label">Task Detail · Prototype preview</p><button class="dialog-close" aria-label="Close preview">✕</button></div><p class="detail-category" id="preview-category"></p><h2 id="preview-title"></h2><p class="detail-description" id="preview-description"></p><p class="dialog-note" id="preview-note"></p><div id="prototype-tools" class="prototype-tools" hidden><p>Local interaction check: make the next Load more attempt fail once, then retry. No server request is made.</p><button class="button secondary" id="simulate-failure">Test next-load failure</button></div><button class="text-link return-link" id="return-to-list">Back to Discovery</button></dialog>
+  <script src="prototype-data.js"></script>
+  <script>
+    // Local concept fixtures only. No API is called or represented as live.
+    const tasks=window.HWPrototype.tasks;
+    const list=document.querySelector('#task-list'),input=document.querySelector('#task-search'),clear=document.querySelector('#clear-search'),context=document.querySelector('#search-context'),empty=document.querySelector('#empty-state'),more=document.querySelector('#load-more'),end=document.querySelector('#end-note'),announcements=document.querySelector('#announcements'),dialog=document.querySelector('#task-preview');
+    const batchSize=4;let visible=batchSize,query=new URLSearchParams(location.search).get('q')||'',selectedCategory=new URLSearchParams(location.search).get('category')||'',lastTrigger=null,loadVersion=0,loading=false,failNext=false;
+    const categories=[...new Set(tasks.map(t=>t.category).filter(Boolean))];
+    const categoryIndex=document.querySelector('#category-index'),loadFeedback=document.querySelector('#load-feedback'),prototypeTools=document.querySelector('#prototype-tools');
+    const matches=()=>tasks.filter(task=>(!selectedCategory||task.category===selectedCategory)&&(task.title+' '+task.summary+' '+task.description).toLocaleLowerCase().includes(query.toLocaleLowerCase()));
+    function renderCategories(){categoryIndex.replaceChildren();for(const value of ['',...categories]){const button=document.createElement('button');button.className='category-filter';button.type='button';button.dataset.category=value;button.textContent=value||'All tasks';button.setAttribute('aria-pressed',String(value===selectedCategory));categoryIndex.append(button);}}
+    function resetLoad(){loadVersion++;loading=false;more.disabled=false;more.textContent='Load more tasks';loadFeedback.hidden=true;loadFeedback.textContent='';list.setAttribute('aria-busy','false');}
+    function taskURL(id){const url=new URL('task-detail.html',location.href);url.searchParams.set('id',id);url.searchParams.set('return',location.pathname+location.search);return url.href;}
+    function makeItem(task){const li=document.createElement('li');li.className='task-item';li.dataset.taskId=task.id;
+      if(task.category){const category=document.createElement('p');category.className='task-category';category.textContent=task.category;li.append(category);}
+      const title=document.createElement('h2'),link=document.createElement('a');link.className='task-title';link.href=taskURL(task.id);link.dataset.task=task.id;link.textContent=task.title;title.append(link);
+      const summary=document.createElement('p');summary.className='task-summary';summary.textContent=task.summary;
+      const entry=document.createElement('a');entry.className='text-link task-link';entry.href=link.href;entry.dataset.task=task.id;entry.textContent='View Task';entry.setAttribute('aria-label','View Task: '+task.title);
+      li.append(title,summary,entry);return li;
+    }
+    function syncEnd(filtered){more.hidden=visible>=filtered.length;end.hidden=filtered.length===0||visible<filtered.length;empty.hidden=filtered.length!==0;list.hidden=filtered.length===0;document.querySelector('#list-end').hidden=filtered.length===0;}
+    function render(){const filtered=matches();list.replaceChildren(...filtered.slice(0,visible).map(makeItem));context.textContent=query?'Tasks matching “'+query+'”'+(selectedCategory?' in '+selectedCategory:'')+'.':selectedCategory?'Tasks in '+selectedCategory+'.':'Explore the tasks below.';clear.hidden=!query;categoryIndex.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.category===selectedCategory)));syncEnd(filtered);}
+    function saveState(extra={}){const saved={...history.state,...extra,visible,scrollY:window.scrollY};history.replaceState(saved,'',location.href);try{sessionStorage.setItem('hw-discovery:'+location.pathname+location.search,JSON.stringify(saved));}catch{}}
+    function restoreList(){resetLoad();const params=new URLSearchParams(location.search),nextQuery=params.get('q')||'',nextCategory=params.get('category')||'',nextVisible=history.state?.visible||batchSize;const changed=query!==nextQuery||selectedCategory!==nextCategory||visible!==nextVisible;query=nextQuery;selectedCategory=nextCategory;visible=nextVisible;input.value=query;renderCategories();if(changed)render();const returnTask=history.state?.returnTask;lastTrigger=[...list.querySelectorAll('a[data-task]')].find(link=>link.dataset.task===returnTask)||null;}
+    function search(value){resetLoad();query=value.trim();input.value=query;visible=batchSize;const url=new URL(location.href);query?url.searchParams.set('q',query):url.searchParams.delete('q');selectedCategory?url.searchParams.set('category',selectedCategory):url.searchParams.delete('category');url.hash='';history.replaceState({visible,scrollY:0},'',url);render();saveState({returnTask:null,scrollY:0});announcements.textContent=matches().length?'Task list updated.':'No tasks found. Try a different search or category.';}
+    document.querySelector('.search-form').addEventListener('submit',event=>{event.preventDefault();search(input.value);});
+    function clearSearch(){search('');input.focus();}
+    clear.addEventListener('click',clearSearch);document.querySelector('#empty-clear').addEventListener('click',()=>{selectedCategory='';renderCategories();clearSearch();});
+    categoryIndex.addEventListener('click',event=>{const button=event.target.closest('button[data-category]');if(!button)return;selectedCategory=button.dataset.category;search(input.value);});
+    input.addEventListener('search',()=>{if(!input.value)clearSearch();});
+    more.addEventListener('click',async()=>{if(loading)return;const version=++loadVersion,shouldFail=failNext;failNext=false;loading=true;more.disabled=true;more.textContent='Loading…';list.setAttribute('aria-busy','true');loadFeedback.hidden=false;loadFeedback.textContent='Loading prototype tasks…';try{await new Promise(resolve=>setTimeout(resolve,300));if(version!==loadVersion)return;if(shouldFail)throw new Error('Simulated prototype failure');const filtered=matches(),start=visible;visible+=batchSize;for(const task of filtered.slice(start,visible))list.append(makeItem(task));syncEnd(filtered);saveState();loadFeedback.hidden=true;announcements.textContent='More prototype tasks loaded.';list.children[start]?.querySelector('.task-title').focus({preventScroll:true});}catch(error){if(version!==loadVersion)return;loadFeedback.textContent='Prototype load failed. Your current tasks are still here. Please retry.';more.textContent='Retry loading';announcements.textContent=loadFeedback.textContent;}finally{if(version===loadVersion){loading=false;more.disabled=false;list.setAttribute('aria-busy','false');if(loadFeedback.hidden)more.textContent='Load more tasks';}}});
+    function showTask(id){location.replace(taskURL(id));}
+    function openDialog(){prototypeTools.hidden=true;if(!dialog.open)dialog.showModal();dialog.scrollTop=0;document.body.classList.add('modal-open');}
+    list.addEventListener('click',event=>{const link=event.target.closest('a[data-task]');if(!link)return;lastTrigger=link;saveState({returnTask:link.dataset.task});});
+    function closeDialog(){if(!dialog.open)return;if(location.hash.startsWith('#task/')&&history.state?.taskPreview){history.back();return;}if(location.hash.startsWith('#task/')){const state={...history.state};delete state.task;delete state.taskPreview;history.replaceState(state,'',location.pathname+location.search);restoreList();}dialog.close();}
+    document.querySelector('.dialog-close').addEventListener('click',closeDialog);document.querySelector('#return-to-list').addEventListener('click',closeDialog);dialog.addEventListener('cancel',event=>{event.preventDefault();closeDialog();});
+    dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)closeDialog();}});
+    dialog.addEventListener('close',()=>{document.body.classList.remove('modal-open');lastTrigger?.focus({preventScroll:true});});
+    window.addEventListener('popstate',()=>{restoreList();if(location.hash.startsWith('#task/')){showTask(location.hash.slice(6));}else{if(dialog.open)dialog.close();window.scrollTo(0,history.state?.scrollY||0);}});
+    document.querySelectorAll('[data-destination]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();lastTrigger=link;const name=link.dataset.destination;document.querySelector('#preview-label').textContent='Prototype destination';document.querySelector('#preview-category').hidden=true;document.querySelector('#preview-title').textContent=name;document.querySelector('#preview-description').textContent=name==='About this prototype'?'Discovery uses local concept task data. Search, continued browsing and task detail navigation are interactive. No live product API is called.':name+' is outside this Discovery prototype.';document.querySelector('#preview-note').textContent='Live task APIs are not connected in this prototype. These examples do not represent published tasks.';openDialog();}));
+    document.querySelector('[data-destination="About this prototype"]').addEventListener('click',()=>{prototypeTools.hidden=false;});
+    document.querySelector('#simulate-failure').addEventListener('click',()=>{selectedCategory='';failNext=true;renderCategories();search('');closeDialog();more.focus();more.scrollIntoView({block:'center'});announcements.textContent='Prototype check armed. The next load will fail once; retry will succeed.';lastTrigger=more;});
+    const menu=document.querySelector('.menu-toggle'),nav=document.querySelector('.nav-links');menu.addEventListener('click',()=>{const open=menu.getAttribute('aria-expanded')!=='true';menu.setAttribute('aria-expanded',String(open));nav.classList.toggle('is-open',open);});nav.addEventListener('click',event=>{if(event.target.closest('a')){menu.setAttribute('aria-expanded','false');nav.classList.remove('is-open');}});
+    function restoreSavedNavigation(){let saved=history.state;try{saved=JSON.parse(sessionStorage.getItem('hw-discovery:'+location.pathname+location.search))||saved;}catch{}if(saved){history.replaceState(saved,'',location.href);visible=Math.max(batchSize,Math.min(tasks.length,Number(saved.visible)||batchSize));render();requestAnimationFrame(()=>{const link=[...list.querySelectorAll('a[data-task]')].find(a=>a.dataset.task===saved.returnTask);link?.focus({preventScroll:true});window.scrollTo(0,Number(saved.scrollY)||0);});}}
+    window.addEventListener('pageshow',restoreSavedNavigation);
+    window.addEventListener('pagehide',()=>saveState());
+    input.value=query;visible=history.state?.visible||batchSize;renderCategories();render();if(location.hash.startsWith('#task/'))showTask(location.hash.slice(6));
+  </script>
+</body>
+</html>
