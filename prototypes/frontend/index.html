@@ -94,7 +94,7 @@
         <a href="#home" aria-current="page">Home</a>
         <a href="discovery.html">Discovery</a>
         <a href="#board" data-destination="Board">Board</a>
-        <a href="#submit" data-destination="Submit">Submit</a>
+        <a href="submit.html">Submit</a>
         <a class="account-link" href="#sign-in" data-destination="Sign in">Sign in</a>
       </div>
     </nav>
@@ -179,7 +179,7 @@
     }
     document.querySelectorAll('[data-destination]').forEach(link=>link.addEventListener('click',event=>{
       event.preventDefault();const name=link.dataset.destination;
-      const messages={Board:'This navigation item will open Board. The Board page is outside this Home visual prototype.',Submit:'This navigation item will open the task submission flow. That flow is outside this Home visual prototype.','Sign in':'This navigation item will open sign in. Authentication is not connected in this prototype.','About this prototype':'Home / Showcase · Desktop 1440px · Paper & Ink. Both examples, their materials and work counts are illustrative. The library image is AI-generated. No submitted works, votes or comparison results are shown.'};
+      const messages={Board:'This navigation item will open Board. The Board page is outside this Home visual prototype.','Sign in':'This navigation item will open sign in. Authentication is not connected in this prototype.','About this prototype':'Home / Showcase · Desktop 1440px · Paper & Ink. Both examples, their materials and work counts are illustrative. The library image is AI-generated. No submitted works, votes or comparison results are shown.'};
       showDialog(link,name,'<p>'+messages[name]+'</p><p class="dialog-note">This preview does not connect to live product data.</p>');
     }));
     document.querySelectorAll('[data-example]').forEach(link=>link.addEventListener('click',event=>{
