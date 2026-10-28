@@ -37,11 +37,29 @@ python -m http.server 8765 --bind 127.0.0.1 --directory prototypes/frontend
 
 后续需依据当前 OpenAPI 完成身份／CSRF、任务和作品读取、候选与资格、投票／统计持久化、正式投稿字段／资产上传／审核结果、真实评论分页与错误映射。原型的示例输入不构成正式提交协议；真实身份和统计永久禁投规则必须由后端保证。
 
-Board、Create / Edit Task、My Submissions、MCP Credentials 等入口仍是明确标记的目标页提示，不能描述为已完成页面。超长文本自动分页、复杂多媒体排版仍待后续处理；现有阅读器允许正文自然扩展。
+Board、My Submissions、MCP Credentials 等入口仍是明确标记的目标页提示，不能描述为已完成页面。Submit 已有独立本地原型，尚未接入 API。超长文本自动分页、复杂多媒体排版仍待后续处理；现有阅读器允许正文自然扩展。
 
 ## 文件与范围
 
-运行入口为 index.html、discovery.html、task-detail.html；共享示例数据为 prototype-data.js，Detail 样式和交互为 task-detail.css / task-detail.js。fonts/ 含本地字体与 OFL 授权；library-context.png 是页面中明确标注的 AI 生成示意图。
+### Submit 设计评审原型（2026-10-26）
+
+- 打开 `submit.html`；已有三个页面的 Submit 导航均链接到此页。
+- Human / Agent 使用错位横线纸作品登记页，点击作品标题编辑；大型 Add human work / Add agent work 入口直接追加。编辑器与最终完整预览保留全部正文。
+- 支持任务编辑、文字／文件选择／补充链接、来源、Agent 模型与可选 prompt/harness、逐件云端授权选择；不设置公开／私有开关。
+- Save draft 仅写浏览器 localStorage；文件仅模拟选择并保存名称，刷新后必须重新选择，不冒充已上传资产。未保存内容离开时有提醒。
+- Explore states 可查看缺少 Agent、空草稿、驳回与待审状态，也可模拟失败和未登录；模拟送审不发送请求。
+- 已检查 1440px 桌面与 390/320px 窄屏、作品切换／新增、保存与刷新恢复、完整预览、缺项拦截、未登录、失败重试和待审只读。六项送审条件检查：`node prototypes/frontend/submit.test.cjs`。
+- 真实登录、资产上传、草稿版本控制、送审与审核结果仍待 API 接入。此稿用于设计评审，不是最终页面或后端验收。
+
+本轮中段修订核验（2026-10-26～27）：
+
+- 保留 Hero 与 Review & Submit 的原有标记及构图，仅调整中段、校验与必要导航。作品和任务勾选来自输入有效性；空附件显示可选状态；模拟送审不勾选真实提交完成。
+- 已通过 14 项校验／health 条件检查、脚本语法检查；浏览器已确认桌面纸张构图、Home/Discovery → Submit、清空标题撤销勾选、空作品拦截和静态预览 API 404 的明确反馈。
+- 关闭测试编辑器时浏览器确认窗口阻塞，桌面控制授权超时；本轮窄屏复测未完成，不沿用上一轮结果作为新布局验收。
+- 2026-10-26 公网只读检查：`/docs/openapi.yaml` 为 200，内容与当前 dev 基线 `53d2d63453e2ca365e6d5b2683a895d23670a4e4` 契约一致；`/api/health` 返回 503 `identity_unavailable`，未提供 revision 或 deployedServices；`/api/me`、`/api/me/submissions`、`/api/me/assets` 均为未登录 401。这不能证明已登录写入链路可用。
+- 源码路由已包含 POST `/api/tasks`、GET/PUT `/api/me/tasks/{taskId}`、POST `/api/me/tasks/{taskId}/review-requests`、上传会话／内容上传／完成接口。未发现这些必需接口在源码中缺失，但正式前端适配、资产 ready 确认、会话／CSRF、幂等与版本冲突仍未接入；本轮没有写入公网数据。部署异常应由后端核查服务健康与日志后再做真实接入验收。
+
+运行入口为 index.html、discovery.html、task-detail.html、submit.html；共享示例数据为 prototype-data.js，Detail 样式和交互为 task-detail.css / task-detail.js，Submit 为 submit.css / submit.js。fonts/ 含本地字体与 OFL 授权；library-context.png 是页面中明确标注的 AI 生成示意图。
 
 仅纳入当前运行版本及必需资源；历史备份、截图、临时脚本和本机绝对路径均不纳入 checkpoint。团队既有 public/、后端、契约、CI 与部署配置保持不变。
 
