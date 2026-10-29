@@ -10,6 +10,14 @@ const assets = new Map([
   ['/style.css', ['public/style.css', 'text/css; charset=utf-8']],
   ['/brand/logo.png', ['public/brand/logo.png', 'image/png']],
 ]);
+// Explicit development-only allowlist: never expose repository files or test scripts.
+const frontendAssets = new Map([
+  ...['index.html', 'discovery.html', 'task-detail.html', 'submit.html', 'login.html', 'board.html'].map(name => [`/${name}`, [name, 'text/html; charset=utf-8']]),
+  ...['task-detail.css', 'submit.css', 'login.css', 'board.css', 'prototype-nav.css', 'fonts/fonts.css'].map(name => [`/${name}`, [name, 'text/css; charset=utf-8']]),
+  ...['prototype-data.js', 'task-detail.js', 'submit.js', 'login.js', 'board.js'].map(name => [`/${name}`, [name, 'text/javascript; charset=utf-8']]),
+  ...['source-serif-4-display-400', 'source-serif-4-400', 'source-sans-3-400', 'source-sans-3-500', 'source-sans-3-600', 'ibm-plex-mono-400'].map(name => [`/fonts/${name}.ttf`, [`fonts/${name}.ttf`, 'font/ttf']]),
+  ['/library-context.png', ['library-context.png', 'image/png']],
+]);
 
 function forwardedHeaders(headers) {
   const result = { ...headers };
@@ -65,6 +73,20 @@ export function createApp(revision = 'development', apiOrigin) {
         status: 'ok', service: 'human-worth', stage: 'foundation', revision,
       }));
       return;
+    }
+    if (upstream) {
+      if (path === '/' && new URL(request.url, 'http://localhost').searchParams.get('login') === 'cancelled') {
+        response.writeHead(303, { Location: '/login.html?login=cancelled' }).end();
+        return;
+      }
+      const frontend = frontendAssets.get(path === '/' ? '/index.html' : path);
+      if (frontend) {
+        // Existing prototype pages use inline styles/scripts. This policy is dev-only.
+        response.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'");
+        response.writeHead(200, { 'Content-Type': frontend[1] });
+        response.end(request.method === 'HEAD' ? undefined : readFileSync(new URL(`prototypes/frontend/${frontend[0]}`, root)));
+        return;
+      }
     }
     const asset = assets.get(path);
     if (!asset) {

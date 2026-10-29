@@ -82,6 +82,24 @@ test('frontend development forwards API requests to its upstream and keeps pages
     assert.match(page.headers.get('content-security-policy'), /connect-src 'self'/);
     assert.equal((await fetch(`${local}/apiary`)).status, 404);
     assert.equal(received.length, 0);
+    for (const path of [
+  '/login.html',
+  '/login.js',
+  '/login.css',
+  '/board.html',
+  '/board.css',
+  '/board.js',
+  '/prototype-nav.css',
+  '/fonts/fonts.css'
+]) {
+  assert.equal((await fetch(`${local}${path}`)).status, 200, path);
+}
+    assert.equal((await fetch(`${local}/login.test.mjs`)).status, 404);
+    assert.equal((await fetch(`${local}/AGENTS.md`)).status, 404);
+    const cancelled = await fetch(`${local}/?login=cancelled`, { redirect: 'manual' });
+    assert.equal(cancelled.status, 303);
+    assert.equal(cancelled.headers.get('location'), '/login.html?login=cancelled');
+    assert.equal((await fetch(`${origin}/login.html`)).status, 404, 'Prototype remains outside production routes');
     const health = await fetch(`${local}/api/health`);
     assert.equal(health.status, 201);
     assert.equal((await health.json()).revision, 'public-revision');

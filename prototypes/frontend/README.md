@@ -1,6 +1,38 @@
 # Human Worth 前端原型 checkpoint
 
-这是 Home、Discovery 和 Task Detail 的可运行静态原型，供设计与交互评审。所有任务、作品、评论和身份均为示例；没有真实 API 请求、上传、投票或发布。它没有替换生产入口，也没有接入部署流程。
+## 登录页面（2026-10-29）
+
+当前实现基于 `dev` 的 `d4f0fde`。新增 `login.html` / `login.css` / `login.js`，Home、Discovery、Task Detail、Submit 均有登录入口。布局沿用暖纸色、陶土色、Source Serif 4 / Source Sans 3，以单一卡片承载 Google 登录、已有账号与退出状态。
+
+### 定义核对
+
+| 范围 | 仓库现有定义与本次处理 |
+| --- | --- |
+| 页面与路由 | 产品页面为本目录静态原型，无 SPA 路由或共享真实账号状态。Node `public/` 是生产回退入口；Go gateway 的 `web/` 已有基础登录和 MCP 凭据页。本次扩展 Node 开发模式的显式资源白名单，生产入口不变。 |
+| 认证契约 | [OpenAPI](../../openapi.yaml) 已定义 `GET /api/auth/google` 顶层导航、Google 回调、`GET /api/me`、带 `X-CSRF-Token` 的 `POST /api/auth/logout`。不以 fetch 跟随 OAuth 跨站跳转。 |
+| 账号模型 | `Session` 含 `account.id/displayName`、`role=user/admin`、`csrfToken`。Identity 使用稳定账号及外部 issuer/subject，首次有效 Google 登录建普通账号。前端不推断管理员、不存 Google token 或会话凭据。 |
+| 注册与缺口 | 没有邮箱密码、找回密码或独立注册契约，页面不提供这些控件。回调仅返回 `/` 或 `/?login=cancelled`，不支持任意 returnTo；本次未修改后端或契约。 |
+| 导航与演示 | 新页面通过真实 `/api/me` 判定身份；原有投票、评论、投稿仍为独立演示。Detail 明确标注 Demo account / Demo sign-in，不把其状态同步成真实身份。 |
+| 资料依据 | [PRD FR-07 / AC-18](../../docs/prd.md)、[Identity](../../docs/backend-identity.md)、[部署记录](../../docs/deployment.md)、gateway `http.go` / `web/account.js`、Identity domain/application。历史上线记录不代表本轮已经复验线上服务。 |
+
+### 预览与接入边界
+
+- 静态预览可直接打开 `login.html`，API 404 时显示预览不可登录，保留浏览入口。
+- `npm run dev:frontend` 后访问 `http://127.0.0.1:18100/login.html`，通过已有代理读取相对 `/api/me`。开发首页现在展示原型；取消回调查询在开发服务器转至登录页。
+- **HTTP 本地预览不提供 Google 跳转**：既有 OAuth 使用 Secure / HttpOnly Cookie，回调绑定服务端配置的公网 HTTPS 域名，本地代理不能完成同源登录闭环。未改写 Cookie 或伪造认证成功。
+- 真正部署到与 API 同源的 HTTPS 站点后，匿名状态展示 Google 链接。成功由后端回到 `/`；取消由后端回到 `/?login=cancelled`；其他回调错误仍由后端返回 Problem JSON，不声称已具备前端错误回跳协议。
+- 前端涵盖读取中、匿名、取消、已登录、404/403/服务异常、网络失败、重试、退出及会话过期。退出失败明确“未确认”，可重新查询；浏览器后退重新验证会话。真实 Cookie 只由后端处理，CSRF 仅保存在页面内存。
+- 生产页面发布、跨页面真实账户状态以及真实 Google 授权验收仍待后续接入。保持现有部署边界属于本轮实现选择，不代表用户已批准新上线方案。
+
+### 本轮检查
+
+- `node --test tests/*.test.mjs`：9 项通过，包括真实本地 HTTP、开发资源/取消路由、生产隔离及登录状态测试。
+- `node prototypes/frontend/submit.test.cjs`：14 项通过；新增脚本、服务端及 Detail 脚本语法通过。
+- 文档链接/可信场景、PR 规则检查和 `npm run build:docs` 通过（Windows Python 使用 UTF-8 模式）。
+- Chrome 浏览器以模拟 API 验证 1440/390/320px 无横向溢出、Google 顶层导航、取消、失败重试、会话/退出、四页入口；无脚本错误。模拟响应不构成真实 OAuth 验收。
+- Linux 部署 Python 测试在 Windows 无法完整运行（缺少 `fcntl` 等平台能力）；不能声称完整 CI 通过。后端和公网写入未执行。
+
+以下为原有 Home、Discovery、Task Detail 和 Submit 的历史评审记录。这些页面中的任务、作品、评论和演示身份均为示例；不包含上文新增登录页的会话请求。原型没有替换生产入口，也没有接入部署流程。
 
 ## 本地预览
 
