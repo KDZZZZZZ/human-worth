@@ -138,8 +138,25 @@ gateway 配置 `CHALLENGE_TARGET` 后启用六个管理员 HTTP 操作；仍通�
 
 ```sh
 CHALLENGE_MODEL_CONFIG_FILE=/path/to/private/model.json \
-  go test -tags=live ./internal/challenge/adapter/execution -run 'TestLiveProvider|TestLiveStructuredResult|TestLiveExecutorCompletion' -count=1 -timeout=100s
+  go test -tags=live ./internal/challenge/adapter/execution -run 'TestLiveProvider|TestLiveStructuredResult|TestLivePackerResult|TestLiveExecutorCompletion' -count=1 -timeout=6m
 ```
+
+`TestLivePackerResult` 使用真实供应商回归文件任务的规划阶段：P 将管理员确认的任务整理为执行计划，任务里的工具操作由后续 E 完成；P 本次不调用工具。返回仍经过严格 JSON 解析，拒绝文本不能当作有效计划。
+
+E 的文件交付遵守 Asset 的现有类型限制：`text/plain`、PNG、JPEG、WebP 和 PDF。CSV、JSON、源码等 UTF-8 文本作品保留原文件名与内容格式，以 `text/plain` 交付；Asset 仍核对实际内容、大小与摘要，不因模型声明跳过检查。
+
+完整真实模型回归使用独立 PostgreSQL、一次性 `kind-human-worth-backend-check` 集群、Calico、gVisor 和固定 digest 的执行器镜像；测试拒绝生产集群上下文。先按 `ops/lab/verification-kind.yaml` 准备集群及隔离运行时，再运行：
+
+```sh
+IDENTITY_TEST_DATABASE_URL_FILE=/path/to/private/test-dsn \
+CHALLENGE_MODEL_CONFIG_FILE=/path/to/private/model.json \
+CHALLENGE_E2E_KUBECONFIG=/path/to/private/verification.kubeconfig \
+CHALLENGE_E2E_IMAGE='human-worth/challenge-executor@sha256:<verified-digest>' \
+CHALLENGE_LIVE_OUTPUT_DIR=/path/to/validation-output \
+  go test -tags=integration,live ./internal/identity -run '^TestBackendChallengeLiveModel$' -count=1 -timeout=25m
+```
+
+两项任务分别生成精确字节的文本文件、读取 CSV 附件并汇总分类净收入。P/R/E 均调用配置的真实模型，E 在 gVisor 中实际执行命令；检查管理员登记与重放、审核前不可见、审核后下载内容及投票候选更新，并可导出作品和运行回执。业务服务使用真实 PostgreSQL、HTTP 和 mTLS，资产存储使用测试文件系统；登录、原有作品和训练投票是合成夹具，不据此证明 S3、真人偏好拟合质量或生产发布。
 
 2026-09-20，用户提供的 `gemini-3.8-flash` 基础 Completion、read_material 工具往返，以及 E 经中继的 run_command 工具往返、最终文本作品和预算结算均通过。E 协议测试返回固定工具观察，没有在宿主机执行模型命令；多模态、真实排名质量和真实隔离执行需各自验证。测试密钥留在仓库外。
 

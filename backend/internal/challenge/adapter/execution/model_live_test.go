@@ -58,6 +58,33 @@ func TestLiveStructuredResult(t *testing.T) {
 	}
 }
 
+// Regress the planner/executor role confusion observed with a real provider:
+// planning a file-producing task must return a plan, without executing tools.
+func TestLivePackerResult(t *testing.T) {
+	path := os.Getenv("CHALLENGE_MODEL_CONFIG_FILE")
+	if path == "" {
+		t.Skip("set private model configuration to opt in")
+	}
+	provider, err := completion.LoadProvider(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
+	defer cancel()
+	rpc := &workerRPC{}
+	worker := &agent.Worker{Client: challengerpc.WorkerClient{Client: clientFor(t, rpc)}, Provider: provider, Codec: protobuf.AgentPayloads{}}
+	a := &domain.Assignment{Role: "P", Kind: domain.WorkKind_WORK_KIND_PACK_TASK, Attempt: &domain.AttemptRef{AttemptId: "packer-probe"}, Model: &domain.ModelConfiguration{Model: provider.Model()}, ModelCallLimit: 1, InputPolicyHash: domain.InputPolicyHash(domain.InputPolicyVersion, 1, 0), Input: &domain.Assignment_Pack{Pack: &domain.PackInput{Initial: &domain.InitialTaskPackage{TaskRevision: 1, Description: "Create /work/output/result.txt containing exactly HUMAN_WORTH_LIVE_GROK_OK followed by a single newline. Use run_command to create and verify this file.", WorkRequirements: "Deliver exactly one text/plain file at /work/output/result.txt with those exact bytes. Do not return an inline text artifact."}}}}
+	result, err := worker.Generate(ctx, a, "probe-grant")
+	if err != nil || strings.TrimSpace(result.GetPrompt().GetPrompt()) == "" {
+		t.Fatalf("file task must produce a structured execution plan: %v", err)
+	}
+	rpc.mu.Lock()
+	defer rpc.mu.Unlock()
+	if len(rpc.outcomes) != 1 || rpc.outcomes[0] != "succeeded" {
+		t.Fatal("planner model call was not settled exactly once")
+	}
+}
+
 // TestLiveExecutorCompletion 验证 E 经中继使用同一真实 Completion 配置完成工具往返和作品回传。
 // 工具观察为固定测试文本；这个检查不在宿主机执行模型命令，也不替代真实沙箱验收。
 func TestLiveExecutorCompletion(t *testing.T) {

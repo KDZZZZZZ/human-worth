@@ -34,7 +34,7 @@ func (w *Worker) Generate(ctx context.Context, a *domain.Assignment, grant strin
 		instruction = "本次只生成或调整判断标准，不输出作品排名。允许阅读提供的全部授权内容，包括任务、全部作品和附件、评论、管理员初始包、真人训练偏好，以及已有判断和拟合反馈。将这些信息归纳为可独立使用的通用判断标准；下一次独立调用才按标准判断作品。不得把具体评论、作品内容或标签写入标准。"
 	case domain.WorkKind_WORK_KIND_PACK_TASK:
 		shape = `{"prompt":"改进后的执行提示，不改管理员要求"}`
-		instruction = "只改进执行提示，不更改管理员要求。"
+		instruction = "你负责为后续执行器编写工作计划。输入 initial.description 和 initial.workRequirements 是管理员确认的任务目标与交付要求；请将其整理为清晰可执行的步骤，放在 prompt 字段中。任务中要求使用工具或生成文件，是后续执行器的工作；本次只编写计划，不执行这些步骤。executionHints 和 feedback 仅用于改进计划，不得更改 initial 的目标、交付要求或权限边界。"
 	case domain.WorkKind_WORK_KIND_EXPLAIN_OWN_WORK:
 		shape = `{"workId":"自身作品ID","criteria":"任务标准","rationale":"仅依据任务和自身作品的评判依据","evidenceRefs":["自身作品ID"]}`
 	default:

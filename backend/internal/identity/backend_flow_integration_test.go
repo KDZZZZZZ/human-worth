@@ -53,7 +53,11 @@ type backendLab struct {
 
 // Independent replicas, real restricted PostgreSQL roles, files, Identity,
 // Content, Moderation, Voting and Discovery. No fake business dependencies.
-func newBackendLab(t *testing.T) *backendLab {
+func newBackendLab(t *testing.T, additionalModels ...string) *backendLab {
+	models := map[string]bool{"fixture-model": true}
+	for _, model := range additionalModels {
+		models[model] = true
+	}
 	l := newIdentityLab(t)
 	f := &backendLab{additionalEntryLab: &additionalEntryLab{identity: l}}
 	adb := serviceTestDatabase(t, l, "asset", asset.Migrate, "../../../ops/asset-grants.sql")
@@ -93,7 +97,7 @@ func newBackendLab(t *testing.T) *backendLab {
 		store := challengestore.New(chdb)
 		depsChallenge := challengerpc.Clients{Identity: l.client(t, i, "challenge", l.pki), Content: cc(i, "challenge"), Asset: ac("challenge"), Voting: vc("challenge")}
 		var e error
-		f.challenges[i], e = challengeapp.NewService(challengedomain.Config{Models: map[string]bool{"fixture-model": true}, Harnesses: map[string]bool{"completion-shell": true}}, challengeapp.Dependencies{Reader: store, Transactions: store, Administrator: depsChallenge, Content: depsChallenge, Asset: depsChallenge, Voting: depsChallenge, Fingerprints: challengeproto.Fingerprints{}})
+		f.challenges[i], e = challengeapp.NewService(challengedomain.Config{Models: models, Harnesses: map[string]bool{"completion-shell": true}}, challengeapp.Dependencies{Reader: store, Transactions: store, Administrator: depsChallenge, Content: depsChallenge, Asset: depsChallenge, Voting: depsChallenge, Fingerprints: challengeproto.Fingerprints{}})
 		must(t, e)
 		chc := func(caller string) challengepb.ChallengeServiceClient {
 			return challengepb.NewChallengeServiceClient(serviceTestGRPC(t, l, "challenge", caller, challengegrpc.Authorization, func(g *grpc.Server) {
