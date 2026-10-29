@@ -31,7 +31,6 @@ function changed(){fitTitle();dirty=true;if(draft.state==='rejected')draft.state
 function renderState(){
   $('#draft-state').textContent=locked()?'In review · simulated':dirty?'Unsaved changes':draft.state==='rejected'?'Returned · simulated':savedAt?'Saved locally':'New draft';
   $('#saved-at').textContent=savedAt?`Saved in this browser at ${savedAt}`:'Not saved in this browser';
-  $('#session').textContent=signed?'Demo signed in':'Demo signed out';
   $('#state-banner').hidden=!locked()&&draft.state!=='rejected';
   $('#state-banner').textContent=locked()?'Local simulation: this task is in review. Editing is paused. Nothing has been sent or published. Use Explore states to return to an editable example.':'Local simulation: returned for changes. Example reviewer note: clarify when the library reopens. Edit the draft, then send it for review again.';
   $('#task-fields').disabled=locked()||busy;
@@ -92,7 +91,6 @@ function showPreview(){
   $('#preview-content').innerHTML=`<h2 id="preview-title">${escapeHTML(draft.title||'Untitled task')}</h2><p>${escapeHTML(draft.summary)}</p><div class="preview-work"><h3>The shared brief</h3><p>${escapeHTML(draft.description)}</p><p class="small">${escapeHTML(draft.attachments.map(f=>f.name).join(' · '))}</p></div>`+sides.map(side=>draft.works[side].map(w=>`<article class="preview-work"><p class="eyebrow">${side} work</p><h3>${escapeHTML(w.title)}</h3><p class="small">${escapeHTML(w.source)}${side==='agent'?' / '+escapeHTML(w.model):''}</p><p class="full-body">${escapeHTML(w.body)}</p><p class="small">${escapeHTML(w.files.map(f=>f.name).join(' · '))}</p>${w.url?`<p>Supplementary link: ${escapeHTML(w.url)}</p>`:''}<p class="small">Cloud use: ${w.cloud==='yes'?'allowed':'not allowed'}</p></article>`).join('')).join('');$('#preview-dialog').showModal();
 }
 $('#preview').onclick=showPreview;
-$('#session').onclick=()=>{if(busy)return;signed=!signed;renderState();$('#feedback').textContent=signed?'Demo session enabled. No real sign-in took place.':'Demo signed out. Your draft remains here.';};
 async function save(send=false){
   if(busy||locked())return;
   if(!signed){$('#feedback').textContent='Enable the demo session at the top of the page, then try again. Your input is retained.';return;}

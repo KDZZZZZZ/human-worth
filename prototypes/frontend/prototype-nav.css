@@ -15,3 +15,18 @@
 
 /* Shared static-prototype header, including active-page and account treatment. */
 .unified-board-nav .wordmark{font:400 29px/1.2 Georgia,"Iowan Old Style","Palatino Linotype","Times New Roman",serif;letter-spacing:-1.1px}.unified-board-nav .nav-links a,.unified-board-nav .nav-links button{font:400 16px/24px "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:normal}.unified-board-nav .nav-links [aria-current="page"]{text-decoration:underline;text-underline-offset:8px}.unified-board-nav .account-link{margin-left:31px}@media(max-width:1100px){.unified-board-nav .account-link{margin-left:10px}}@media(max-width:720px){.unified-board-nav .wordmark{font-size:26px}.unified-board-nav .account-link{margin-left:0}}
+
+/* Match Home / Discovery sizing without changing navigation visibility or behavior. */
+.sized-nav .navigation{min-height:88px;padding:0 max(64px,calc((100vw - 1184px)/2));gap:48px;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;line-height:1.5}
+.sized-nav .wordmark{font:400 29px/1.2 Georgia,"Iowan Old Style","Palatino Linotype","Times New Roman",serif;letter-spacing:-1.1px}
+.sized-nav .nav-links{gap:35px;font-size:16px;line-height:24px}
+.sized-nav .nav-links a,.sized-nav .nav-links button,.sized-nav .browse-link{font:400 16px/24px "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:normal;padding:12px 0}
+.sized-nav .nav-links [aria-current="page"]{text-decoration-color:currentColor;text-decoration-thickness:1px;text-underline-offset:8px}
+.unified-board-nav .menu-toggle{font:400 18px/27px "Helvetica Neue",Helvetica,Arial,sans-serif}
+@media(max-width:1100px){.sized-nav .navigation{padding-inline:40px}.sized-nav .nav-links{gap:22px}}
+@media(max-width:720px){.sized-nav .navigation{min-height:74px;padding:18px 20px;gap:16px}.sized-nav .wordmark{font-size:26px}.sized-nav .nav-links{gap:10px 24px}}
+
+.sized-nav .account-link{margin-left:31px}
+@media(min-width:721px){.sized-nav .navigation,.sized-nav .nav-links{flex-wrap:nowrap}}
+@media(max-width:1100px){.sized-nav .account-link{margin-left:10px}}
+@media(max-width:720px){.sized-nav .account-link{margin-left:0}}
