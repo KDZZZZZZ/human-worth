@@ -1,6 +1,6 @@
 # Human Worth 前端原型 checkpoint
 
-这是 Home、Discovery 和 Task Detail 的可运行静态原型，供设计与交互评审。所有任务、作品、评论和身份均为示例；没有真实 API 请求、上传、投票或发布。它没有替换生产入口，也没有接入部署流程。
+这是 Home、Discovery、Task Detail、Submit 和 Board 的可运行静态原型，供设计与交互评审。所有任务、作品、评论和身份均为示例；没有真实上传、投票或发布；Submit 仅以只读请求探测 API health。它没有替换生产入口，也没有接入部署流程。
 
 ## 本地预览
 
@@ -10,7 +10,7 @@
 python -m http.server 8765 --bind 127.0.0.1 --directory prototypes/frontend
 ```
 
-打开 http://127.0.0.1:8765/index.html；也可直接进入 discovery.html 或 task-detail.html。字体、授权文件和示例图片已随原型提供。浏览器刷新重置演示会话；Discovery 的查询、分页和返回位置在当前标签页保留。
+打开 http://127.0.0.1:8765/index.html；也可直接进入 discovery.html 、task-detail.html、submit.html 或 board.html。字体、授权文件和示例图片已随原型提供。浏览器刷新重置演示会话；Discovery 的查询、分页和返回位置在当前标签页保留。
 
 ## 本次包含
 
@@ -37,7 +37,7 @@ python -m http.server 8765 --bind 127.0.0.1 --directory prototypes/frontend
 
 后续需依据当前 OpenAPI 完成身份／CSRF、任务和作品读取、候选与资格、投票／统计持久化、正式投稿字段／资产上传／审核结果、真实评论分页与错误映射。原型的示例输入不构成正式提交协议；真实身份和统计永久禁投规则必须由后端保证。
 
-Board、My Submissions、MCP Credentials 等入口仍是明确标记的目标页提示，不能描述为已完成页面。Submit 已有独立本地原型，尚未接入 API。超长文本自动分页、复杂多媒体排版仍待后续处理；现有阅读器允许正文自然扩展。
+Board 已有本地统计与讨论顺序示例，详见 [Board 集成记录](BOARD-INTEGRATION.md)；没有连接实时排名。My Submissions、MCP Credentials 等入口仍是目标页提示，不能描述为已完成页面。Submit 已有独立本地原型，尚未接入 API。超长文本自动分页、复杂多媒体排版仍待后续处理；现有阅读器允许正文自然扩展。
 
 ## 文件与范围
 
