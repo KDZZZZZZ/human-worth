@@ -1,0 +1,126 @@
+/* Paper & Ink: small, finite movements; content never depends on animation. */
+:root {
+  --motion-fast: 160ms;
+  --motion-paper: 320ms;
+  --motion-ease: cubic-bezier(.22, .68, .28, 1);
+}
+
+@keyframes paper-arrive {
+  from { opacity: .25; translate: 0 8px; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes paper-dialog {
+  from { opacity: 0; translate: 0 14px; scale: .985; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
+}
+@keyframes ink-backdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes paper-turn {
+  from { opacity: .35; transform: perspective(1400px) rotateY(-4deg) translateX(8px); }
+  to { opacity: 1; transform: perspective(1400px) rotateY(0) translateX(0); }
+}
+@keyframes ink-feedback {
+  from { opacity: .3; translate: 0 3px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+#root #main {
+  animation: paper-arrive 360ms var(--motion-ease);
+}
+#root :is(.task-item, .reader, .register-row, .comment) {
+  animation: paper-arrive var(--motion-paper) var(--motion-ease);
+}
+#root .book-body {
+  transform-origin: left center;
+  animation: paper-turn var(--motion-paper) var(--motion-ease);
+}
+#root dialog[open] {
+  animation: paper-dialog var(--motion-paper) var(--motion-ease);
+}
+#root dialog[open]::backdrop {
+  animation: ink-backdrop 240ms ease-out;
+}
+#root :is([role="status"], [role="alert"]):not(:empty) {
+  animation: ink-feedback 220ms ease-out;
+}
+
+#root :is(.button, .text-link, .work-title-button, .global-menu-toggle, .close, .dialog-close) {
+  transition: color var(--motion-fast) ease, background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease, translate var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) ease;
+}
+#root :is(.button, .global-menu-toggle, .close, .dialog-close):active:not(:disabled) {
+  translate: 0 1px;
+}
+#root .global-links :is(a, button) {
+  position: relative;
+  text-decoration: none;
+  transition: color var(--motion-fast) ease, scale 220ms var(--motion-ease);
+}
+#root .global-links :is(a, button)::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 5px;
+  height: 1px;
+  background: currentColor;
+  scale: 0 1;
+  transform-origin: left center;
+  transition: scale 220ms var(--motion-ease);
+}
+#root .global-links :is([aria-current="page"], :focus-visible)::after {
+  scale: 1 1;
+}
+#root :is(.chapter-cover, .task-item, .register-row) {
+  transition: translate 240ms var(--motion-ease), rotate 240ms var(--motion-ease),
+    background-color 240ms ease, box-shadow 240ms ease;
+}
+#root :is(input:not([type="file"]):not([type="radio"]):not([type="checkbox"]), textarea, select) {
+  transition: border-color var(--motion-fast) ease, background-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+#root :is(input, textarea, select):focus-visible {
+  border-color: var(--accent, #a6522c);
+  box-shadow: 0 2px 0 rgb(166 82 44 / .15);
+}
+#root .current-choice {
+  transition: border-color 240ms ease;
+}
+#root .current-choice[data-selected="true"] {
+  border-color: var(--accent, #a6522c);
+}
+#root .work-actions [aria-pressed="true"] {
+  color: var(--accent, #a6522c);
+  background-color: rgb(166 82 44 / .07);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #root .global-links :is(a, button):hover { scale: 1.04; }
+  #root .global-links :is(a, button):hover::after { scale: 1 1; }
+  #root .chapter-cover:hover { translate: 0 -5px; rotate: -.3deg; }
+  #root .chapter-cover[data-side="agent"]:hover { rotate: .3deg; }
+  #root .task-item:hover { background-color: rgb(255 255 255 / .18); }
+  #root .register-row:hover { background-color: rgb(166 82 44 / .04); }
+  #root .button:hover:not(:disabled) { translate: 0 -2px; box-shadow: 0 3px 0 rgb(47 45 41 / .12); }
+  #root .text-link:hover:not(:disabled) { translate: 2px 0; }
+}
+@media (max-width: 720px) {
+  #root .global-links.is-open { animation: paper-arrive 220ms var(--motion-ease); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+  #root *, #root *::before, #root *::after, #root dialog::backdrop {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  #root :is(button, .button, .text-link, .chapter-cover):hover, #root .global-links :is(a, button):hover, #root button:active {
+    translate: none;
+    rotate: none;
+    scale: none !important;
+  }
+}
+

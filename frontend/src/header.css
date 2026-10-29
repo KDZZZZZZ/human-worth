@@ -1,0 +1,117 @@
+.global-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f1ebe4;
+  color: #2f2d29;
+  border-bottom: 1px solid #cfc3b7;
+  font-family: "Source Sans 3", "Segoe UI", sans-serif;
+  font-size: 18px;
+  line-height: 1.5;
+}
+.global-navigation {
+  min-height: 88px;
+  padding: 0 max(64px, calc((100vw - 1184px) / 2));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 48px;
+}
+.global-wordmark {
+  font:
+    400 29px/1.2 "Source Serif 4",
+    Georgia,
+    serif;
+  letter-spacing: -1.1px;
+  white-space: nowrap;
+  color: inherit;
+  text-decoration: none;
+}
+.global-links {
+  display: flex;
+  align-items: center;
+  gap: 35px;
+  font:
+    400 16px/1.5 "Source Sans 3",
+    "Segoe UI",
+    sans-serif;
+}
+.global-links a,
+.global-links button {
+  display: inline-block;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  color: inherit;
+  padding: 12px 0;
+  min-height: 0;
+  text-decoration: none;
+  cursor: pointer;
+}
+.global-links [aria-current="page"] {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 8px;
+}
+.global-links a:hover,
+.global-links button:hover {
+  text-decoration: underline;
+  text-underline-offset: 6px;
+}
+.global-links .global-account {
+  margin-left: 31px;
+}
+.global-menu-toggle {
+  display: none;
+  font:
+    400 18px/27px "Source Sans 3",
+    sans-serif;
+  background: none;
+  border: 1px solid #cfc3b7;
+  padding: 7px 12px;
+  min-height: 43px;
+  color: inherit;
+}
+.preview-data-note {
+  font: 12px/1.5 var(--sans);
+  color: var(--muted);
+  padding: 10px max(20px, calc((100vw - 1184px) / 2));
+}
+@media (max-width: 1100px) and (min-width: 721px) {
+  .global-navigation {
+    padding-inline: 40px;
+  }
+  .global-links {
+    gap: 22px;
+  }
+  .global-links .global-account {
+    margin-left: 10px;
+  }
+}
+@media (max-width: 720px) {
+  .global-navigation {
+    padding: 18px 20px;
+    min-height: 74px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .global-wordmark {
+    font-size: 26px;
+  }
+  .global-menu-toggle {
+    display: block;
+  }
+  .global-links {
+    display: none;
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    gap: 10px 24px;
+  }
+  .global-links.is-open {
+    display: flex;
+  }
+  .global-links .global-account {
+    margin-left: 0;
+  }
+}
