@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/credentials"
+	_ "google.golang.org/grpc/health"
 )
 
 const AssetUploadChunkBytes = contract.AssetUploadChunkBytes
@@ -31,4 +32,10 @@ func Client(target, service string) (*grpc.ClientConn, error) {
 // Production gRPC connections should use this constructor instead of grpc.NewClient.
 func GRPCClient(target string, options ...grpc.DialOption) (*grpc.ClientConn, error) {
 	return grpc.NewClient(target, WithRequestIDPropagation(options...)...)
+}
+
+// HealthCheckedRoundRobin keeps discovery separate from business readiness.
+// Opt in only on edges whose server authorizes Health/Watch for this caller.
+func HealthCheckedRoundRobin() grpc.DialOption {
+	return grpc.WithDefaultServiceConfig(`{"loadBalancingConfig":[{"round_robin":{}}],"healthCheckConfig":{"serviceName":""}}`)
 }

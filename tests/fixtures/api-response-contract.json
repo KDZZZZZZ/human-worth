@@ -1,0 +1,52 @@
+{
+  "publicTask": {
+    "id": "synthetic-task",
+    "revision": 1,
+    "title": "Synthetic task",
+    "summary": "Contract regression sample",
+    "description": "No user material",
+    "taskAttachments": [{
+      "id": "synthetic-asset",
+      "filename": "sample.txt",
+      "mediaType": "text/plain",
+      "bytes": 3,
+      "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    }],
+    "category": null,
+    "author": {"id": "synthetic-author", "displayName": null},
+    "heat": null,
+    "publishedAt": "2026-10-29T00:00:00Z"
+  },
+  "stagingAsset": {
+    "id": "synthetic-upload",
+    "filename": "sample.txt",
+    "mediaType": "text/plain",
+    "bytes": 3,
+    "sha256": "",
+    "state": "staging",
+    "createdAt": "2026-10-29T00:00:00Z",
+    "completedAt": null
+  },
+  "readyAsset": {
+    "id": "synthetic-asset",
+    "filename": "sample.txt",
+    "mediaType": "text/plain",
+    "bytes": 3,
+    "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "state": "ready",
+    "createdAt": "2026-10-29T00:00:00Z",
+    "completedAt": "2026-10-29T00:00:01Z"
+  },
+  "comment": {
+    "id": "synthetic-comment",
+    "taskId": "synthetic-task",
+    "author": {"id": "synthetic-author", "displayName": null},
+    "body": "Synthetic comment",
+    "createdAt": "2026-10-29T00:00:00Z"
+  },
+  "session": {
+    "account": {"id": "synthetic-author", "displayName": "Synthetic contributor"},
+    "role": "user",
+    "csrfToken": "synthetic-example-not-a-credential"
+  }
+}

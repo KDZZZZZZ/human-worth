@@ -11,6 +11,17 @@ spec:
   selector: {app: content}
   ports: [{name: grpc, port: 8443, targetPort: grpc}]
 ---
+# Discovery publishes reachable Pods; opted-in gRPC clients gate business traffic
+# on each Pod's Health/Watch. The original Service retains readiness filtering.
+apiVersion: v1
+kind: Service
+metadata: {name: content-discovery, namespace: human-worth}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: {app: content}
+  ports: [{name: grpc, port: 8443, targetPort: grpc}]
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata: {name: content, namespace: human-worth}
@@ -46,7 +57,7 @@ spec:
             - {name: VOTING_TARGET, value: "dns:///voting.human-worth.svc.cluster.local:8443"}
             - {name: IDENTITY_TARGET, value: "dns:///identity.human-worth.svc.cluster.local:8443"}
             - {name: MODERATION_TARGET, value: "dns:///moderation.human-worth.svc.cluster.local:8443"}
-            - {name: ASSET_TARGET, value: "dns:///asset.human-worth.svc.cluster.local:8443"}
+            - {name: ASSET_TARGET, value: "dns:///asset-discovery.human-worth.svc.cluster.local:8443"}
             - {name: SERVICE_CERT_FILE, value: /tls/tls.crt}
             - {name: SERVICE_KEY_FILE, value: /tls/tls.key}
             - {name: SERVICE_CA_FILE, value: /tls/ca.crt}

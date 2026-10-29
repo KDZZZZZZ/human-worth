@@ -87,3 +87,90 @@ GOTOOLCHAIN=go1.27.1 \
 一次较早的完整运行在管理员概览得到 504，失败时未保留服务日志，根因未确认。没有延长超时或放宽成功断言；单独部署测试和随后完整重跑均通过。完整重跑中该 HTTP 请求为 200／45 ms，Moderation RPC 为 2 ms、Challenge RPC 为 11 ms；日志 `/tmp/human-worth-full-deployment-diagnostics`，请求 ID `1uWhtI3Pza9zd9CooXL27w`。这说明本轮复验通过，不宣称已定位或修复该次偶发超时。
 
 最终隔离部署的应用镜像标识为 `9f9cfc574c0dfa65d6042df6bc669514ceb55869`，这是验证脚本由源码派生的标识，不是 Git 提交。应用源码 SHA-256 为 `3591ea0ff243372b427f33644c87af1210d7a08401fedbedd736ae79255cd155`。较早一轮业务测试编译前曾只同步新增 `discovery_unavailable` 的测试错误码断言，应用源码哈希前后不变，记录 `/tmp/human-worth-backend-kind/lab-test-refresh.json`；最终完整重跑使用新复制的固定源码快照，没有中途修改测试输入。
+
+## 2026-10-28 本机测试环境恢复与重新执行
+
+本节是 `/home/cherry/human-worth-upstream-audit-20261025` 的新记录，不替代或扩写上述其他环境的历史结论。测试分支 `backend/test-upstream-20261028`，固定 Git 基线 `20e1432f3bf1ce0063f09605d14ae9acf2fb578a`。应用源码哈希 `44a4d18e0b1e3ef16ee4f91314fc33661e0157f4160a11bc488338005b7a9818`，派生镜像标识 `8f6bbc422ae15774a0e7f9b9f54ba3dc06493fae`，后者不是 Git SHA。
+
+交接所指的 `/tmp/hw-upstream-e-sandbox-20261026.log` 与 `/tmp/hw-upstream-nine-modules-20261026.log` 已缺失，按人类要求不再追索，重新执行可重复的验证。以下是本轮新证据，不能描述为恢复了旧日志。今后此类任务缺少原始证据时，先核对代码、隔离环境与调用成本，再重跑并保存新记录；历史聊天摘要不代替原始日志。证据持久保存在仓库外 `/home/cherry/.local/state/human-worth/acceptance/20261028-round1-recovery-161034/`，其中 `report.md` 说明结论边界，`commands.jsonl` 保存准确命令、起止时间、退出码和日志哈希，`raw/` 保存输出。
+
+- **环境故障已修复**：root 新建 inotify 在实例上限 128 时返回 errno 24，而进程 nofile 为 1048576；仅将 `fs.inotify.max_user_instances` 改为 4096 后，同一探针立即成功，三个 kube-proxy 自行恢复。新建 `/etc/sysctl.d/90-human-worth-kind-inotify.conf` 保留该值，未发现同项覆盖；没有重启宿主验证跨启动生效，也未确定此前上限回落的原因。Calico 随后仍等待旧 BGP 地址，刷新专用集群 Calico Pod 后，CNI、CoreDNS、CNPG 和存储组件恢复。未重启 Docker/containerd/节点，未修改常驻 `lab` 的 Pod 或配置。
+- **代码检查 PASS**：在 backend 执行 `GOTOOLCHAIN=go1.27.1 go test -race ./... -count=1`、`go vet ./...`、`go build ./cmd/...`、`buf lint`；根目录执行 `npm ci --ignore-scripts` 与 `npm run ci`，均退出 0，后者 Node 5、Python 35 项通过。没有重跑 Buf generate/breaking 或全包数据库集成集合。首轮 runner 的 umask 0077 导致权限 fixture 误报，子进程恢复 0022 后通过，业务代码与断言未改；原失败的定向复现及一次同名日志覆盖的证据限制见报告。
+- **真实 E 沙箱 PASS**：`TestBackendChallengeRealSandbox` 以 `-race -tags=integration -count=1 -timeout=180s -v` 单独执行，退出 0、14.35 秒，非 SKIP。真实 PostgreSQL、HTTP/mTLS、gVisor Job，7 次确定性 fixture 模型交互，产物登记、审核、下载和进入候选闭环通过。使用本次核对的 executor manifest `sha256:9be2afa7564082119acf4e23137c363ed85f24ec71ec6b1f1732751ebff812e0`。Asset 为 FileStorage，部分服务由测试进程组装，不等价完整 Pod/S3 或真实供应商模型验收。
+- **原样完整九模块脚本 FAIL**：执行 `python3 -u ops/lab/validate_modules.py --cluster human-worth-backend-check --kubeconfig /home/cherry/.config/human-worth/backend-check/kubeconfig`，设置仓库外 `CHALLENGE_MODEL_CONFIG_FILE` 和 `GOTOOLCHAIN=go1.27.1`。真实旧版本升级、历史引导、拒绝不兼容回退、九模块双副本、HTTPS 和完成标记通过；Go 测试 484.437 秒，10 项顶层测试中 9 PASS、1 FAIL、0 SKIP。`TestKindAssetDeployment` 在真实 S3 恢复后，普通 Gateway Service 未满足原有 90 秒内恢复两个就绪端点的断言。失败后最终恢复，不构成限时恢复 PASS；根因尚未确定，未延长超时或放宽断言。脚本因此退出 1，首轮网络断言和后续发布恢复检查未执行，不能称整轮通过。日志 `raw/nine-modules.log` 保留，临时 namespace `human-worth-verify-7c739fcc` 及执行 namespace/RBAC 已由 finally 清理。
+- **定向复验与发布恢复 PASS，间歇性故障仍未解决**：仓库外驱动只将原脚本的 Go `-run` 集合改为 `^TestKindAssetDeployment$`，差异、完整驱动和日志均留存；未改断言、超时或失败传播。该用例 160.57 秒通过，包含两个普通 Gateway 端点恢复、真实文件/Content 请求、S3 故障期间不提交偏移、相同 PVC 恢复和退出登录后的跨 Pod 拒绝。随后 134 项网络允许/拒绝断言、坏镜像回滚、失败迁移同版本重试和重复完整部署全部通过，驱动退出 0；日志 `raw/asset-recovery-and-release.log`。这是一轮选定用例及后续阶段补验，不是原样完整集合全部通过，也不证明首轮恢复超时已修复。后续应优先复现 AdditionalEntry → Asset 顺序并收集 DNS/gRPC/就绪原因，根因保持 INCONCLUSIVE。
+
+最终核对：两个临时验证 namespace 及其执行 namespace/RBAC、Job、relay Pod、PVC/PV 均已清理；真实 E 的临时数据库/角色已清理，专用 PostgreSQL 管理角色保留。测试所需九模块、PostgreSQL 和 S3 按需部署后清理，不作为常驻环境保留。仅删除本轮原先不存在、由 npm 生成的 `node_modules/` 与 `dist/`，保留镜像、缓存、证据及原有数据。专用集群三节点 Ready、基础设施全部就绪，kube-proxy 重启计数没有继续增长，节点容器启动时间前后相同。常驻 `lab` 最终只读采样的 Pod 也全部就绪，但本轮未对它做业务验收。系统盘剩余约 19 GiB。只读公网健康检查为 HTTP 200、revision 为本轮 Git SHA；不代表公网业务验收。
+
+本轮未进行真实供应商生成请求、前后端最终联调、性能容量、生产 HA/灾备或公网业务验收；模型配置合法和无密钥的 HTTPS 网络探测不证明鉴权、结构化输出或工具调用通过。没有业务源码变更、commit、push、PR、merge 或公网部署。
+
+## 2026-10-28 Gateway 恢复超时定向定位
+
+沿用 Git 基线 `20e1432f3bf1ce0063f09605d14ae9acf2fb578a`、应用源码哈希及镜像标识。证据保存在仓库外 `/home/cherry/.local/state/human-worth/acceptance/20261028-gateway-diagnosis-170558/`，包括 `report.md`、准确命令/退出码/日志哈希 `commands.jsonl`、驱动差异、逐 Pod gRPC 日志与每约 2 秒的 Pod/EndpointSlice 时间线。仅临时 Pod 开启连接诊断日志，没有修改应用、原测试断言、90 秒期限或仓库部署配置。
+
+原 AdditionalEntry → Asset 顺序两次完整复跑通过，其中保留旧版本升级流程的一次 Go 包用时 176.932 秒（52.47/123.43 秒）；后一次省略无关升级。尝试同库 `-count=3` 时，第二次 AdditionalEntry 的固定 DecisionId 引起幂等冲突，属于重复方法不满足 fixture 独立性，失败保留并中止，后续部分结果不算有效成对复验。原始恢复超时 FAIL 未被成功复跑覆盖。
+
+**受控对照确认同类超时机制**：S3 停机使 Asset 全部不就绪，headless DNS 返回空地址，grpc-go v1.84.0 关闭旧子连接并对解析错误逐步退避；S3/Asset/Content 恢复后，Gateway 仍可能等下一次解析。A 组有意延长停机约 279 秒以进入较高退避阶段，两个 Asset Ready 后，90 秒处真实 EndpointSlice 为 Asset=2、Content=2、Gateway=1，最终恢复两 Gateway 用时 **119.15 秒，FAIL**；目标 Gateway 两次解析间隔 **121.94 秒**，新解析拿到地址后约 **1.93 毫秒**连接就绪。当时基础设施全部就绪，应用没有容器重启。
+
+B 组仅在临时 Asset Service 发布未就绪发现地址，保持相同停机时长、应用镜像、mTLS 和 NetworkPolicy；停机期间 Asset/Content/Gateway 仍退出就绪。恢复两 Gateway 用时 **3.25 秒，PASS**，实际新 Gateway 的 Asset 解析更新未出现空地址。驱动整体退出 1，保留 A 失败。B 是因果隔离实验，未覆盖单副本路由与全部业务拒绝，不能直接当作正式修复或上线验收；开关已恢复，临时资源已清理。
+
+**结论边界**：当前发现/连接恢复策略可导致真实入口恢复超时，工程风险已确认；A 的故障时长和恢复相位经过控制，不是原失败时序的原样复现。原始单次失败缺少同步解析日志，精确历史归因仍 INCONCLUSIVE，正式修复未实施。后续应在保留业务就绪/权限拒绝语义的前提下，处理发现与就绪耦合或客户端解析恢复上界，再复验原顺序、短/长故障、单健康副本、每个调用方及真实文件/Content 请求；不以延长断言制造通过。
+
+三轮临时 namespace/执行 namespace、RBAC、Pod、Job、PVC/PV 和 scoped kubectl 进程最终核对无遗留；专用三节点及基础设施健康，专用 PostgreSQL 正常，私有配置均 0600。没有业务源码修改、commit、push、PR、merge、真实供应商调用或公网部署。
+
+## 2026-10-28 Gateway 恢复修复与定向回归
+
+在 `backend/test-upstream-20261028`、Git 基线 `20e1432f3bf1ce0063f09605d14ae9acf2fb578a` 上完成本地未提交修复，未推送、PR、合并或公网部署。应用源码哈希 `ec569d59cd2c711612129a090b958e69c61f19d2288424a21f17a11cb334e5bf`，镜像 revision `9eb4c0ef44c1a454587210036f91d6375acc3806` 是源码派生标识，不是 Git SHA。证据保存于仓库外 `/home/cherry/.local/state/human-worth/acceptance/20261028-gateway-fix-185346/`；`report.md`、`commands.jsonl`、补丁、驱动及差异、逐 Pod 日志和 EndpointSlice 时间线保留首轮失败，不依赖已丢失的历史 `/tmp` 日志。
+
+修复范围是 Gateway → Asset/Content、Content → Asset 三条依赖边：新增只用于内部发现的 `asset-discovery`、`content-discovery` headless Service，保留未就绪 Pod 地址；原 Service 继续按 Pod Ready 过滤。三条连接使用 grpc-go 原生逐副本 `Health/Watch`，仅向 `SERVING` 副本发送业务。Asset 只增加 Gateway/Content 的 Watch 权限，Content 现有 Gateway 流权限适用；不全局启用 Identity 等连接的健康订阅。Watch 随连接取消，不套普通服务端 2 秒期限，业务期限、mTLS、NetworkPolicy、S3 就绪检查与禁用写操作自动重试保留。readiness 状态变化增加安全的依赖/连接/RPC code 诊断，不输出原始私有错误。
+
+- **PASS，代码检查**：backend 下 `GOTOOLCHAIN=go1.27.1 go test -race ./... -count=1`、`go vet ./...`、`go build ./cmd/...` 均 exit 0；Python `python3 -m unittest discover -s tests -p 'test_*.py'` 36 项通过。新增真实 TCP 健康门控测试覆盖单健康/全部不健康/恢复、逐副本轮询、跨 2 秒订阅持续性、端点删除与关闭后释放，以及方法授权、普通流期限和安全日志。仓库外 overlay 去掉健康门控或 Watch 期限例外时，回归均按预期 FAIL，证明断言能识别遗漏。首轮 Python 旧 DNS 地址断言 FAIL 已更新为新发现入口，原失败日志保留。
+- **PASS，新增真实 kind 故障回归**：`TestKindDependencyRecovery` 320.15 秒，实际执行非 SKIP。一个健康 Asset 加一个 S3 配置故意错误但可发现的 Asset 时，重建 Content/Gateway 调用方后，20 次正常 NodePort 文件下载通过。S3 停机保持 280 秒并替换 Asset Pod，Asset/Content/Gateway 全部拒绝就绪，发现地址保持；两 Asset Ready 后，两正常 Gateway 用时 **3.261 秒**恢复，原 `waitGatewayEndpoints` 90 秒判据不变；真实 S3 文件内容、Content 请求和退出后的 401 通过。该测量起点是两 Asset Ready，原 Asset 用例起点为指定 Asset `/readyz=204`，不混写为同一测量方法。
+- **发现并解决测试转发耦合**：前两轮原 Asset 用例在正常 Gateway 两端点/文件/Content 恢复检查通过后，后续上传因本机转发端口拒绝连接而 FAIL（37.70/90.95 秒）。第二轮转发日志证实，大上传快速返回预期 503 后，未读完请求体的连接发生 RST，`kubectl port-forward` 报 `lost connection to pod` 并退出，导致后续复用该隧道失败；容器没有重启。第一轮转发日志已被旧 `t.TempDir` 清理，不能补造该次完整历史。修正仅将故障大上传置于独立转发进程，仍指向同一个 reader Gateway/Asset；保留原请求体、503/504 Problem code、数据库双 offset=0、恢复同一会话上传、文件一致性和撤销拒绝，不重试、不自动重启隧道、不放宽断言。转发日志改在私有验证 state 留存，诊断驱动删除 state 前归档。
+- **PASS，修正后的原顺序复验**：独立 namespace 的 `go test -race -tags=lab ./internal/identity -run '^TestKind(AdditionalEntry|Asset)Deployment$' -count=1 -timeout=1200s -v`，AdditionalEntry 53.55 秒、Asset 44.87 秒，包 99.466 秒、exit 0、0 SKIP。故障专用隧道仍观察到 RST 退出，原 reader 隧道保持正常，恢复上传、原 90 秒检查、S3/PVC 一致性和跨 Pod 会话撤销全部通过。1200 秒是定向驱动的组合包预算；仓库原业务集合 900 秒预算未改。
+
+标准 `validate_modules.py` 已在原业务集合后单独接入新增长故障用例，600 秒总预算覆盖有意保持的 280 秒故障；不延长原 90 秒恢复判据。以上结果验证已确认的发现/就绪耦合机制修复；2026-10-28 原始历史单次失败的精确归因仍受原日志缺口限制。其他调用边尚未统一迁移，也未据此声称全套九模块业务、真实旧版本升级、所有数据库集成、真实模型推理、性能容量、生产或公网验收通过。
+
+最终补充：第三轮外层驱动退出 0，随后原网络检查 **134 项 PASS、0 FAIL**，覆盖 10 个调用方；准确命令、驱动差异、网络逐项输出和汇总见上述证据目录。最终环境核验 PASS：三轮临时 namespace/执行 namespace、相关 RBAC/PV/scoped kubectl 进程无遗留，15 个基础设施 Pod 的 UID、容器 ID、就绪和重启次数与测试前一致；专用 PostgreSQL 正常、gVisor 保留、三个私有配置仍 0600。没有清理原有卷/数据或测试镜像，未修改宿主运行时和系统参数；完整验收脚本本轮未原样重跑，前两轮 FAIL 原样保留。
+
+## 2026-10-28 第二轮关键业务、契约、MCP 与模型故障验收
+
+固定本地提交 `7c47abb123c841de0d8c37a075483c729f048bec`，分支 `backend/test-upstream-20261028`。证据持久目录 `/home/cherry/.local/state/human-worth/acceptance/20261028-round2-200343/`：`report.md`、`commands.jsonl`、`business-results.json`、54 操作矩阵 `api-operations.csv`、逐请求记录、四类问题及最小复现均已保存。历史 `/tmp` 缺失日志未恢复、不作为本轮新证据；可重复验证使用本轮新日志。
+
+- **PASS，业务与权限**：18 个选定顶层、71 个含子测试事件，最终 0 FAIL/0 SKIP；包含身份/CSRF/跨用户和服务身份、投稿/独立审核、幂等回执、永久禁投、投票/统计两种提交顺序、提交未知和恢复、管理员/挑战取消迟到结果。首批因未配 S3 而 SKIP 的项目补齐专用真实 S3 后实际执行，不以父测试 PASS 覆盖子测试 SKIP。
+- **PASS，Challenge 恢复专项**：5 个顶层、8 个含子测试事件；真实 PostgreSQL、合成依赖，不称为真实模型或 Pod 验收。
+- **PASS，模型故障**：provider/worker/relay/executor 9 个顶层、62 个含子测试事件；新增 `provider_fault_test.go` 覆盖 401/429/500/503、重定向拒绝、空/畸形/截断/超限响应、取消与超时、单次调用及错误脱敏，既有测试验证未知结算与重复派发拒绝。没有真实供应商调用。
+- **PASS，常规 Gateway/契约测试**：29 个顶层、147 个含子测试事件。路由/引用静态检查通过不等价于真实响应符合 schema。
+- **PASS，独立 MCP**：不导入项目客户端的 Python HTTP 客户端协商 `2025-11-25`；五工具清单、统计副作用明确确认、永久禁投、其他用户可投、拒绝写工具、Origin/Accept 拒绝、撤销后 401 通过。与原 Go MCP 集成证据分别记录。
+- **FAIL，API 响应契约**：Schemathesis `4.32.7` 固定依赖/哈希，仓库外独立工具环境；新隔离数据下 189 次请求、27 个 API 操作、18 个失败响应检查，归为四类已复现且未修复的问题：公开任务附件错误复用完整 Asset schema；暂存资产空哈希不符固定 64 位约束；下载真实 mediaType 不符唯一 octet-stream 声明；评论显示名 null 不符 Author string。19 个操作在采样内未发现失败、8 个操作有失败、其余 27 个操作未做独立 API 探索，不能称 54 项逐条通过。相关 OpenAPI 与响应代码在 Gateway 修复前后内容相同，属于本轮发现的既有差异。
+
+S3 补验首轮因临时存储的 4 个 volume 槽耗尽而上传 503；原失败保留，仅重建本轮 tmpfs S3 为每卷 8MiB/64 槽，保持 512MiB 上限、镜像与业务断言，五个相关顶层复验 PASS。API 驱动最初的第三方响应头/异常组适配，以及 staging 下载预期与幂等键长度错误均已修正；最终独立复验无驱动/语义断言异常，schema 检查未放宽，四类问题由最小复现再次确认。业务代码与 OpenAPI 未修改，仅新增模型故障测试及本节记录，未 commit/push/PR/merge/公网部署。
+
+独立入口使用 Go overlay 的真实 HTTPS/mTLS/PostgreSQL/FileStorage fixture，服务进程内装配，不称为九模块 Pod/S3；S3 业务补验使用独立 Docker SeaweedFS，非生产 HA。最终临时服务/测试凭据已清理，无 Docker 卷创建，数据库与角色集合、15 个基础设施 Pod 状态与测试前一致，专用 PostgreSQL 正常，三个原私有配置仍 0600。未运行真实模型推理、MCP Inspector UI、Bruno、性能/安全全扫描、备份灾备、前端最终验收或公网业务验收。第二轮整体结论为 **FAIL：四类契约问题 OPEN**，不能用其他专项 PASS 覆盖；具体建议修复方案和边界见报告。
+
+## 2026-10-29 第二轮响应契约修复与复验
+
+基线 `7c47abb123c841de0d8c37a075483c729f048bec`，当前审计 worktree 为 detached HEAD；2026-10-29 已重新获取并核对上游 dev 为 `20e1432f3bf1ce0063f09605d14ae9acf2fb578a`，上游前端任务分支在相关文件范围与 dev 一致。本次改动尚未提交、推送、PR、合并或部署。前一节的 FAIL 是保留的历史结果，本节记录修复后的新证据，不覆盖首轮失败。历史 `/tmp` 日志没有恢复，可重跑项目使用本轮持久证据。
+
+**Human Design**：用户批准修复第二轮四类响应契约问题，并重新执行第二轮验证；保护正在开发的前端与既有权限边界。**Agent Self-Claimed**：独立 `PublicAttachment`、资产状态与实际哈希条件约束、明确列举下载媒体类型、评论复用 `PublicAuthor`、回归样例及测试组织。
+
+OpenAPI 本轮明确修改：公开附件仅含现有五字段；staging 的实际哈希为空，ready 必须为64位小写十六进制，failed/deleted 可保留实际验证结果；本人/任务附件/过审作品/管理员审核四个下载入口声明现有五种支持媒体类型，同时保留原 octet-stream 声明；评论作者改用已有 nullable `PublicAuthor`。请求路径、operationId、请求格式、认证授权及实际 HTTP 响应行为保持，不用预期哈希冒充实际验证结果，不补造公开生命周期字段，不修改 `Session.Author`。公开数据和暂存语义来自现有 Proto、可信数据来源与已记录边界，不以关闭校验替代修复。
+
+前端联动：当前上游原型的任务、评论和投稿仍使用示例/内存/浏览器存储，实际探测为 `/api/health`；另有 Gateway 内置账户页真实使用 `/api/me` 和 MCP 凭据接口，本轮保持其 Session 契约。前端后续应使用公开附件类型、处理 null 显示名、按资产 state 判断可引用性；OpenAPI 类型/Mock/生成客户端仍须同步检查，不能宣称零兼容影响。可复用的全合成响应样例见 [api-response-contract.json](../tests/fixtures/api-response-contract.json)，不含真实凭据或作品。
+
+新增 [响应契约回归](../ops/lab/test_api_response_contract.py) 使用 JSON Schema 2020-12 校验正反样例，6项测试在旧契约下失败、修复后全部通过。保留 ready 非法/缺失哈希、staging 伪验证值、公开额外私有字段、错误作者类型、Session 空姓名与未支持媒体类型的拒绝。独立验收工具依赖固定在 [requirements-api-contract.txt](../ops/lab/requirements-api-contract.txt)，不是应用运行时依赖或默认 CI 隐含依赖；在仓库根目录以隔离 Python 环境运行：
+
+```sh
+python3 -m venv "$HOME/.local/share/human-worth/test-tools/api-contract"
+"$HOME/.local/share/human-worth/test-tools/api-contract/bin/python" -m pip install -r ops/lab/requirements-api-contract.txt
+"$HOME/.local/share/human-worth/test-tools/api-contract/bin/python" ops/lab/test_api_response_contract.py
+```
+
+本轮实际复用既有仓库外 Schemathesis 4.32.7 环境中的同版本依赖，无全局安装。完整命令、cwd、退出码、日志 SHA-256、首轮方法失败和复验保存在 `/home/cherry/.local/state/human-worth/acceptance/20261029-round2-contract-fix-140202/`。静态样例测试不能替代下列真实入口证据：
+
+- **PASS**：18项业务顶层/71个含子测试事件、Challenge恢复5项/8个事件、模型provider/worker/relay/executor 9项/62个事件、Gateway/内部契约29项/147个事件，全部实际重跑，0 FAIL、0 SKIP。真实 S3 从一开始即配置，未以跳过代替执行。
+- **PASS**：独立 Schemathesis 客户端195次请求、29个操作，0失败、0生成错误；保留原八个失败操作并新增过审作品/管理员审核下载、管理员/跨用户/待审文件拒绝；独立 MCP 的五工具、确认后永久禁投、其他用户不受影响、拒绝写工具、Origin/Accept和凭据撤销检查通过。仍有25个操作未做独立探索，不称全量54接口逐条验收。
+- **PASS**：11个真实 HTTP 响应符合修复后契约，同一响应对照旧契约时10个受影响响应失败，ready-only本人列表作为兼容对照仍通过。四个下载上下文实测 text/plain 字节、媒体类型、attachment、nosniff与no-store保持；其他受支持媒体类型本轮仅做契约检查，不声称全部真实下载重跑。
+- **方法问题已纠正**：附加对照驱动首轮误要求本人资产列表也必须违反旧契约；源码及实际结果确认该列表仅返回ready资产，本就兼容。首轮日志/驱动/结果保留，仅修正比较预期，未放宽新契约、业务断言或超时。前一轮叙述若包含“暂存哈希导致本人列表失败”，以原始失败记录和本轮ready-only核对为准。
+
+临时 S3 使用已有固定镜像、loopback随机端口、512MiB tmpfs、8MiB卷/64槽，未使用产品数据或 Docker 数据卷；独立 API 入口为进程内真实 HTTPS/mTLS/PostgreSQL/FileStorage，非九模块Pod/S3。临时fixture、S3和随机凭据已清理，数据库/角色集合和15个基础设施Pod的UID、容器ID、重启与就绪状态不变，三个原私有配置仍0600。没有重跑完整kind、真实E沙箱、真实供应商、性能容量、安全全扫描、备份灾备、前端最终或公网业务验收。

@@ -1,9 +1,13 @@
 package platform
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -81,5 +85,32 @@ func TestReviewMethodTimeouts(t *testing.T) {
 	}
 	if methodTimeout("/humanworth.asset.v1.AssetService/DownloadReviewAsset") != 15*time.Minute {
 		t.Fatal("pending file stream deadline mismatch")
+	}
+}
+
+func TestReadinessLogsTransitionsWithoutPrivateErrors(t *testing.T) {
+	var output bytes.Buffer
+	runtime := NewRuntime("test")
+	runtime.Log = slog.New(slog.NewJSONHandler(&output, nil))
+	current := errors.New("postgres://private-password@private-host/database")
+	server := runtime.Health(":0", func(context.Context) error { return current })
+	probe := func(expected int) {
+		t.Helper()
+		response := httptest.NewRecorder()
+		server.Handler.ServeHTTP(response, httptest.NewRequest("GET", "/readyz", nil))
+		if response.Code != expected {
+			t.Fatal("unexpected readiness code", response.Code)
+		}
+	}
+	probe(503)
+	probe(503)
+	current = nil
+	probe(204)
+	probe(204)
+	current = &dependencyHealthError{"asset", "TRANSIENT_FAILURE", "Unavailable", "UNKNOWN"}
+	probe(503)
+	log := output.String()
+	if strings.Count(log, "readiness_changed") != 3 || strings.Contains(log, "private-") || !strings.Contains(log, `"dependency":"asset"`) || !strings.Contains(log, `"rpc_code":"Unavailable"`) {
+		t.Fatal("missing transition diagnostics or private error leaked")
 	}
 }

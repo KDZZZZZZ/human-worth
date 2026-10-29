@@ -11,6 +11,17 @@ spec:
   selector: {app: asset}
   ports: [{name: grpc, port: 8443, targetPort: grpc}]
 ---
+# Discovery publishes reachable Pods; opted-in gRPC clients gate business traffic
+# on each Pod's Health/Watch. The original Service retains readiness filtering.
+apiVersion: v1
+kind: Service
+metadata: {name: asset-discovery, namespace: human-worth}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: {app: asset}
+  ports: [{name: grpc, port: 8443, targetPort: grpc}]
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata: {name: asset, namespace: human-worth}

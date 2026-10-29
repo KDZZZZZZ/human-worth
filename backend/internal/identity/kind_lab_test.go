@@ -168,10 +168,11 @@ func (l *kindLab) dependencyFailure(code int, data []byte) {
 }
 
 // Port-forward only to loopback, using an OS-selected port. Process and logs
-// are private, bounded and always cleaned, including fatal test failures.
+// are private and bounded. Logs survive t.Cleanup in the private validation
+// state so a failed tunnel can be diagnosed before the outer driver cleans it.
 func (l *kindLab) forward(resource string, remotePort int) string {
 	l.t.Helper()
-	log, err := os.CreateTemp(l.t.TempDir(), "forward-")
+	log, err := os.CreateTemp(l.state, "forward-")
 	if err != nil {
 		l.t.Fatal(err)
 	}
@@ -189,6 +190,7 @@ func (l *kindLab) forward(resource string, remotePort int) string {
 	for time.Now().Before(deadline) {
 		data, _ := os.ReadFile(log.Name())
 		if match := pattern.FindSubmatch(data); len(match) == 2 {
+			l.t.Logf("loopback port-forward %s:%d log=%s", resource, remotePort, log.Name())
 			return string(match[1])
 		}
 		time.Sleep(100 * time.Millisecond)

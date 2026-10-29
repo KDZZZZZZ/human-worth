@@ -251,7 +251,7 @@ class ModuleDeployTest(unittest.TestCase):
             self.assertIn(value,manifest)
         self.assertNotIn('ASSET_STORAGE_DIR',manifest)
         for name in ['gateway','content']:
-            self.assertIn('ASSET_TARGET, value: "dns:///asset.human-worth.svc.cluster.local:8443"',(ROOT/('ops/lab/'+name+'.yaml')).read_text())
+            self.assertIn('ASSET_TARGET, value: "dns:///asset-discovery.human-worth.svc.cluster.local:8443"',(ROOT/('ops/lab/'+name+'.yaml')).read_text())
         self.assertIn('app: asset',(ROOT/'ops/lab/identity.yaml').read_text())
         self.assertIn('CONTENT_TARGET, value: "dns:///content.human-worth.svc.cluster.local:8443"',manifest)
         # Public authorization is a per-request dependency, not startup readiness:
@@ -263,6 +263,28 @@ class ModuleDeployTest(unittest.TestCase):
         for value in ['GRANT DELETE','GRANT CREATE','GRANT ALL','identity.','content.','UPDATE(owner_id']:
             self.assertNotIn(value,grants)
 
+    def test_internal_discovery_service_is_strictly_scoped(self):
+        import copy
+        image='human-worth/content:'+'1'*40
+        pod={'serviceAccountName':'content','automountServiceAccountToken':False,'containers':[{'name':'content','image':image,'startupProbe':{'test':True},'livenessProbe':{'test':True},'readinessProbe':{'test':True}}]}
+        objects=[{'kind':kind,'metadata':{'name':'content','namespace':'human-worth'}} for kind in ['Deployment','ServiceAccount','NetworkPolicy']]
+        objects[0]['spec']={'replicas':2,'selector':{'matchLabels':{'app':'content'}},'template':{'metadata':{'labels':{'app':'content'}},'spec':pod}}
+        objects[1]['automountServiceAccountToken']=False
+        objects[2]['spec']={'podSelector':{'matchLabels':{'app':'content'}}}
+        discovery={'kind':'Service','metadata':{'name':'content-discovery','namespace':'human-worth'},'spec':{'clusterIP':'None','publishNotReadyAddresses':True,'selector':{'app':'content'},'ports':[{'name':'grpc','port':8443,'targetPort':'grpc'}]}}
+        services.validate_manifest(objects+[discovery],'content',image)
+        for mutate in [lambda s:s['metadata'].update(name='other-discovery'),
+                       lambda s:s['spec'].update(type='NodePort'),
+                       lambda s:s['spec'].update(externalIPs=['127.0.0.1']),
+                       lambda s:s['spec'].update(selector={'app':'asset'}),
+                       lambda s:s['spec'].update(publishNotReadyAddresses=False),
+                       lambda s:s['spec'].update(ports=[{'port':8081}])]:
+            changed=copy.deepcopy(discovery);mutate(changed)
+            with self.assertRaises(ValueError):services.validate_manifest(objects+[changed],'content',image)
+        with self.assertRaises(ValueError):services.validate_manifest(objects+[discovery,discovery],'content',image)
+        changed=copy.deepcopy(discovery);changed['metadata']['name']='content'
+        with self.assertRaises(ValueError):services.validate_manifest(objects+[changed],'content',image)
+
     def test_validator_requires_asset_and_content_business_tests_on_snapshot(self):
         script = (ROOT/'ops/lab/validate_modules.py').read_text()
         selection = re.search(r"'-run','([^']+)'", script)
@@ -270,6 +292,8 @@ class ModuleDeployTest(unittest.TestCase):
         for name in ['TestKindAssetDeployment', 'TestKindContentDeployment', 'TestKindPublicAssetDeployment']:
             self.assertRegex(name, selection.group(1))
         self.assertNotRegex('TestUnrelated', selection.group(1))
+        self.assertIn("'-run','^TestKindDependencyRecovery$'", script)
+        self.assertIn("'-timeout=600s'", script)
         self.assertIn("cwd=source/'backend'", script)
         self.assertNotIn("cwd=app.REPO/'backend'", script)
 

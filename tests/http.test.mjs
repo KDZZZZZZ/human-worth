@@ -83,17 +83,18 @@ test('frontend development forwards API requests to its upstream and keeps pages
     assert.equal((await fetch(`${local}/apiary`)).status, 404);
     assert.equal(received.length, 0);
     for (const path of [
-  '/login.html',
-  '/login.js',
-  '/login.css',
-  '/board.html',
-  '/board.css',
-  '/board.js',
-  '/prototype-nav.css',
-  '/fonts/fonts.css'
-]) {
-  assert.equal((await fetch(`${local}${path}`)).status, 200, path);
-}
+      '/login.html', '/login.js', '/login.css', '/board.html', '/board.css',
+      '/board.js', '/prototype-nav.css', '/fonts/fonts.css',
+    ]) {
+      assert.equal((await fetch(`${local}${path}`)).status, 200, path);
+    }
+    for (const name of ['index', 'discovery', 'task-detail', 'submit', 'board']) {
+      const response = await fetch(`${local}/${name}.html`);
+      assert.equal(response.status, 200, name);
+      const html = await response.text();
+      assert.match(html, /<a\b[^>]*href="login\.html"[^>]*>Sign in<\/a>/, name);
+      assert.doesNotMatch(html, /href="#sign-in"|data-destination="Sign in"|id="account-dialog"/, name);
+    }
     assert.equal((await fetch(`${local}/login.test.mjs`)).status, 404);
     assert.equal((await fetch(`${local}/AGENTS.md`)).status, 404);
     const cancelled = await fetch(`${local}/?login=cancelled`, { redirect: 'manual' });

@@ -53,13 +53,22 @@ def validate_manifest(objects, name, image):
     seen = set()
     for obj in objects:
         kind, meta = obj.get('kind'), obj.get('metadata', {})
-        if kind not in kinds or kind in seen or meta.get('name') != name or meta.get('namespace') != 'human-worth' or meta.get('ownerReferences'):
+        discovery = kind == 'Service' and name in ('asset', 'content') and meta.get('name') == name + '-discovery'
+        identity = (kind, meta.get('name'))
+        if kind not in kinds or identity in seen or (meta.get('name') != name and not discovery) or meta.get('namespace') != 'human-worth' or meta.get('ownerReferences'):
             raise ValueError('Manifest exceeds module ownership: ' + name)
-        seen.add(kind)
+        seen.add(identity)
         spec = obj.get('spec', {})
         if kind == 'ServiceAccount' and obj.get('automountServiceAccountToken') is not False:
             raise ValueError('Module ServiceAccount must not mount API credentials')
         if kind == 'Service':
+            if discovery:
+                expected = {'clusterIP':'None', 'publishNotReadyAddresses':True, 'selector':{'app':name},
+                            'ports':[{'name':'grpc','port':8443,'targetPort':'grpc'}]}
+                if spec != expected:
+                    raise ValueError('Invalid internal discovery Service')
+            elif spec.get('publishNotReadyAddresses'):
+                raise ValueError('Business Service must retain readiness filtering')
             if spec.get('selector') != {'app': name} or spec.get('type', 'ClusterIP') not in ('ClusterIP', 'NodePort') or spec.get('externalIPs'):
                 raise ValueError('Invalid module Service')
             if spec.get('type') == 'NodePort' and (name != 'gateway' or [p.get('nodePort') for p in spec.get('ports', [])] != [30443]):
@@ -116,5 +125,5 @@ def validate_manifest(objects, name, image):
             source = env.get('valueFrom', {})
             if set(source) - {'secretKeyRef', 'fieldRef'} or ('secretKeyRef' in source and source['secretKeyRef'].get('name') not in allowed):
                 raise ValueError('Unapproved module environment source')
-    if not {'Deployment', 'ServiceAccount', 'NetworkPolicy'} <= seen:
+    if not {(kind, name) for kind in ('Deployment', 'ServiceAccount', 'NetworkPolicy')} <= seen:
         raise ValueError('Module workload, identity and network policy are required')

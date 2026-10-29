@@ -1,0 +1,3 @@
+# Isolated acceptance tooling only; not application or default CI dependencies.
+PyYAML==6.0.3
+jsonschema-rs==0.60.3

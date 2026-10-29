@@ -16,7 +16,6 @@ import (
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/credentials"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"log/slog"
 	"net/http"
 	"net/netip"
@@ -61,7 +60,7 @@ func run() error {
 		if e != nil {
 			return e
 		}
-		contentConn, e = platform.GRPCClient(target, grpc.WithTransportCredentials(credentials.NewTLS(config)), grpc.WithDisableRetry(), grpc.WithDefaultServiceConfig(`{"loadBalancingConfig":[{"round_robin":{}}]}`), grpc.WithStatsHandler(otelgrpc.NewClientHandler()), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(4<<20), grpc.MaxCallSendMsgSize(65536)))
+		contentConn, e = platform.GRPCClient(target, grpc.WithTransportCredentials(credentials.NewTLS(config)), grpc.WithDisableRetry(), platform.HealthCheckedRoundRobin(), grpc.WithStatsHandler(otelgrpc.NewClientHandler()), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(4<<20), grpc.MaxCallSendMsgSize(65536)))
 		if e != nil {
 			return errors.New("content client initialization failed")
 		}
@@ -75,7 +74,7 @@ func run() error {
 		if e != nil {
 			return e
 		}
-		assetConn, e = platform.GRPCClient(target, grpc.WithTransportCredentials(credentials.NewTLS(config)), grpc.WithDisableRetry(), grpc.WithDefaultServiceConfig(`{"loadBalancingConfig":[{"round_robin":{}}]}`), grpc.WithStatsHandler(otelgrpc.NewClientHandler()), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(512<<10), grpc.MaxCallSendMsgSize(platform.AssetUploadMessageBytes)))
+		assetConn, e = platform.GRPCClient(target, grpc.WithTransportCredentials(credentials.NewTLS(config)), grpc.WithDisableRetry(), platform.HealthCheckedRoundRobin(), grpc.WithStatsHandler(otelgrpc.NewClientHandler()), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(512<<10), grpc.MaxCallSendMsgSize(platform.AssetUploadMessageBytes)))
 		if e != nil {
 			return errors.New("asset client initialization failed")
 		}
@@ -112,23 +111,17 @@ func run() error {
 		moderationClient = moderationpb.NewModerationServiceClient(c)
 	}
 	ready := func(ctx context.Context) error {
-		response, err := healthpb.NewHealthClient(conn).Check(ctx, &healthpb.HealthCheckRequest{})
-		if err != nil {
+		if err := platform.CheckHealth(ctx, conn, "identity"); err != nil {
 			return err
 		}
-		if response.Status != healthpb.HealthCheckResponse_SERVING {
-			return errors.New("identity unavailable")
-		}
 		if contentConn != nil {
-			health, e := healthpb.NewHealthClient(contentConn).Check(ctx, &healthpb.HealthCheckRequest{})
-			if e != nil || health.GetStatus() != healthpb.HealthCheckResponse_SERVING {
-				return errors.New("content unavailable")
+			if err := platform.CheckHealth(ctx, contentConn, "content"); err != nil {
+				return err
 			}
 		}
 		if assetConn != nil {
-			health, e := healthpb.NewHealthClient(assetConn).Check(ctx, &healthpb.HealthCheckRequest{})
-			if e != nil || health.GetStatus() != healthpb.HealthCheckResponse_SERVING {
-				return errors.New("asset unavailable")
+			if err := platform.CheckHealth(ctx, assetConn, "asset"); err != nil {
+				return err
 			}
 		}
 		// Moderation is an optional route dependency, not a Gateway readiness

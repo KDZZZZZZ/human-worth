@@ -230,6 +230,9 @@ def main(cluster='lab', kubeconfig=None):
                     print('PASS: completion marker appears only after all modules pass',flush=True)
                     env={**os.environ,'HUMAN_WORTH_VERIFY_NAMESPACE':namespace,'HUMAN_WORTH_VERIFY_STATE':str(state),'HUMAN_WORTH_VERIFY_KUBECONFIG':str(config),'HUMAN_WORTH_VERIFY_CONTEXT':'kind-'+cluster,'HUMAN_WORTH_VERIFY_PORT':str(port),'HUMAN_WORTH_VERIFY_GATEWAY_ADDRESS':node_ip+':'+node_port}
                     subprocess.run(['go','test','-race','-tags=lab','./internal/identity','-run','^TestKind(Content|Asset|PublicAsset|Moderation|AdditionalEntry|Voting|FileAuthorizationRecovery)Deployment$|^TestKindRecovery','-count=1','-timeout=900s','-v'],cwd=source/'backend',env=env,check=True)
+                    # A separate budget covers the deliberate 280s outage; the
+                    # original suite and 90s endpoint recovery deadline stay intact.
+                    subprocess.run(['go','test','-race','-tags=lab','./internal/identity','-run','^TestKindDependencyRecovery$','-count=1','-timeout=600s','-v'],cwd=source/'backend',env=env,check=True)
                     import check_network
                     with patch.object(check_network,'kube',kube),patch.object(check_network,'run',run):check_network.main()
                     previous=release.snapshot()

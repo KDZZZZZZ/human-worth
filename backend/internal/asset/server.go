@@ -112,7 +112,8 @@ func assetPeer(ctx context.Context, method string) error {
 	if err != nil {
 		return status.Error(codes.Unauthenticated, "service_identity_required")
 	}
-	if method == "/grpc.health.v1.Health/Check" && (name == "gateway" || name == "content" || name == "challenge") {
+	if (method == "/grpc.health.v1.Health/Check" && (name == "gateway" || name == "content" || name == "challenge")) ||
+		(method == "/grpc.health.v1.Health/Watch" && (name == "gateway" || name == "content")) {
 		return nil
 	}
 	switch name {

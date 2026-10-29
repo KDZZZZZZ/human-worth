@@ -1,6 +1,14 @@
 # Human Worth 前端原型 checkpoint
 
-## 登录页面（2026-10-29）
+## 登录页面
+
+### 来源与决策归属（2026-10-30 合并）
+
+- Human Design：PRD H3 / FR-07 要求 Google 登录；本轮用户确认保留 dev 全部更新，并合并登录与 Board 说明。
+- Agent Self-Claimed：使用独立 login.html 页面、导航统一链接到该页面，是本次实现选择；PRD 没有要求独立登录弹窗。Detail 的 Demo account / Demo sign-in 只用于原型演示，不能代表真实账号。
+- 本节仅描述 prototypes/frontend 静态原型；frontend/ 的 React 应用及其登录实现由 dev 引入，本次不改动。
+
+### 原登录实现（2026-10-29）
 
 当前实现基于 `dev` 的 `d4f0fde`。新增 `login.html` / `login.css` / `login.js`，Home、Discovery、Task Detail、Submit 均有登录入口。布局沿用暖纸色、陶土色、Source Serif 4 / Source Sans 3，以单一卡片承载 Google 登录、已有账号与退出状态。
 
@@ -32,9 +40,13 @@
 - Chrome 浏览器以模拟 API 验证 1440/390/320px 无横向溢出、Google 顶层导航、取消、失败重试、会话/退出、四页入口；无脚本错误。模拟响应不构成真实 OAuth 验收。
 - Linux 部署 Python 测试在 Windows 无法完整运行（缺少 `fcntl` 等平台能力）；不能声称完整 CI 通过。后端和公网写入未执行。
 
+## Board 与原有页面
+
+Board 已由 dev 的 #39 引入；本轮保留其导航、统计示例和安全返回逻辑。Board 登录占位入口改为与其他原型页面一致的 login.html 链接。历史来源与验证见 [Board 集成记录](BOARD-INTEGRATION.md)，其中验证日期与范围不代表本轮重新完成验收。
+
 以下为原有 Home、Discovery、Task Detail 和 Submit 的历史评审记录。这些页面中的任务、作品、评论和演示身份均为示例；不包含上文新增登录页的会话请求。原型没有替换生产入口，也没有接入部署流程。
 
-## 本地预览
+### 本地预览
 
 从仓库根目录执行（Python 3，无额外依赖）：
 
@@ -42,9 +54,9 @@
 python -m http.server 8765 --bind 127.0.0.1 --directory prototypes/frontend
 ```
 
-打开 http://127.0.0.1:8765/index.html；也可直接进入 discovery.html 或 task-detail.html。字体、授权文件和示例图片已随原型提供。浏览器刷新重置演示会话；Discovery 的查询、分页和返回位置在当前标签页保留。
+打开 http://127.0.0.1:8765/index.html；也可直接进入 discovery.html、task-detail.html、submit.html、board.html 或 login.html。字体、授权文件和示例图片已随原型提供。浏览器刷新重置演示会话；Discovery 的查询、分页和返回位置在当前标签页保留。
 
-## 本次包含
+### 本次包含
 
 - Home：Editorial / Warm Minimalism 品牌入口、示例材料预览、Discovery 导航、移动菜单。
 - Discovery：任务列表、搜索、分类、逐步加载、加载／失败／空状态、任务详情往返及位置恢复。
@@ -54,7 +66,7 @@ python -m http.server 8765 --bind 127.0.0.1 --directory prototypes/frontend
 - Discussion：作者／时间／正文的平铺评论，空校验、本地发表、加载／失败／空状态、cursor/limit 形状的本地分页、未登录演示。
 - 视觉评审进度：任务材料暖灰纸面（边注与 Report task 在外）、21px 投稿入口、章节等大底纸左右分别偏移12px并下移12px、当前陶土底色85%不透明度。均保持可继续评审的状态。
 
-## 如何评审
+### 如何评审
 
 1. 从 Home 进入 Discovery，搜索或分类后进入任务，再返回检查列表位置。
 2. 使用 concept-library 任务打开两章、翻页、切换章节、预选作品，再最终确认。
@@ -63,17 +75,17 @@ python -m http.server 8765 --bind 127.0.0.1 --directory prototypes/frontend
 5. 在 Discussion 的 Prototype states 中测试空列表、加载失败、下一条评论失败和未登录；发表评论后可定位新评论。
 6. 检查桌面及窄屏布局。原型无真实账户，不使用真实投票／投稿进行验收。
 
-## 后端接入边界
+### 后端接入边界
 
 基线 dev 为 `53d2d63453e2ca365e6d5b2683a895d23670a4e4`。此基线源码已注册追加作品与评论路由，不能继续把它们统一称为 planned；本原型仍没有接入这些接口，也未验收线上部署。
 
 后续需依据当前 OpenAPI 完成身份／CSRF、任务和作品读取、候选与资格、投票／统计持久化、正式投稿字段／资产上传／审核结果、真实评论分页与错误映射。原型的示例输入不构成正式提交协议；真实身份和统计永久禁投规则必须由后端保证。
 
-Board、My Submissions、MCP Credentials 等入口仍是明确标记的目标页提示，不能描述为已完成页面。Submit 已有独立本地原型，尚未接入 API。超长文本自动分页、复杂多媒体排版仍待后续处理；现有阅读器允许正文自然扩展。
+Board 已有本地统计与讨论顺序示例，未连接实时排名。My Submissions、MCP Credentials 等入口仍是明确标记的目标页提示，不能描述为已完成页面。Submit 已有独立本地原型，尚未接入 API。超长文本自动分页、复杂多媒体排版仍待后续处理；现有阅读器允许正文自然扩展。
 
-## 文件与范围
+### 文件与范围
 
-### Submit 设计评审原型（2026-10-26）
+#### Submit 设计评审原型（2026-10-26）
 
 - 打开 `submit.html`；已有三个页面的 Submit 导航均链接到此页。
 - Human / Agent 使用错位横线纸作品登记页，点击作品标题编辑；大型 Add human work / Add agent work 入口直接追加。编辑器与最终完整预览保留全部正文。
@@ -95,7 +107,7 @@ Board、My Submissions、MCP Credentials 等入口仍是明确标记的目标页
 
 仅纳入当前运行版本及必需资源；历史备份、截图、临时脚本和本机绝对路径均不纳入 checkpoint。团队既有 public/、后端、契约、CI 与部署配置保持不变。
 
-## Checkpoint 验证（2026-10-25）
+### Checkpoint 验证（2026-10-25）
 
 在整理后的副本上使用本地 Chrome / Playwright 实际验证，非真实后端验收：
 

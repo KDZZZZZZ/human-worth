@@ -884,6 +884,16 @@ paths:
           content:
             application/octet-stream:
               schema: {type: string, format: binary}
+            image/png:
+              schema: {type: string, format: binary}
+            image/jpeg:
+              schema: {type: string, format: binary}
+            image/webp:
+              schema: {type: string, format: binary}
+            application/pdf:
+              schema: {type: string, format: binary}
+            text/plain:
+              schema: {type: string, format: binary}
         default: {$ref: '#/components/responses/Problem'}
 
   /api/tasks/{taskId}/entries/{entryId}/assets/{assetId}/content:
@@ -915,6 +925,16 @@ paths:
             X-Content-Type-Options: {schema: {type: string, const: nosniff}}
           content:
             application/octet-stream:
+              schema: {type: string, format: binary}
+            image/png:
+              schema: {type: string, format: binary}
+            image/jpeg:
+              schema: {type: string, format: binary}
+            image/webp:
+              schema: {type: string, format: binary}
+            application/pdf:
+              schema: {type: string, format: binary}
+            text/plain:
               schema: {type: string, format: binary}
         '400': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
@@ -1221,6 +1241,16 @@ paths:
           description: 已检测媒体类型的文件流
           content:
             application/octet-stream:
+              schema: {type: string, format: binary}
+            image/png:
+              schema: {type: string, format: binary}
+            image/jpeg:
+              schema: {type: string, format: binary}
+            image/webp:
+              schema: {type: string, format: binary}
+            application/pdf:
+              schema: {type: string, format: binary}
+            text/plain:
               schema: {type: string, format: binary}
         default: {$ref: '#/components/responses/Problem'}
 
@@ -1589,6 +1619,16 @@ paths:
           content:
             application/octet-stream:
               schema: {type: string, format: binary}
+            image/png:
+              schema: {type: string, format: binary}
+            image/jpeg:
+              schema: {type: string, format: binary}
+            image/webp:
+              schema: {type: string, format: binary}
+            application/pdf:
+              schema: {type: string, format: binary}
+            text/plain:
+              schema: {type: string, format: binary}
         default: {$ref: '#/components/responses/Problem'}
 
 components:
@@ -1826,6 +1866,17 @@ components:
       type: string
       enum: [undetermined, human_leading, agent_leading]
       description: 由系统独立依据有效真人反馈计算；算法及阈值待定，不等于发布状态
+    PublicAttachment:
+      type: object
+      additionalProperties: false
+      description: 已过审任务附件的公开投影；不含本人资产生命周期、所有者或执行信息，下载仍逐次鉴权。
+      required: [id, filename, mediaType, bytes, sha256]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        filename: {type: string}
+        mediaType: {type: string}
+        bytes: {type: integer, minimum: 0}
+        sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
     Asset:
       type: object
       additionalProperties: false
@@ -1835,10 +1886,26 @@ components:
         filename: {type: string}
         mediaType: {type: string}
         bytes: {type: integer, minimum: 0}
-        sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+        sha256:
+          type: string
+          pattern: '^([0-9a-f]{64})?$'
+          description: 服务端已验证的实际内容哈希；尚无验证结果时为空字符串，不返回客户端声明的预期值。staging必须为空，ready必须为64位小写十六进制；failed/deleted可保留已有验证结果。
         state: {type: string, enum: [staging, ready, failed, deleted]}
         createdAt: {$ref: '#/components/schemas/Timestamp'}
         completedAt: {$ref: '#/components/schemas/NullableTime'}
+      allOf:
+        - if:
+            properties:
+              state: {const: ready}
+          then:
+            properties:
+              sha256: {pattern: '^[0-9a-f]{64}$'}
+        - if:
+            properties:
+              state: {const: staging}
+          then:
+            properties:
+              sha256: {const: ''}
     UploadSession:
       type: object
       additionalProperties: false
@@ -2027,7 +2094,7 @@ components:
         description: {type: string}
         taskAttachments:
           type: array
-          items: {$ref: '#/components/schemas/Asset'}
+          items: {$ref: '#/components/schemas/PublicAttachment'}
           description: 随任务过审的描述附件，无附件时为空；下载仍检查当前可见性，云端使用权限不由此响应授予
         category: {type: [string, 'null']}
         author: {$ref: '#/components/schemas/PublicAuthor'}
@@ -2210,7 +2277,7 @@ components:
       properties:
         id: {$ref: '#/components/schemas/Id'}
         taskId: {$ref: '#/components/schemas/Id'}
-        author: {$ref: '#/components/schemas/Author'}
+        author: {$ref: '#/components/schemas/PublicAuthor'}
         body: {type: string, minLength: 1}
         createdAt: {$ref: '#/components/schemas/Timestamp'}
     ModerationInput:

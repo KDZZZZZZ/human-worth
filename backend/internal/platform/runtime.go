@@ -2,6 +2,7 @@ package platform
 
 import (
 	"context"
+	"errors"
 	"github.com/KDZZZZZZ/human-worth/backend/internal/contract"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -21,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"runtime/debug"
+	"sync"
 	"time"
 )
 
@@ -94,19 +96,37 @@ type contextServerStream struct {
 
 func (s contextServerStream) Context() context.Context { return s.ctx }
 
-// Stream applies the same method-specific deadline policy as Unary.
+// Stream bounds business RPCs; Health/Watch lives until the peer cancels.
 func (r *Runtime) Stream(service any, stream grpc.ServerStream, info *grpc.StreamServerInfo, next grpc.StreamHandler) error {
+	if info.FullMethod == "/grpc.health.v1.Health/Watch" {
+		return next(service, stream)
+	}
 	ctx, cancel := context.WithTimeout(stream.Context(), methodTimeout(info.FullMethod))
 	defer cancel()
 	return next(service, contextServerStream{ServerStream: stream, ctx: ctx})
 }
 func (r *Runtime) Health(address string, ready func(context.Context) error) *http.Server {
 	mux := http.NewServeMux()
+	var stateMu sync.Mutex
+	var observed, wasReady bool
 	mux.HandleFunc("GET /livez", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(204) })
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, request *http.Request) {
 		ctx, cancel := context.WithTimeout(request.Context(), 2*time.Second)
 		defer cancel()
-		if ready(ctx) != nil {
+		err := ready(ctx)
+		stateMu.Lock()
+		if !observed || wasReady != (err == nil) {
+			fields := []any{"ready", err == nil}
+			var dependency *dependencyHealthError
+			if errors.As(err, &dependency) {
+				fields = append(fields, "dependency", dependency.service, "connection_state", dependency.connection, "rpc_code", dependency.code, "health_status", dependency.health)
+			}
+			// Other readiness errors can contain connection strings; never log them.
+			r.Log.Info("readiness_changed", fields...)
+			observed, wasReady = true, err == nil
+		}
+		stateMu.Unlock()
+		if err != nil {
 			w.WriteHeader(503)
 			return
 		}

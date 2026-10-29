@@ -271,6 +271,10 @@ sudo systemctl enable --now human-worth-identity-deploy.timer
 
 `python3 ops/lab/validate_modules.py` 在现有 kind lab 内创建临时 `human-worth-verify-*` 命名空间，使用真实模块声明与独立 PostgreSQL，gateway 使用动态分配的私有 NodePort（不复用固定30443）。常规健康/回退检查仍有本机诊断转发；Moderation 停机隔离测试必须通过 kind 节点私网 NodePort → 正常 Service/ready endpoints，以新 TCP 连接验证不受影响的业务。此为 Agent Self-Claimed 验收方案，不接入公网、不会复用产品数据。测试源码先复制为固定快照，结束删除临时命名空间和状态文件。它覆盖真实草稿 HTTP/mTLS/数据库链路、Content 重启后读取、网络允许与拒绝路径、完成标记传播、错误镜像回退、失败迁移同 SHA 重试及重复发布。临时数据库只有一个实例，不把此结果当作生产主备切换验收。
 
+2026-10-28 的恢复修复将内部发现与业务就绪分开：`asset-discovery`、`content-discovery` 是发布未就绪 Pod 地址的专用 headless Service；原 `asset`、`content` Service 仍按 Pod Ready 过滤。Gateway → Asset/Content、Content → Asset 三条连接启用逐副本 gRPC `Health/Watch`，只把业务发给 `SERVING` 副本。发现地址不是业务健康证据；mTLS 仍验证原服务身份，NetworkPolicy 和写操作禁用自动重试保持原规则。Asset 仅新增 Gateway/Content 的 Watch 权限，Content 现有 Gateway 流式权限已覆盖 Watch；Identity 等其他依赖不全局启用健康订阅。Watch 随连接取消，不继承普通 RPC 的 2 秒服务端期限，业务流期限不变。
+
+验收脚本在原业务集合后单独执行 `TestKindDependencyRecovery`（`go test -race -tags=lab ./internal/identity -run '^TestKindDependencyRecovery$' -count=1 -timeout=600s -v`），使用同一临时环境，覆盖单健康副本与可发现的不健康副本、280 秒 S3 停机叠加 Asset Pod 替换、正常 NodePort 的文件与 Content 请求以及撤销会话拒绝。600 秒是新增长故障用例的总预算；原业务集合的 900 秒预算和 `waitGatewayEndpoints` 的 90 秒恢复判据均不变。该命令依赖脚本准备的私有状态和环境变量，不能脱离准备步骤把 SKIP 当作通过。默认完整验收会增加约数分钟故障保持时间。
+
 其他检查为 `npm run ci`、Go 的 Buf / vet / race 集成检查，以及 `go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/ci.yml .github/workflows/deploy.yml`。公网实际启用还需对应 dev SHA 的真实 Deploy 运行和公网接口证据。
 
 本轮本地执行记录（2026-09-21）：

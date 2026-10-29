@@ -79,7 +79,7 @@ func run() error {
 		if e != nil {
 			return e
 		}
-		assetConn, e = platform.GRPCClient(target, grpc.WithTransportCredentials(credentials.NewTLS(config)), grpc.WithDisableRetry(), grpc.WithDefaultServiceConfig(`{"loadBalancingConfig":[{"round_robin":{}}]}`), grpc.WithStatsHandler(otelgrpc.NewClientHandler()), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(131072), grpc.MaxCallSendMsgSize(65536)))
+		assetConn, e = platform.GRPCClient(target, grpc.WithTransportCredentials(credentials.NewTLS(config)), grpc.WithDisableRetry(), platform.HealthCheckedRoundRobin(), grpc.WithStatsHandler(otelgrpc.NewClientHandler()), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(131072), grpc.MaxCallSendMsgSize(65536)))
 		if e != nil {
 			return errors.New("asset client initialization failed")
 		}
@@ -138,9 +138,8 @@ func run() error {
 			return errors.New("identity unavailable")
 		}
 		if assetConn != nil {
-			response, err := healthpb.NewHealthClient(assetConn).Check(ctx, &healthpb.HealthCheckRequest{})
-			if err != nil || response.GetStatus() != healthpb.HealthCheckResponse_SERVING {
-				return errors.New("asset unavailable")
+			if err := platform.CheckHealth(ctx, assetConn, "asset"); err != nil {
+				return err
 			}
 		}
 		return nil

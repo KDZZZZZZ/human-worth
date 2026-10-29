@@ -442,7 +442,12 @@ func TestKindAssetDeployment(t *testing.T) {
 	waitHealth(503)
 	// An absent Pod can cause an immediate connection failure or a network
 	// timeout. Both must fail closed, preserving the P6.2 error distinction.
-	upload(reader, alice, pending, 0, cut, 503, 504)
+	// A fast 503 can close an unread 5 MiB HTTP body with TCP RST. kubectl
+	// port-forward exits on that stream error, even though the HTTP rejection
+	// was received correctly. Isolate this intentional fault from the reader's
+	// persistent tunnel; same Gateway Pod/Asset, no request retry or weaker check.
+	faultUpload := l.httpClient(l.forward("pod/asset-verify-reader", 8080))
+	upload(faultUpload, alice, pending, 0, cut, 503, 504)
 	if row := l.assetRecord(pending.Asset.ID); row.Received != 0 || row.AssetReceived != 0 || row.State != "staging" || row.SessionState != "active" {
 		t.Fatal("unavailable storage incorrectly committed chunk progress")
 	}

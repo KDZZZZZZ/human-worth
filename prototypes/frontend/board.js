@@ -58,4 +58,4 @@ let restoring=true;const positionKey=()=> 'hw-board-position:'+location.pathname
 function savePosition(){if(restoring)return;try{sessionStorage.setItem(positionKey(),String(scrollY))}catch{}}
 function restorePosition(){let y=0;try{y=Number(sessionStorage.getItem(positionKey()))||0}catch{}requestAnimationFrame(()=>{scrollTo(0,y);restoring=false;scheduleDraw()});}
 addEventListener('pagehide',savePosition);addEventListener('scroll',savePosition,{passive:true});
-const menu=document.querySelector('.menu-toggle');menu.addEventListener('click',()=>{const open=menu.getAttribute('aria-expanded')!=='true';menu.setAttribute('aria-expanded',open);document.querySelector('.nav-links').classList.toggle('is-open',open)});document.querySelector('#account-button').onclick=()=>{location.href='login.html'};
+const menu=document.querySelector('.menu-toggle');menu.addEventListener('click',()=>{const open=menu.getAttribute('aria-expanded')!=='true';menu.setAttribute('aria-expanded',open);document.querySelector('.nav-links').classList.toggle('is-open',open)});

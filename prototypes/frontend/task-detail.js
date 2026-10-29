@@ -118,7 +118,7 @@ const circles=$('#circle-lines');for(const cx of [1127,1235])for(const r of [124
 // A validated return URL survives refresh and direct navigation. List state lives in sessionStorage.
 let returnURL=new URL('discovery.html',location.href);
 try{const candidate=new URL(new URLSearchParams(location.search).get('return')||'discovery.html',location.href);if(candidate.origin===location.origin&&[returnURL.pathname,new URL('board.html',location.href).pathname].includes(candidate.pathname))returnURL=candidate;}catch{}
-const backLink=document.querySelector('#back-link');if(backLink){backLink.href=returnURL.href;if(returnURL.pathname.endsWith('/board.html'))backLink.textContent='\u2190 Back to Board';}
+const backLink=document.querySelector('#back-link');if(backLink){backLink.href=returnURL.href;if(returnURL.pathname.endsWith('/board.html'))backLink.textContent='← Back to Board';}
 // Local submission draft is an interaction sketch, not an EntryInput payload.
 const submissionDraft={side:'human',title:'',body:'',file:null};let submissionSerial=0;
 // In-memory interaction only; deliberately no EntryInput serialization or transport.
