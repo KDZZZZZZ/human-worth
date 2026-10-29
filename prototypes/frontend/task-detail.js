@@ -117,8 +117,8 @@ const menu=$('.menu-toggle'),nav=$('#nav-links');menu.onclick=()=>{const open=me
 const circles=$('#circle-lines');for(const cx of [1127,1235])for(const r of [124,177.25,230.5,283.75,337,390.25,443.5,496.75,550]){const c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',cx);c.setAttribute('cy','-84');c.setAttribute('r',r);circles.append(c);}
 // A validated return URL survives refresh and direct navigation. List state lives in sessionStorage.
 let returnURL=new URL('discovery.html',location.href);
-try{const candidate=new URL(new URLSearchParams(location.search).get('return')||'discovery.html',location.href);if(candidate.origin===location.origin&&candidate.pathname===returnURL.pathname)returnURL=candidate;}catch{}
-document.querySelectorAll('a[href="discovery.html"]').forEach(a=>a.href=returnURL.href);
+try{const candidate=new URL(new URLSearchParams(location.search).get('return')||'discovery.html',location.href);if(candidate.origin===location.origin&&[returnURL.pathname,new URL('board.html',location.href).pathname].includes(candidate.pathname))returnURL=candidate;}catch{}
+const backLink=document.querySelector('#back-link');if(backLink){backLink.href=returnURL.href;if(returnURL.pathname.endsWith('/board.html'))backLink.textContent='← Back to Board';}
 // Local submission draft is an interaction sketch, not an EntryInput payload.
 const submissionDraft={side:'human',title:'',body:'',file:null};let submissionSerial=0;
 // In-memory interaction only; deliberately no EntryInput serialization or transport.
