@@ -1,8 +1,4 @@
-const DEFAULT_API_BASE = "https://worth.oopsbox.cn/api";
-export const API_BASE = (
-  import.meta.env.VITE_API_BASE ||
-  (import.meta.env.DEV ? "/api" : DEFAULT_API_BASE)
-).replace(/\/+$/, "");
+export const API_BASE = (import.meta.env.VITE_API_BASE || "/api").replace(/\/+$/, "");
 export function apiUrl(path = "") {
   return API_BASE + (path && !path.startsWith("/") ? "/" + path : path);
 }

@@ -14,11 +14,11 @@ npm run test:import
 
 Node.js 使用项目要求的 24。Windows 测试可设置 `PLAYWRIGHT_CHANNEL=msedge` 使用已安装 Edge。
 
-默认页面地址为 http://127.0.0.1:18100 。生产构建固定请求 `https://worth.oopsbox.cn/api/*`。
+默认页面地址为 http://127.0.0.1:18100 。开发与生产构建默认均请求相对地址 `/api/*`。
 
 - 开发模式仍使用相对 `/api/*`，由 Vite 代理到公网 `https://worth.oopsbox.cn`；可用 `FRONTEND_API_ORIGIN` 指定另一后端。直接跨域请求公网会在浏览器被拦截，因为后端当前不返回 CORS 头。
 - 可用 `VITE_API_BASE` 覆盖 API 根地址，例如 `VITE_API_BASE=http://127.0.0.1:28090/api npm run dev`。开发模式直连其他来源时同样需要该来源允许跨域（含凭据）。
-- 前端部署在 `worth.oopsbox.cn` 时绝对地址与站点同源，Cookie 和 CSRF 行为不变。
+- 生产部署由同源入口将 `/api/*` 转发到内部后端，浏览器请求保持同源，Cookie 和 CSRF 行为不变。
 
 **开发模式和生产模式都使用真实 API。** 不再存在运行时模拟账号、作品、投票、评论或草稿。旧 `VITE_PREVIEW_DATA` 和浏览器 preview 开关均不能启用模拟。接口错误直接显示，不用样例数据兜底。
 
