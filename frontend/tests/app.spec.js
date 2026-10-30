@@ -403,7 +403,7 @@ test("a user can append an Agent work independently without resubmitting the ori
   expect(submitted.side).toBe("agent");
 });
 
-test("Home reads featured tasks from the API and links to Discovery", async ({
+test("Home keeps concept examples independent of task data and links to Discovery", async ({
   page,
 }) => {
   const requests = await setup(page);
@@ -411,10 +411,21 @@ test("Home reads featured tasks from the API and links to Discovery", async ({
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Who made it?What does it matter?",
   );
-  await expect(page.locator(".example")).toHaveCount(1);
-  await expect(page.locator(".example")).toContainText(task.summary);
-  await expect(page.locator(".example .document")).toContainText(task.description);
-  expect(requests.some((r) => r.path === "/api/tasks")).toBe(true);
+  await expect(page.locator(".example")).toHaveCount(2);
+  await expect.poll(() => page.locator('.library-photo img').evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+  await expect(page.locator(".concept-label")).toHaveText(['Concept example', 'Concept example']);
+  for (const [index, heading, material] of [[0, 'A library is closing.', 'Book returns remain open.'], [1, 'When the connection drops', 'clearDraft();']]) {
+    const trigger = page.getByRole('link', { name: 'View Example', exact: true }).nth(index);
+    await trigger.click();
+    await expect(page.getByRole('dialog')).toContainText(material);
+    await expect(page.getByRole('dialog').getByRole('heading', { level: 2 })).toHaveText(heading);
+    await expect(page.getByRole('dialog')).toContainText('No real task or submitted works are attached.');
+    if (index === 0) await page.keyboard.press('Escape');
+    else await page.getByRole('button', { name: 'Close preview', exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+  }
+  expect(requests.some((r) => r.path.startsWith("/api/tasks"))).toBe(false);
   await page
     .getByRole("link", { name: "Browse Tasks", exact: true })
     .first()

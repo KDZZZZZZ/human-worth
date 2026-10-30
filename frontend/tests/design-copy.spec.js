@@ -49,7 +49,7 @@ test("four pages retain design headings and editor copy while API data supplies 
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     for (const [name, route, pairs] of [
-      ["index", "/", [["#opening-title"], [".opening .intro"], [".transition h2"], [".invitation h2"]]],
+      ["index", "/", [["#opening-title"], [".opening .intro"], [".transition h2"], [".context-gallery"], [".invitation h2"]]],
       ["discovery", "/discovery", [["h1"], [".description"], ["label[for='task-search']"]]],
       ["task-detail", "/tasks/concept-library", [["h1"], [".perspectives-heading h2"], [".statistics > p"], ["#discussion .lead"], ["label[for='comment-body']", "#discussion form > label"]]],
       ["submit", "/submit?edit=fixture-submission", [["h1"], [".hero-bottom > p"], [".title-field"], [".paired-fields label:first-child"], [".paired-fields label:last-child"], [".category-field"], [".shared-input > p"], [".review-note"], ["#save", ".submit-actions .secondary"], ["#send", ".submit-actions button:last-child"]]],
