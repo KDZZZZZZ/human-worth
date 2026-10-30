@@ -18,6 +18,18 @@
 
 与明确的人类要求冲突时遵从人类要求；既有授权内能用成熟惯例解决的选择直接推进。仅在成熟参考仍无法消除实质歧义，或会产生未授权的不可逆影响、显著费用时，提出一个具体问题，同时继续独立工作。
 
+## 前端构建与自动发布（2026-10-30）
+
+缺口：前端此前依赖人工构建、上传与切换，原 `Deploy` 只判断后端版本。用户要求自动部署；具体方案属于 Agent Self-Claimed，沿用 OMEN 拉取已过 CI 的 `dev` 和云助手，不增加新的执行平台或账号。
+
+| 一手参考 / 版本 | 采用与取舍 | 验收 |
+| --- | --- | --- |
+| [官方 Node Docker 镜像](https://github.com/nodejs/docker-node)，`24.18.0-bookworm-slim`，摘要固定于 [控制器](../ops/frontend_release.py) | 使用与前端工具链相符的 Node 24；不在部署时漂移镜像版本 | 已在 OMEN 拉取对应摘要并完成真实构建 |
+| [Docker run](https://docs.docker.com/reference/cli/docker/container/run/)、[none 网络](https://docs.docker.com/engine/network/drivers/none/)、[tmpfs](https://docs.docker.com/engine/storage/tmpfs/)，2026-10-30 核实 | 普通 UID、只读根、资源限额；仅挂源码，依赖安装禁脚本，构建无网络；不把构建容器视为可信运维进程 | 测试核对实际调用参数及超时清理；受限 systemd 中实际构建成功 |
+| 本文既有 GitHub、systemd 与云助手参考 | 只接收当前 dev 的成功 CI，送达成功后校验所有摘要，再原子切换已有静态目录 | 实际临时 HTTP 与文件系统测试正常激活及失败回退；生产安装后再验云助手传输和公网 |
+
+当前不接入第三方前端托管、CDN 或自托管 Actions runner，也不改变 API 路由。可信安装与操作说明见[前端自动部署](deployment.md#frontend-deployment)。
+
 <a id="identity-layering"></a>
 ## Identity 模块内分层架构（2026-09-29）
 

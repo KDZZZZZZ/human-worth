@@ -11,6 +11,7 @@ from urllib.request import Request, urlopen
 
 from deploy import REPO, ci_passed
 from deployment_health import healthy
+from install_frontend import frontend_healthy
 sys.path.insert(0, str(Path(__file__).resolve().parent / 'lab'))
 from services import load_services
 
@@ -38,12 +39,12 @@ def wait_for_deployment(sha, checks, timeout=1800, services=()):
     deadline = time.monotonic() + timeout
     while True:
         require_current_ci(sha)
-        if healthy(sha, checks, deployed_services=services):
+        if healthy(sha, checks, deployed_services=services) and frontend_healthy(sha):
             require_current_ci(sha)
             print('Public deployment verified: ' + sha, flush=True)
             return
         if time.monotonic() >= deadline:
-            raise RuntimeError('Deployment timed out: inspect human-worth-identity-deploy.service; HTTP health and all module checks must pass')
+            raise RuntimeError('Deployment timed out: inspect human-worth-identity-deploy.service and human-worth-frontend-deploy.service; frontend files, HTTP health and all module checks must pass')
         print('Waiting for automatic deployment: ' + sha, flush=True)
         time.sleep(min(15, max(0, deadline - time.monotonic())))
 
@@ -57,4 +58,4 @@ if __name__ == '__main__':
     wait_for_deployment(options.revision, [check for spec in services.values() for check in spec['checks']], options.timeout, services)
     if summary := os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(summary, 'a') as output:
-            output.write('Deployed `' + options.revision + '` to https://worth.oopsbox.cn/; public health and registered module checks passed.\n')
+            output.write('Deployed `' + options.revision + '` to https://worth.oopsbox.cn/; frontend files/routes, public health and registered module checks passed.\n')

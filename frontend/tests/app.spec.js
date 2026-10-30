@@ -428,7 +428,7 @@ test("Board reads its API and unimplemented administration routes stay unavailab
   const requests = await setup(page);
   await page.goto("/");
   await page.getByRole("link", { name: "Board", exact: true }).click();
-  await expect(page).toHaveURL(/\/board$/);
+  await expect(page).toHaveURL(/\/board\?shown=1$/);
   await expect(page.getByRole("heading", { name: "The Gap", exact: true })).toBeVisible();
   for (const path of [
     "/admin",

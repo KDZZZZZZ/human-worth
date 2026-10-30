@@ -32,7 +32,7 @@ jobs:
           persist-credentials: false
       # The installed controller pulls successful CI every minute. Keeping this
       # workflow separate lets CI finish before the controller checks its result.
-      - name: Wait for the exact revision and registered module endpoints
+      - name: Wait for matching frontend, backend and registered module endpoints
         env:
           EXPECTED_REVISION: ${{ github.event.workflow_run.head_sha }}
           GH_TOKEN: ${{ github.token }}

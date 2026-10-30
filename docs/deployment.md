@@ -5,6 +5,7 @@
 | 要了解什么 | 阅读位置 | 状态 |
 | --- | --- | --- |
 | 线上入口、开发代理、自动部署和回退 | [当前运行环境](#current-deployment) | Identity 与 Content 草稿已发布 |
+| React 前端的 CI、OMEN 构建与 ECS 发布 | [前端自动部署](#frontend-deployment) | 配置与验证已提供；启用须完成一次性安装 |
 | Identity 安装、私有配置与验证 | [当前 lab](#identity-lab) | 首批服务已运行 |
 | CI 后发布 Content 与后续模块 | [模块自动部署](#module-deployment) | 控制器已升级，真实 Deploy Action 通过 |
 | 宿主机到进程、完整副本分布与实施顺序 | [单机 kind 实验计划](#lab-plan) | 逐模块落地 |
@@ -40,6 +41,53 @@
 | 已部署站点 | kind 应用 + systemd 发布控制器 | 浏览器 → 同源 Nginx `/api/*` → 私有 TLS 隧道 `28443 → 18443` → gateway → Identity |
 
 开发代理只接管 `/api/` 前缀，保留方法、查询参数、请求体和响应状态；上游不可达返回 502，不回退到本地 API。开发上游可由 `FRONTEND_API_ORIGIN` 覆盖。生产环境禁止 `--frontend-dev`，正常部署启动不会读取该变量。浏览器不直接连接内部地址，内部转发由服务端完成。
+
+<a id="frontend-deployment"></a>
+### React 前端自动部署（2026-10-30）
+
+用户要求配置自动前端部署。以下控制器、隔离构建和校验规则属于 Agent Self-Claimed；配置纳入仓库不代表常驻服务已安装。前端继续使用同源 `/api/*`，ECS 现有 Nginx 和私有后端隧道保持原有职责。
+
+1. PR 的 `CI` 除原有检查外，执行前端锁文件安装、设计素材导入测试、Vite 构建与全部 Playwright 浏览器测试。只有合入 `dev` 后对应 SHA 的最新 push CI 成功，才是发布候选。
+2. OMEN 的 `human-worth-frontend-deploy.timer` 每次执行结束 60 秒后重试。控制器要求候选仍是当前 `dev`，并等待 `/api/health` 的 `revision` 和 `deploymentRevision` 都等于候选。失败候选从该次尝试开始至少间隔 180 秒再试。
+3. [frontend_release.py](../ops/frontend_release.py) 复用现有 Git/CI 校验，构建仅挂载临时源码目录。固定 Node 镜像以普通 UID 运行，根文件系统只读，限制 CPU、内存和进程；安装依赖禁用生命周期脚本，执行构建时关闭网络。云凭据、宿主 home 和 Docker socket 均不进入构建容器。
+4. 控制器为产物生成 `frontend-release.json`，包含 SHA 和所有静态文件摘要。云助手只传输变化的文件；每块都等待实际送达成功。ECS 的仓库外可信 [install_frontend.py](../ops/install_frontend.py) 校验归档、复用文件和原 Nginx 配置，再原子切换 `/var/www/human-worth-frontend/current`。归档不能提供运维脚本、配置或符号链接。
+5. ECS 本机 HTTPS 与 OMEN 公网分别检查全部产物摘要、10 个 SPA 路由、5 个应为 404 的路径及后端完成版本；失败恢复原链接。只有这些检查通过才记录已部署 SHA。GitHub `Deploy` 同时验证前后端，因此仅后端更新不再显示发布成功。
+
+文件边界：最多 256 个文件、总大小 16 MiB，仅接受入口、版本标记及 `assets/`、`fonts/`、`media/` 目录。旧版保存在 `releases/`，备份记录位于非公开的 `/var/backups/human-worth/`；本控制器不自动删除历史版本。
+
+#### 一次性安装和启用
+
+按 [PR 创建授权](../AGENTS.md#pr-authorization) 取得覆盖本次改动的明确命令，完成 PR、合入 `dev` 并通过该 SHA 的 push CI 后，由操作者从该版本安装可信代码。后续前端业务提交自动发布；修改运维控制器仍需重新安装。
+
+- ECS 前置条件：当前静态前端已初始化，`current` 是指向 `releases/` 内绝对路径的链接，既有 Nginx 提供 SPA 路由、私有路径 404 和 `/api` 转发。将对应版本的 `ops/install_frontend.py` 经云助手传入并核对摘要，再以 root、0644 安装到 `/usr/local/lib/human-worth/install_frontend.py`。执行 `python3 /usr/local/lib/human-worth/install_frontend.py --inspect` 验证当前目录及配置。ECS Python 3.6 可运行此文件。
+- OMEN 前置条件：`oops` 可使用 Docker；已有 `~/.local/bin/aliyun` 账号能操作现有 cn-beijing ECS；仓库外 `deploy.py` 提供当前 Git/CI 校验函数。凭据仍留在原私有配置中，无需新增 GitHub secret。不要覆盖后端正在运行的控制器文件。
+- 重装前先停止前端 timer，并等待正在执行的前端 service 结束；首次安装时不存在该 unit 可跳过停止步骤。备份旧的受信任脚本与 unit，再从获准版本执行：
+
+```sh
+sudo install -d -o oops -g oops -m 0700 /home/oops/.local/share/human-worth-frontend
+sudo install -m 0644 ops/frontend_release.py ops/install_frontend.py /usr/local/lib/human-worth/
+sudo install -m 0644 ops/systemd/human-worth-frontend-deploy.service ops/systemd/human-worth-frontend-deploy.timer /etc/systemd/system/
+docker pull node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d
+python3 /usr/local/lib/human-worth/frontend_release.py --check-only
+sudo systemctl daemon-reload
+sudo systemctl start human-worth-frontend-deploy.service
+sudo systemctl enable --now human-worth-frontend-deploy.timer
+```
+
+`--check-only` 验证当前获准 SHA 和隔离构建，不切换线上链接。服务使用既有私有 `~/.config/human-worth/deploy.env` 网络配置；命令行验收如需代理，沿用该配置，不把值写进仓库或日志。首次 service 真实发布通过后才启用 timer。
+
+#### 查看结果与回退
+
+```sh
+systemctl list-timers human-worth-frontend-deploy.timer
+journalctl -u human-worth-frontend-deploy.service -n 80 --no-pager
+curl --fail --noproxy '*' https://worth.oopsbox.cn/frontend-release.json
+curl --fail --noproxy '*' https://worth.oopsbox.cn/api/health
+```
+
+两个版本标记必须与最新获准 SHA 一致，还需查看 GitHub `Deploy` 结果。构建、CI、送达或激活前校验失败不改动线上链接；激活后探测失败自动回退。人工紧急回退时先停前端 timer，等待 service 结束，再在 ECS 执行 `python3 /usr/local/lib/human-worth/install_frontend.py --rollback <deployment-result.json 所在备份目录>`；它只接受本安装器生成的备份，且拒绝覆盖另一轮已生效发布。后续通过 revert/修复 PR 推进新的 SHA，再恢复 timer。不可直接改写 `dev` 或公开目录内的文件。
+
+2026-10-30 本地验收覆盖实际临时文件与 HTTP 服务的发布/回退、归档与复用文件损坏、配置/版本变化、CI 与后端门禁、云助手送达状态、隔离构建和超时清理；OMEN 在受限 systemd 服务中完成真实容器构建。正式云助手传输、首次公网激活与常驻 timer 的验收需在上述安装后完成，不能用这些本地结果代替。
 
 <details>
 <summary>保留的 Node 基座：自动部署、文件权限与回退命令</summary>

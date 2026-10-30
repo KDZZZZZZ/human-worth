@@ -11,7 +11,7 @@ const categories = [...new Set(tasks.map((task) => task.category))];
 const board = { overall: totals(tasks), categories: categories.map((category) => ({ category, summary: totals(tasks.filter((task) => task.category === category)) })), computedAt: "2026-10-30T00:00:00Z" };
 const respond = (route, body, status = 200) => route.fulfill({ status, json: body });
 
-async function fixture(page, { signed = false, empty = false, failMore = false, failBoard = false } = {}) {
+async function fixture(page, { signed = false, empty = false, failMore = false, failBoard = false, taskOrder = "hot" } = {}) {
   const requests = [];
   let failedMore = false, failedBoard = false;
   await page.route("**/api/**", async (route) => {
@@ -23,7 +23,7 @@ async function fixture(page, { signed = false, empty = false, failMore = false, 
       return respond(route, empty ? { overall: totals([]), categories: [], computedAt: board.computedAt } : board);
     }
     if (url.pathname === "/api/tasks") {
-      expect(url.searchParams.get("order")).toBe("hot");
+      expect(url.searchParams.get("order")).toBe(taskOrder);
       if (failMore && url.searchParams.has("cursor") && !failedMore) { failedMore = true; return respond(route, { detail: "More tasks unavailable" }, 503); }
       const filtered = empty ? [] : tasks.filter((task) => !url.searchParams.get("category") || task.category === url.searchParams.get("category"));
       const start = Number(url.searchParams.get("cursor") || 0), end = start + Number(url.searchParams.get("limit") || 3);
@@ -74,7 +74,7 @@ test("Board zero counts are zero, and a task return cannot navigate outside the 
 });
 
 test("Login checks real session, handles cancelled callback and prevents HTTP OAuth", async ({ page }) => {
-  const requests = await fixture(page);
+  const requests = await fixture(page, { taskOrder: "recommended" });
   await page.goto("/?login=cancelled");
   await expect(page).toHaveTitle("Sign in · Human Worth");
   await expect(page.getByRole("status")).toContainText("Google sign-in was cancelled.");

@@ -177,7 +177,7 @@ class ModuleDeployTest(unittest.TestCase):
         with patch.object(deployment_health,'response',return_value=complete):
             self.assertTrue(deployment_health.healthy(sha,deployed_services=['identity','content','gateway']))
             self.assertFalse(deployment_health.healthy(sha,deployed_services=['identity','content','gateway','challenge-worker']))
-        with patch.object(verify_deployment,'require_current_ci') as gate,patch.object(verify_deployment,'healthy',side_effect=[False,True]),patch.object(verify_deployment.time,'sleep'):
+        with patch.object(verify_deployment,'require_current_ci') as gate,patch.object(verify_deployment,'healthy',side_effect=[False,True]),patch.object(verify_deployment,'frontend_healthy',return_value=True),patch.object(verify_deployment.time,'sleep'):
             verify_deployment.wait_for_deployment(sha,checks)
             self.assertEqual(gate.call_count,3)
         with patch.object(verify_deployment,'require_current_ci'),patch.object(verify_deployment,'healthy',return_value=False):
