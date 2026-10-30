@@ -40,7 +40,6 @@ jobs:
         working-directory: frontend
         env:
           NO_PROXY: 127.0.0.1,localhost
-          no_proxy: 127.0.0.1,localhost
         run: |
           npm ci --ignore-scripts
           npm run test:import
