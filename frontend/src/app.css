@@ -3,15 +3,6 @@
   border-bottom: 1px solid var(--line);
 }
 .submission-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 24px; padding: 28px 0; }
-#root .featured-materials { display: grid; gap: 32px; max-width: 900px; margin: 48px 0 24px; }
-#root .featured-materials.has-image { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
-#root .featured-materials .document { width: auto; position: static; padding: 32px; }
-#root .featured-materials .work-text { font-size: 20px; line-height: 1.6; }
-#root .example-b .featured-materials { margin-left: 32%; }
-@media (max-width: 720px) {
-  #root .featured-materials.has-image { grid-template-columns: minmax(0, 1fr); }
-  #root .example-b .featured-materials { margin-left: 0; }
-}
 .submit-page .stacks.single { grid-template-columns: minmax(0, 1fr); }
 .submission-filters label { display: block; margin-bottom: 8px; }
 .submission-filters select { min-width: 190px; padding: 12px; border: 1px solid var(--line); background: transparent; color: inherit; }
