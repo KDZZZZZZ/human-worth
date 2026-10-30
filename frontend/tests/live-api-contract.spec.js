@@ -4,7 +4,7 @@ const account = { id: 'account-contract', displayName: 'API Reader' };
 const session = { account, role: 'user', csrfToken: 'csrf-from-server' };
 const reply = (route, body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
-test('Sign in navigates to the actual auth endpoint and never sets a local session', async ({ page }) => {
+test('Sign in opens the login page without fabricating a local session', async ({ page }) => {
   const seen = [];
   await page.addInitScript(() => sessionStorage.setItem('human-worth-preview-data', 'on'));
   await page.route('**/api/**', route => {
@@ -16,9 +16,11 @@ test('Sign in navigates to the actual auth endpoint and never sets a local sessi
   });
   await page.goto('/');
   await page.getByRole('link', { name: 'Sign in', exact: true }).click();
-  await expect(page).toHaveURL(/\/api\/auth\/google$/);
-  await expect(page.getByRole('heading')).toHaveText('Authentication endpoint reached');
-  expect(seen.filter(path => path === '/api/auth/google')).toHaveLength(1);
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole('heading')).toContainText('Human Worth.');
+  await expect(page.getByRole('link', { name: 'Continue with Google' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Continue with Google' })).toBeDisabled();
+  expect(seen.filter(path => path === '/api/auth/google')).toHaveLength(0);
 });
 
 test('502 is visible and retry can recover without a fabricated authenticated state', async ({ page }) => {

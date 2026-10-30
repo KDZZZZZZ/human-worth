@@ -8,6 +8,9 @@ export default function Pager({
   moreLabel = "Load more",
   auto = false,
   onItems,
+  limit = 20,
+  initialLimit = limit,
+  moreClassName = "text-link",
 }) {
   const [items, setItems] = useState([]),
     [cursor, setCursor] = useState(null),
@@ -26,7 +29,7 @@ export default function Pager({
         path +
           (path.includes("?") ? "&" : "?") +
           new URLSearchParams({
-            limit: "20",
+            limit: String(next ? limit : initialLimit),
             ...(next ? { cursor: next } : {}),
           }),
       );
@@ -83,7 +86,7 @@ export default function Pager({
           <p role="status">Loading…</p>
         ) : (
           cursor && (
-            <button className="text-link" onClick={() => load(cursor)}>
+            <button className={moreClassName} onClick={() => load(cursor)}>
               {moreLabel}
             </button>
           )

@@ -1,9 +1,11 @@
+import { taskReturn } from "../state/taskReturn";
 export default function Page({ eyebrow, title, summary, children, hero = false }) {
+  const back = taskReturn();
   return (
     <>
       {hero && (
         <div className="utility">
-          <a href="/discovery">← Back to Discovery</a>
+          <a href={back}>{back.startsWith("/board") ? "← Back to Board" : "← Back to Discovery"}</a>
           <span className="text-link">{eyebrow}</span>
         </div>
       )}

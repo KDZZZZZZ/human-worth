@@ -1,4 +1,6 @@
-export const API_BASE = (import.meta.env.VITE_API_BASE || "/api").replace(/\/+$/, "");
+export const API_BASE = (
+  import.meta.env.VITE_API_BASE || "/api"
+).replace(/\/+$/, "");
 export function apiUrl(path = "") {
   return API_BASE + (path && !path.startsWith("/") ? "/" + path : path);
 }
@@ -6,7 +8,7 @@ const SESSION_CACHE_KEY = "human-worth:session";
 export function cachedSession() {
   try {
     const value = JSON.parse(sessionStorage.getItem(SESSION_CACHE_KEY));
-    return value && typeof value === "object" && value.account ? value : null;
+    return value && typeof value === "object" && value.account ? { account: value.account, role: value.role } : null;
   } catch {
     return null;
   }
@@ -15,7 +17,7 @@ let session;
 export function setSession(value) {
   session = value;
   try {
-    if (value) sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(value));
+    if (value) sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify({ account: value.account, role: value.role }));
     else sessionStorage.removeItem(SESSION_CACHE_KEY);
   } catch {
     // Storage can be unavailable; the in-memory session still works.

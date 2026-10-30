@@ -1,0 +1,22 @@
+.login-page{min-height:100vh;display:flex;flex-direction:column}
+.login-page .navigation{gap:20px}
+.browse-link{font-size:16px;min-height:44px;display:flex;align-items:center}
+.login-main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 20px 44px}
+.login-card{width:100%;max-width:480px;padding:42px 44px 32px;background:#F7F2EC;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 28px rgb(47 45 41 / .035);text-align:center}
+.login-brand{font-size:15px;color:var(--accent);margin-bottom:25px}
+.login-card h1{font-size:46px;line-height:1.12;letter-spacing:-1.3px}
+.login-intro{font-size:18px;color:var(--muted);margin:20px 0 28px}
+.login-status{font-size:15px;line-height:1.5;margin:0 0 18px;color:var(--muted);overflow-wrap:anywhere}
+.google-button{display:flex;align-items:center;justify-content:center;min-height:54px;width:100%;padding:12px 18px;background:var(--white);border:1px solid var(--ink);border-radius:4px;font-size:17px;font-weight:600}
+.google-button:hover{background:var(--paper);text-decoration:none}
+.google-button[aria-disabled="true"]{opacity:.65;pointer-events:none}
+.signup-note{font-size:14px;color:var(--muted);margin-top:16px}
+.account-name{font-family:var(--serif);font-size:26px;margin-bottom:20px;overflow-wrap:anywhere}
+.continue-button{width:100%}
+.login-card .text-link{display:block;margin:12px auto 0;text-align:center;font-size:16px}
+.guest-option{border-top:1px solid var(--line);margin-top:30px;padding-top:24px;display:grid;gap:6px;font-size:15px}
+.guest-option span{color:var(--muted)}
+.guest-option a{color:var(--accent);padding:6px 0}
+.login-caption{text-align:center;font:18px/1.5 var(--serif);color:var(--muted);margin-top:28px}
+.login-page .site-footer{border-top:1px solid var(--line)}
+@media(max-width:540px){.login-page .navigation{padding:18px 20px;flex-wrap:wrap}.login-page .wordmark{font-size:25px}.browse-link{font-size:14px}.login-main{padding:32px 16px}.login-card{padding:32px 24px 26px}.login-card h1{font-size:38px}.login-intro{font-size:17px}.login-caption{font-size:17px}}

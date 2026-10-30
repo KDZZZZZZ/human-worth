@@ -25,7 +25,7 @@ test("cached session skips Checking session during a full page navigation", asyn
     await page.evaluate(() =>
       sessionStorage.getItem("human-worth:session"),
     ),
-  ).toContain("csrf-cached");
+  ).not.toContain("csrf-cached");
 
   meDelay = 1200;
   await page.click('a[href="/discovery"]');

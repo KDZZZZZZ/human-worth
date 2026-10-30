@@ -1,6 +1,7 @@
 import { useRef } from "react";
 export default function SiteFooter() {
   const dialog = useRef();
+  if (location.pathname.startsWith("/login") || (location.pathname === "/" && new URLSearchParams(location.search).get("login") === "cancelled")) return <footer className="site-footer"><span>Human Worth</span><span>A little more human.</span></footer>;
   const submit = location.pathname.startsWith("/submit"),
     detail =
       location.pathname.startsWith("/tasks/") ||

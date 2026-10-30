@@ -6,7 +6,7 @@ export default function ErrorNote({ error, retry }) {
         {error.message}
         {error.code && <small> · {error.code}</small>}
         {error.status === 401 && (
-          <a className="text-link" href={apiUrl("/auth/google")}>
+          <a className="text-link" href="/login">
             Sign in with Google again
           </a>
         )}

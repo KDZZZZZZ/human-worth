@@ -14,17 +14,19 @@ npm run test:import
 
 Node.js 使用项目要求的 24。Windows 测试可设置 `PLAYWRIGHT_CHANNEL=msedge` 使用已安装 Edge。
 
-默认页面地址为 http://127.0.0.1:18100 。开发与生产构建默认均请求相对地址 `/api/*`。
+默认页面地址为 http://127.0.0.1:18100 。开发与生产均默认请求相对 `/api/*`。
 
 - 开发模式仍使用相对 `/api/*`，由 Vite 代理到公网 `https://worth.oopsbox.cn`；可用 `FRONTEND_API_ORIGIN` 指定另一后端。直接跨域请求公网会在浏览器被拦截，因为后端当前不返回 CORS 头。
 - 可用 `VITE_API_BASE` 覆盖 API 根地址，例如 `VITE_API_BASE=http://127.0.0.1:28090/api npm run dev`。开发模式直连其他来源时同样需要该来源允许跨域（含凭据）。
-- 生产部署由同源入口将 `/api/*` 转发到内部后端，浏览器请求保持同源，Cookie 和 CSRF 行为不变。
+- 部署后由同源入口转发 API，Cookie 和 CSRF 保持同源。Google 登录页仅在当前页面和认证 API 同源且为 HTTPS 时启用授权入口。
 
 **开发模式和生产模式都使用真实 API。** 不再存在运行时模拟账号、作品、投票、评论或草稿。旧 `VITE_PREVIEW_DATA` 和浏览器 preview 开关均不能启用模拟。接口错误直接显示，不用样例数据兜底。
 
 ## 登录与本地 HTTPS
 
 Google 登录使用 `GET /api/auth/google` 的正常浏览器跳转，身份和 CSRF 来自 `GET /api/me`。只有后端返回有效会话才显示 Sign out。退出调用后端；业务请求返回 401 时清除前端会话状态，保留尚未保存的输入。502、非 JSON 响应和网络错误不会被当作操作成功。
+
+会话内存持有服务端 CSRF token；sessionStorage 只缓存公开账号显示信息，不持久化 CSRF 或 OAuth 凭据。Login 始终等待 `/api/me` 重新确认身份，浏览器从后退缓存恢复页面时也重新查询。
 
 Google 回调与 `__Host-` 安全 Cookie 绑定公网 HTTPS 域名，普通 localhost HTTP 不能继承公网会话。本地登录开发可运行：
 
@@ -87,6 +89,22 @@ node scripts/dev-auth.mjs --open-only
 
 导航悬停原位放大 4%，主按钮上浮 2px；页面链接淡出 160ms、入场 360ms，保留历史和离页确认；减少动态效果设置关闭动效。所有样式保留统一顶部栏与原英文界面。
 
-本轮未 commit、push、创建 PR 或部署；得到人类明确命令后再执行。
+
 
 2026-10-29 验证：26 项浏览器协议／交互测试、4 项导入协议测试、动效脚本和生产构建均退出 0；桌面和手机截图已查看。生产包不含模拟身份、导入界面和原稿数据，开发私有路径实测返回 403。真实 API 检查退出 1：health、tasks、board 均为 502，故真人登录、数据库写入及完整业务联调仍待服务恢复后验证。证据：`artifacts/live-api/checks.json`、`artifacts/current-preview/`、`artifacts/motion/`。
+
+## Board / Login 接入（2026-10-30）
+
+- `/board`（兼容 `/board.html`）：按同步后的 Board 原稿实现 The Gap、By Kind、Most Discussed 及 SVG 滚动线条。`pages/Board.jsx` 组合 `components/board/`，`hooks/useBoardMotion.js` 管理自适应曲线、动效与滚动位置，页面 CSS 限定在 `.board-site` 内。
+- 平台和分类汇总只调用 `GET /api/board`；热榜只调用 `GET /api/tasks?order=hot&category=...&limit=...&cursor=...`。展示任务数量，不把热度或结论数显示成得票率。分类仅筛选热榜，读取和分页不访问单题 statistics 或 ballot，不改变投票资格。失败保留已加载列表并可重试。API 没有列表总数，显示已加载数量；初始返回列表最多恢复 100 件，后续继续按 3 件分页。
+- 任务详情只接受 Board / Discovery 的同站列表返回路径，拒绝外站、协议相对地址和管理/API 路径；返回保留分类与已展示数量。原稿的本地示例提示替换为真实 API 数据说明，普通运行没有示例数据兜底。
+- `/login`（兼容 `/login.html`）沿用原稿英文卡片和访客入口；`state/useLoginStore.js` 管理授权开启、取消、退出与结果未确认状态；共用 SessionProvider 和 API 层。`/?login=cancelled` 显示取消提示，不接收客户端账号或角色参数。登录请求用顶层链接 `/api/auth/google`，不 fetch Google，不在浏览器提交 OAuth 回调或自行创建身份。
+- Google 主按钮在匿名、加载和错误状态下始终展示原稿外观；本地 HTTP、加载中或接口失败时禁用，并关联状态说明，避免本地预览缺少主操作。同源 HTTPS 且会话查询正常时可点击；已有 `npm run dev:auth` 可提供 HTTPS 开发入口。浏览器契约测试用隔离 HTTPS 页面验证授权顶层导航；这不能代替真人 Google 授权，当前没有重新进行真人授权或线上写入。
+
+`tests/board-login.spec.js` 覆盖实际 HTTP 方法、热榜分页与失败重试、汇总隔离、零数据、详情安全返回、取消回调、身份校验、CSRF 退出、退出未确认及重查、401、403、404、502、HTTPS 授权导航，以及 1440 / 390 / 320px 响应布局。`node scripts/review-board-login.mjs` 在临时只读原稿服务器与 React 页面分别截图，使用相同 API 测试数据，输出 `artifacts/board-login-comparison/index.html` 和几何记录；已人工比对页面构图。Login 卡片沿用原稿样式，主按钮始终可见并按环境启用；Board 去掉本地原型提示条，内容据真实接口动态变化，共享导航保持首页规格。
+
+`node scripts/check-board-login-live.mjs` 不拦截网络，经 Vite 公网代理实测 health、board、热榜为 200，匿名 me 为 401，当前公开任务数为 0；读取没有写入或单题统计请求。证据保存在 `artifacts/board-login-live/`。真实数据中的新增任务、真人账号退出及线上发布仍需对应环境验收。
+
+PR 隔离验证使用 FRONTEND_TEST_ORIGIN 指定临时服务（默认仍为 18100）。Login 设计源尚未合入 dev，对照所需的原始 HTML/CSS/JS 逐字保存于 tests/fixtures/login-reference/，不进入生产 bundle；原稿提交号在该目录 README 中记录。
+
+2026-10-30 PR 隔离验证：基于最新 origin/dev，36 项浏览器测试、4 项导入测试、生产构建、原稿对照截图与真实 API 只读检查均退出 0。Windows 本地为 Node 26.5.1，npm 安装提示项目要求 Node 24；GitHub CI 的 Node 24 检查仍以远端运行结果为准。未重新进行真人 Google 授权或线上写入。

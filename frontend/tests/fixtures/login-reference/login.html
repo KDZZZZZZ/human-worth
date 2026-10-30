@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Sign in · Human Worth</title>
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="task-detail.css">
+  <link rel="stylesheet" href="login.css">
+  <script src="login.js" defer></script>
+<link rel="icon" type="image/png" href="/brand/logo.png"><link rel="stylesheet" href="prototype-nav.css"></head>
+<body class="login-page">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header sized-nav"><nav class="navigation" aria-label="Main navigation">
+    <a class="wordmark" href="index.html">Human Worth</a>
+    <a class="browse-link" href="discovery.html">Explore the work</a>
+  </nav></header>
+  <main id="main" class="login-main">
+    <section class="login-card" aria-labelledby="login-title">
+      <p class="login-brand">A place for human judgment.</p>
+      <h1 id="login-title">Welcome to<br>Human Worth.</h1>
+      <p class="login-intro">Bring your perspective to the work.<br>See what moves you.</p>
+      <p id="login-status" class="login-status" role="status" aria-live="polite">Checking your sign-in status…</p>
+      <div id="signed-out" hidden>
+        <a id="google-login" class="google-button" href="/api/auth/google" hidden>Continue with Google</a>
+        <p class="signup-note">New here? Your first sign-in creates your account.</p>
+      </div>
+      <div id="signed-in" hidden>
+        <p id="account-name" class="account-name"></p>
+        <a class="button continue-button" href="discovery.html">Explore the work</a>
+        <button id="logout" class="text-link" type="button">Sign out</button>
+      </div>
+      <button id="retry" class="text-link" type="button" hidden>Check again</button>
+      <noscript><p class="login-status">Enable JavaScript to check your account and continue with Google.</p></noscript>
+      <div class="guest-option"><span>Just looking around?</span><a href="discovery.html">Browse without signing in</a></div>
+    </section>
+    <p class="login-caption">Human or agent. The work speaks.<br>You decide what matters.</p>
+  </main>
+  <footer class="site-footer"><span>Human Worth</span><span>A little more human.</span></footer>
+</body>
+</html>

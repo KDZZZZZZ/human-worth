@@ -1,15 +1,14 @@
 import "../header.css";
-import { useState, useContext, useRef } from "react";
+import { useState, useContext } from "react";
 import { Auth } from "../state/contexts";
-import { api, apiUrl, setSession } from "../api";
-import BoardSummary from "./BoardSummary";
+import { api, setSession } from "../api";
 import ErrorNote from "./ErrorNote";
 export default function SiteHeader() {
   const auth = useContext(Auth),
-    [menu, setMenu] = useState(false),
-    dialog = useRef();
+    [menu, setMenu] = useState(false);
   const path = location.pathname;
-  const [boardOpen, setBoardOpen] = useState(false);
+  const login = path === "/login" || path === "/login.html" || (path === "/" && new URLSearchParams(location.search).get("login") === "cancelled");
+  if (login) return <header className="global-header"><nav className="global-navigation" aria-label="Main navigation"><a className="global-wordmark" href="/">Human Worth</a><a className="browse-link" href="/discovery">Explore the work</a></nav></header>;
 
   return (
     <header className="global-header">
@@ -40,7 +39,7 @@ export default function SiteHeader() {
           >
             Discovery
           </a>
-          <button onClick={() => { setBoardOpen(true); dialog.current.showModal(); }}>Board</button>
+          <a href="/board" aria-current={path === "/board" || path === "/board.html" ? "page" : undefined}>Board</a>
           <a
             href="/submit"
             aria-current={path === "/submit" ? "page" : undefined}
@@ -50,13 +49,14 @@ export default function SiteHeader() {
           {auth.data ? (
             <button
               className="global-account"
+              disabled={auth.loading}
               onClick={async () => {
                 try {
                   await api("/auth/logout", { method: "POST" });
                   setSession(null);
                   location.assign("/");
                 } catch (error) {
-                  auth.setAuth({ ...auth, error });
+                  auth.setAuth(error.status === 401 ? { data: null } : { ...auth, error });
                 }
               }}
             >
@@ -65,7 +65,7 @@ export default function SiteHeader() {
           ) : (
             <a
               className="global-account"
-              href={apiUrl("/auth/google")}
+              href="/login"
             >
               Sign in
             </a>
@@ -73,22 +73,6 @@ export default function SiteHeader() {
         </div>
       </nav>
       <ErrorNote error={auth.error} retry={auth.reload} />
-      <dialog ref={dialog} onClose={() => setBoardOpen(false)}>
-        <div className="dialog-top">
-          <p>Human Worth</p>
-          <button
-            aria-label="Close dialog"
-            onClick={() => dialog.current.close()}
-          >
-            ×
-          </button>
-        </div>
-        <h2>Board</h2>
-        {boardOpen && <BoardSummary />}
-        <button className="text-link" onClick={() => dialog.current.close()}>
-          Return to browsing
-        </button>
-      </dialog>
     </header>
   );
 }

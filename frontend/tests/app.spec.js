@@ -427,14 +427,11 @@ test("Board reads its API and unimplemented administration routes stay unavailab
 }) => {
   const requests = await setup(page);
   await page.goto("/");
-  await page.getByRole("button", { name: "Board", exact: true }).click();
-  await expect(page.getByRole("dialog")).toContainText(
-    "Conclusions across published tasks",
-  );
-  await page.getByRole("button", { name: "Return to browsing" }).click();
+  await page.getByRole("link", { name: "Board", exact: true }).click();
+  await expect(page).toHaveURL(/\/board$/);
+  await expect(page.getByRole("heading", { name: "The Gap", exact: true })).toBeVisible();
   for (const path of [
     "/admin",
-    "/board",
     "/me/credentials",
   ]) {
     await page.goto(path);
@@ -567,7 +564,7 @@ test("all four pages share the Home header dimensions, typography and mobile men
           page.getByRole("link", { name: "Home", exact: true }),
         ).toBeVisible();
         await expect(
-          page.getByRole("button", { name: "Board", exact: true }),
+          page.getByRole("link", { name: "Board", exact: true }),
         ).toBeVisible();
       }
     }
