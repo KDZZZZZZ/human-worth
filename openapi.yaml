@@ -100,7 +100,13 @@ paths:
       responses:
         '200': {description: JSON-RPC 结果或工具错误}
         '202': {description: 已接受通知，无响应体}
-        '400': {$ref: '#/components/responses/Problem'}
+        '400':
+          description: JSON-RPC 解析、请求、参数或协议版本错误；HTTP query 等传输校验错误使用 Problem
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/McpErrorResponse'}
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {description: 未实现的 JSON-RPC 方法}
@@ -1529,7 +1535,12 @@ paths:
         required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/RunConfiguration'}
+            schema:
+              type: object
+              additionalProperties: false
+              required: [configuration]
+              properties:
+                configuration: {$ref: '#/components/schemas/RunConfiguration'}
       responses:
         '202':
           description: 关联的新运行；相同幂等键找回同一运行
@@ -1773,6 +1784,21 @@ components:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
   schemas:
+    McpErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [jsonrpc, id, error]
+      properties:
+        jsonrpc: {type: string, const: '2.0'}
+        id: {type: [string, integer, 'null']}
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code: {type: integer}
+            message: {type: string}
+            data: {}
     Id:
       type: string
       minLength: 1
@@ -2371,14 +2397,14 @@ components:
     InitialTaskPackage:
       type: object
       additionalProperties: false
-      required: [taskRevision, taskAttachmentIds, description, workRequirements]
+      required: [taskRevision, description, workRequirements]
       properties:
         taskRevision: {type: integer, minimum: 1, description: 管理员选材依据的任务版本；不一致返回 409}
         taskAttachmentIds:
           type: array
           uniqueItems: true
           items: {$ref: '#/components/schemas/Id'}
-          description: 从该版本任务描述附件中选定的 asset ID；可为空，不接受其他作品附件或任意上传文件
+          description: 从该版本任务描述附件中选定的 asset ID；省略等同空数组，表示不选择附件，不接受其他作品附件或任意上传文件
         description: {type: string, minLength: 1, description: 管理员手写的执行任务说明，不转交用户评论、其他作品或投票结果}
         workRequirements: {type: string, minLength: 1, description: 管理员手写的作品交付要求，包括文字或文件、文件格式及内容要求}
       description: 管理员准备的初始包；启动后冻结，P 只增加执行提示，不能改动本对象；E 只接收本对象加执行提示；R 标准生成可读取本对象，正式判断不接收。修改需新运行；字段与来源校验不替代管理员核对说明是否忠实于原任务

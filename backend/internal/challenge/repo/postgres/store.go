@@ -148,6 +148,15 @@ func (t *transaction) Audit(ctx context.Context, run, actor, action, reason stri
 	return persistence(err)
 }
 func (s *Store) ListRuns(ctx context.Context, status, cursor string, limit int32) ([]*domain.Run, error) {
+	if cursor != "" {
+		var exists bool
+		if err := s.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM challenge.runs WHERE id=$1)`, cursor).Scan(&exists); err != nil {
+			return nil, persistence(err)
+		}
+		if !exists {
+			return nil, domain.Invalid("invalid_cursor")
+		}
+	}
 	rows, err := s.db.Query(ctx, `SELECT state FROM challenge.runs WHERE ($1='' OR status=$1) AND ($2='' OR (created_at,id)<(SELECT created_at,id FROM challenge.runs WHERE id=$2)) ORDER BY created_at DESC,id DESC LIMIT $3`, status, cursor, limit)
 	if err != nil {
 		return nil, persistence(err)

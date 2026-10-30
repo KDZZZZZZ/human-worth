@@ -228,6 +228,11 @@ func (h *Handler) mcp(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		result["tools"] = mcpTools()
+		if version == mcpVersions[0] {
+			// Discovery authenticates every request; do not reuse it after revocation.
+			result["ttlMs"] = 0
+			result["cacheScope"] = "private"
+		}
 	case "tools/call":
 		value, reason := h.mcpTool(r, actor.ActorAssertion, p)
 		if reason != "" {
