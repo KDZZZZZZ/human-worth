@@ -1,8 +1,8 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useRef } from "react";
 import { Auth } from "./contexts";
 
-import { api, enc, id } from "../api";
-export default function useVotingStore(taskId) {
+import { api, enc } from "../api";
+export default function useVotingStore(taskId, works) {
   const auth = useContext(Auth),
     [ballot, setBallot] = useState(null),
     [eligibility, setEligibility] = useState(null),
@@ -14,33 +14,45 @@ export default function useVotingStore(taskId) {
     [message, setMessage] = useState(""),
     [side, setSide] = useState(null),
     [positions, setPositions] = useState({ human: 0, agent: 0 });
+  const epoch = useRef(0);
   const base = "/tasks/" + enc(taskId);
   async function refresh() {
+    const version = ++epoch.current;
+    setBallot(null);
+    setSelected("");
     setError(null);
     setBusy(true);
     try {
       const e = await api(base + "/voting-eligibility");
+      if (version !== epoch.current) return;
       setEligibility(e);
       if (e.canVote) {
         const b = await api(base + "/ballot");
+        if (version !== epoch.current) return;
         setBallot(b);
         setSelected(b.currentVote?.entryId || "");
       } else setBallot(null);
     } catch (e) {
-      setError(e);
+      if (version === epoch.current) setError(e);
     } finally {
-      setBusy(false);
+      if (version === epoch.current) setBusy(false);
     }
   }
   useEffect(() => {
+    setStats(null);
+    setSelected("");
+    setMessage("");
+    setConfirm(false);
     if (auth.data) refresh();
     else {
       setBallot(null);
       setEligibility(null);
+      setBusy(false);
     }
+    return () => { epoch.current++; };
   }, [auth.data, taskId]);
-  const works = ballot?.entries;
   async function vote() {
+    if (!eligibility?.canVote || !ballot || !ballot.entries.some((w) => w.id === selected)) return;
     setBusy(true);
     setError(null);
     try {
@@ -66,6 +78,7 @@ export default function useVotingStore(taskId) {
     }
   }
   async function statistics() {
+    epoch.current++;
     setConfirm(false);
     setBusy(true);
     setBallot(null);

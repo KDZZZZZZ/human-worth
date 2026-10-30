@@ -1,7 +1,7 @@
 import { Auth } from "./contexts";
 import { useState, useEffect, useRef, useContext } from "react";
 
-import { emptyWork } from "./models";
+import { emptyWork, missingWorkFields } from "./models";
 import { api, enc, id } from "../api";
 export default function useSubmissionStore() {
   const auth = useContext(Auth);
@@ -78,6 +78,10 @@ export default function useSubmissionStore() {
     setError(null);
     try {
       let saved = record;
+      if (review) {
+        const unfinished = draft.entries.map((work, index) => ({ work, index, missing: missingWorkFields(work) })).filter(item => item.missing.length);
+        if (unfinished.length) throw Error(unfinished.map(({ work, index, missing }) => `Work ${index + 1} (${work.title || 'Untitled work'}): ${missing.join('; ')}.`).join(' '));
+      }
       if (
         review &&
         !task &&

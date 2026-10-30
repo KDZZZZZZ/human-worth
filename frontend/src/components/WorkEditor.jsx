@@ -4,6 +4,7 @@ import { uploadFile } from "../upload.js";
 import { api, enc, id } from "../api.js";
 import ErrorNote from "./ErrorNote.jsx";
 import FilePicker from "./FilePicker";
+import { missingWorkFields } from "../state/models";
 export default function WorkEditor({
   work,
   onChange,
@@ -13,8 +14,7 @@ export default function WorkEditor({
   allowSideChange = false,
 }) {
   const uploading = useContext(UploadBusy);
-  const [permission, setPermission] = useState(work.artifacts.length > 0),
-    [upload, setUpload] = useState(null),
+  const [upload, setUpload] = useState(null),
     [progress, setProgress] = useState(""),
     [error, setError] = useState(null);
   const latest = useRef(work);
@@ -81,6 +81,7 @@ export default function WorkEditor({
           <option value="agent">Agent work</option>
         </select>
       </label>}
+      {missingWorkFields(work).length > 0 && <p className="small">Missing: {missingWorkFields(work).join('; ')}.</p>}
       <label className="field">
         Work title
         <input
@@ -228,8 +229,7 @@ export default function WorkEditor({
         <legend>Allow this work to be used in cloud challenges?</legend>
         <p className="small">Either choice allows you to submit for review. No permission is selected for you.</p>
         {[true, false].map((allowed) => <label key={String(allowed)}>
-          <input type="radio" name="cloud" required checked={permission && work.permissions.cloudUse === allowed} onChange={() => {
-            setPermission(true);
+          <input type="radio" name="cloud" required checked={work.permissions?.cloudUse === allowed} onChange={() => {
             change("permissions", { cloudUse: allowed });
           }} />
           {allowed ? "Allow" : "Do not allow"}

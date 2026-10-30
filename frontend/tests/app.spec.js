@@ -172,7 +172,7 @@ test("statistics requires confirmation and failed response still preserves perma
   await expect(
     page.getByText("Voting is permanently closed for this task.", { exact: false }),
   ).toBeVisible();
-  await expect(page.locator(".chapter-cover")).toHaveCount(0);
+  await expect(page.locator(".chapter-cover")).toHaveCount(2);
   await expect(page.getByRole("link", { name: "Add a work ↗" })).toBeVisible();
 });
 test("conflict invalidates old ballot and requires reload", async ({
@@ -183,7 +183,7 @@ test("conflict invalidates old ballot and requires reload", async ({
   await chooseLastHuman(page);
   await page.getByRole("button", { name: "Confirm my choice" }).click();
   await expect(page.getByText("候选已更新")).toBeVisible();
-  await expect(page.locator(".chapter-cover")).toHaveCount(0);
+  await expect(page.locator(".chapter-cover")).toHaveCount(2);
   await page.getByRole("button", { name: "Reload all works" }).click();
   await expect(page.locator(".chapter-cover")).toHaveCount(2);
 });

@@ -176,7 +176,7 @@ export default function Submit() {
                         One shared task.
                       </>
                     }
-                    note={additional ? 'Submit one complete work. The original task remains unchanged.' : 'Gather your works here. Both chapters need a complete work before review.'}
+                    note={additional ? 'Submit one complete work. The original task remains unchanged.' : 'Add at least one Human and one Agent work. Every added work must be complete before review.'}
                   />
                   <div className={additional ? "stacks single" : "stacks"}>
                     {sides.map((side) => (
@@ -224,9 +224,9 @@ export default function Submit() {
                       </p>
                       <p className="small">
                         {draft.entries.filter((w) => w.side === "human").length}{" "}
-                        Human ·{" "}
+                        Human added ({draft.entries.filter(w => w.side === 'human' && isCompleteWork(w)).length} complete) ·{" "}
                         {draft.entries.filter((w) => w.side === "agent").length}{" "}
-                        Agent · {draft.taskAttachments?.length || 0} shared
+                        Agent added ({draft.entries.filter(w => w.side === 'agent' && isCompleteWork(w)).length} complete) · {draft.taskAttachments?.length || 0} shared
                         files
                       </p>
                       <button
@@ -253,7 +253,7 @@ export default function Submit() {
                             className={complete(side) ? "complete" : ""}
                             key={side}
                           >
-                            At least one complete {side === "human" ? "Human" : "Agent"} work
+                            {side === "human" ? "Human" : "Agent"} works: at least one added, all complete
                           </li>
                         ))}
                         <li

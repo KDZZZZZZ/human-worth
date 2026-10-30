@@ -59,6 +59,8 @@ node scripts/dev-auth.mjs --open-only
 
 统计操作要求显式确认永久禁投；普通浏览不读取具体票数。来源、作品正文及后端错误内容不翻译。品牌和浏览器标题固定为 Human Worth。
 
+任务作品阅读由 `state/usePublicWorks.js` 独立调用公开 `/api/tasks/{taskId}/entries`，按 `nextCursor` 读取全部页；匿名、可投票和永久禁投账号共用阅读器。ballot 仅决定能否选择并提交偏好，统计、资格查询失败或清空 ballot 都不清空作品。重载失败保留已读取内容并允许重试；普通阅读不读取统计。`tests/public-works.spec.js` 覆盖禁投后的阅读、刷新、重载、重新登录、新增过审作品、分页和失败重试；这些为浏览器契约测试，未代替真实账号与数据库验收。
+
 未实现完整管理后台、挑战管理和 MCP 凭据管理页面。Board 当前是已有导航弹窗中的真实汇总，并非完整独立排行榜页面。
 
 ## 设计稿数据导入
@@ -108,3 +110,5 @@ node scripts/dev-auth.mjs --open-only
 PR 隔离验证使用 FRONTEND_TEST_ORIGIN 指定临时服务（默认仍为 18100）。Login 设计源尚未合入 dev，对照所需的原始 HTML/CSS/JS 逐字保存于 tests/fixtures/login-reference/，不进入生产 bundle；原稿提交号在该目录 README 中记录。
 
 2026-10-30 PR 隔离验证：基于最新 origin/dev，36 项浏览器测试、4 项导入测试、生产构建、原稿对照截图与真实 API 只读检查均退出 0。Windows 本地为 Node 26.5.1，npm 安装提示项目要求 Node 24；GitHub CI 的 Node 24 检查仍以远端运行结果为准。未重新进行真人 Google 授权或线上写入。
+
+Submit 就绪规则与 Content 的 `validate`、`bundleRequired` 和 `workBodyRequired` 对齐：新任务双方至少各一件，本次送审的每件作品都需完整；追加作品单件送审。章节与封面分别显示已添加数、完整数；缺失项在作品登记、编辑器和送审错误中定位。云端权限允许与拒绝均有效，但新作品须明确选择。服务端仍负责文件就绪、归属和其他契约校验；前端就绪提示不代表服务端已接受。

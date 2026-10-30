@@ -1,4 +1,4 @@
-import { isCompleteWork } from "../state/models";
+import { isCompleteWork, missingWorkFields } from "../state/models";
 export default function WorkChapter({ side, works, add, edit, canAdd }) {
   return (
     <section className={"chapter " + side}>
@@ -32,6 +32,7 @@ export default function WorkChapter({ side, works, add, edit, canAdd }) {
                 <p className="small">
                   {(w.artifacts.find((a) => a.kind === "text")?.text || "").trim().split(/\s+/).filter(Boolean).length} words · {isCompleteWork(w) ? "Complete locally" : "Needs attention"}
                 </p>
+                {!isCompleteWork(w) && <p className="small">Missing: {missingWorkFields(w).join('; ')}. Select the work title to edit.</p>}
               </div>
             </div>
           ))
@@ -53,7 +54,7 @@ export default function WorkChapter({ side, works, add, edit, canAdd }) {
       <p className="chapter-readiness">
         {works.length && works.every(isCompleteWork)
           ? "✓ " + works.length + " complete in this draft"
-          : "At least one complete work needed"}
+          : works.length ? `${works.filter(isCompleteWork).length} of ${works.length} complete. Complete or remove every unfinished work before review.` : "Add at least one work. Every added work must be complete before review."}
       </p>
     </section>
   );

@@ -18,9 +18,9 @@ export default function WorkReader({
         <h3>{work.title}</h3>
         <p className="small">{work.source}</p>
         <div className="work-actions">
-          <button className="text-link" aria-pressed={selected} onClick={choose}>
+          {choose && <button className="text-link" aria-pressed={selected} onClick={choose}>
             {selected ? "Selected · Cancel selection" : "Choose this work"}
-          </button>
+          </button>}
           <Report kind="entry" target={work.id} />
         </div>
         <p className="leaf-foot">
