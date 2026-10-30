@@ -10,12 +10,17 @@ import Login from "./pages/Login";
 import usePageTransition from "./hooks/usePageTransition";
 import { lazy, Suspense } from "react";
 const ImportDesign = import.meta.env.DEV ? lazy(() => import("./pages/ImportDesign")) : null;
+const AdminConsole = lazy(() => import("./admin/AdminConsole"));
 export default function App() {
   usePageTransition();
   const path = location.pathname;
   const login = path === "/login" || path === "/login.html" || (path === "/" && new URLSearchParams(location.search).get("login") === "cancelled");
   const board = path === "/board" || path === "/board.html";
   const home = !login && (path === "/" || path === "/index.html");
+  if (/^\/admin(?:\/|$)/.test(path) || (import.meta.env.DEV && /^\/admin-preview(?:\/|$)/.test(path))) {
+    return <Suspense fallback={<p role="status">Loading administration…</p>}><AdminConsole /></Suspense>;
+  }
+
   return (
     <div
       className={

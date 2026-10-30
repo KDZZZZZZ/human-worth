@@ -46,6 +46,7 @@ export default function SiteHeader() {
           >
             Submit
           </a>
+          {auth.data?.role === 'admin' && <a href="/admin">Admin</a>}
           {auth.data ? (
             <button
               className="global-account"
